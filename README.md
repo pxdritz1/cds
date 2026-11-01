@@ -34,7 +34,7 @@ gere a paleta material 3 a partir de um wallpaper:
 matugen -c "$PWD/matugen/config.toml" image "$HOME/Pictures/wallpaper.jpg" -m dark
 ```
 
-a paleta é escrita em `~/.config/chloe-dynamic-shell/generated/colors.json`. a configuração não altera o wallpaper por conta própria.
+a paleta é escrita em `~/.config/chloe-dynamic-shell/generated/colors.json`. a configuração não altera o wallpaper por conta própria. nesta etapa, a shell ainda usa os tokens de fallback; a leitura e a atualização em tempo real da paleta entram na fase da dynamic island.
 
 ## estrutura
 
