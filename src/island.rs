@@ -61,7 +61,7 @@ pub fn view() -> LayerWindow {
                 .padding(12.0)
                 .on_click(island_clicked)
                 .on_scroll(change_volume)
-                .child(content),
+                .child(Column::new(vec![content])),
         )
 }
 
@@ -252,8 +252,8 @@ fn system_controls(audio: &Audio) -> Box<dyn Widget> {
     );
     let workspace_count = workspaces.list().len();
 
-    Box::new(
-        Column::new(children![
+    let controls: Vec<Box<dyn Widget>> = vec![
+        Box::new(
             Rectangle::new()
                 .width(Parent)
                 .height(40.0)
@@ -267,10 +267,11 @@ fn system_controls(audio: &Audio) -> Box<dyn Widget> {
                 })
                 .padding(10.0)
                 .child(Text::new(status).size(11.0).color(theme::ON_SURFACE)),
-            tile("áreas de trabalho", &format!("{workspace_count} espaços detectados")),
-        ])
-        .gap(6.0),
-    )
+        ),
+        tile("áreas de trabalho", &format!("{workspace_count} espaços detectados")),
+    ];
+
+    Box::new(Column::new(controls).gap(6.0))
 }
 
 fn app_launcher() -> Box<dyn Widget> {
