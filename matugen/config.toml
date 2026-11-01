@@ -1,0 +1,7 @@
+[config]
+[config.wallpaper]
+set = false
+
+[templates.chloe_dynamic_shell]
+input_path = "matugen/templates/colors.json"
+output_path = "~/.config/chloe-dynamic-shell/generated/colors.json"
