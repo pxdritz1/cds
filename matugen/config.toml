@@ -1,5 +1,4 @@
 [config]
-# a shell controla a aplicação do wallpaper; o matugen fica responsável pela paleta.
 [config.wallpaper]
 set = false
 
