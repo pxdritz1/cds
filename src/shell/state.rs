@@ -17,6 +17,9 @@ pub struct ShellState {
 
 impl Service for ShellState {
     fn new() -> Self {
-        Self { overlay: None, revealed: false }
+        Self {
+            overlay: None,
+            revealed: false,
+        }
     }
 }

@@ -57,16 +57,27 @@ pub fn view() -> LayerWindow {
         Some(Overlay::Clipboard) => page_shell(
             "área de transferência",
             Overlay::Clipboard,
-            boxed(tile("integração pendente", "o histórico de clipboard ainda não está conectado")),
+            boxed(tile(
+                "integração pendente",
+                "o histórico de clipboard ainda não está conectado",
+            )),
         ),
         Some(Overlay::Power) => page_shell(
             "energia",
             Overlay::Power,
-            boxed(tile("opções de energia", "os comandos de sessão serão integrados aqui")),
+            boxed(tile(
+                "opções de energia",
+                "os comandos de sessão serão integrados aqui",
+            )),
         ),
         None if has_media => player(&media),
         None if visible => compact(&notifications),
-        None => boxed(Rectangle::new().width(Parent).height(Parent).fill(amane::Color::rgba(0, 0, 0, 0))),
+        None => boxed(
+            Rectangle::new()
+                .width(Parent)
+                .height(Parent)
+                .fill(amane::Color::rgba(0, 0, 0, 0)),
+        ),
     };
 
     LayerWindow::new()
@@ -76,8 +87,16 @@ pub fn view() -> LayerWindow {
         .layer(Layer::Overlay)
         .namespace("cds-island")
         .visible(true)
-        .space(if expanded { amane::Zone::Ignore } else { amane::Zone::Reserve })
-        .keyboard(if expanded { Keyboard::OnDemand } else { Keyboard::None })
+        .space(if expanded {
+            amane::Zone::Ignore
+        } else {
+            amane::Zone::Reserve
+        })
+        .keyboard(if expanded {
+            Keyboard::OnDemand
+        } else {
+            Keyboard::None
+        })
         .on_key(key_pressed)
         .margin(amane::Margin {
             top: 8,
@@ -90,7 +109,11 @@ pub fn view() -> LayerWindow {
                 .width(Parent)
                 .height(Parent)
                 .radius(if expanded { 32.0 } else { 28.0 })
-                .fill(if visible { theme::SURFACE } else { amane::Color::rgba(0, 0, 0, 0) })
+                .fill(if visible {
+                    theme::SURFACE
+                } else {
+                    amane::Color::rgba(0, 0, 0, 0)
+                })
                 .border(if visible { 1.0 } else { 0.0 }, theme::OUTLINE)
                 .on_hover(set_revealed)
                 .padding(if expanded { PANEL_PADDING } else { 10.0 })
@@ -144,12 +167,18 @@ fn page_shell(title: &str, selected: Overlay, body: Box<dyn Widget>) -> Box<dyn 
     let header = Row::new(vec![
         boxed(
             Column::new(children![
-                Text::new("chloe dynamic shell").size(11.0).color(theme::ON_SURFACE_VARIANT),
+                Text::new("chloe dynamic shell")
+                    .size(11.0)
+                    .color(theme::ON_SURFACE_VARIANT),
                 Text::new(title).size(23.0).color(theme::ON_SURFACE),
             ])
             .gap(1.0),
         ),
-        boxed(Text::new(clock.time.as_str()).size(27.0).color(theme::PRIMARY)),
+        boxed(
+            Text::new(clock.time.as_str())
+                .size(27.0)
+                .color(theme::PRIMARY),
+        ),
     ])
     .width(Parent)
     .height(48.0)
@@ -171,7 +200,12 @@ fn navigation_bar(selected: Overlay) -> Row {
         boxed(nav_item("◫", "visão geral", Overlay::Dashboard, selected)),
         boxed(nav_item("⌕", "aplicativos", Overlay::Launcher, selected)),
         boxed(nav_item("☷", "controles", Overlay::ControlCenter, selected)),
-        boxed(nav_item("◉", "notificações", Overlay::Notifications, selected)),
+        boxed(nav_item(
+            "◉",
+            "notificações",
+            Overlay::Notifications,
+            selected,
+        )),
     ])
     .width(Parent)
     .height(42.0)
@@ -201,11 +235,7 @@ fn nav_item(glyph: &str, label: &str, target: Overlay, selected: Overlay) -> Rec
         )
 }
 
-fn dashboard(
-    media: &Media,
-    audio: &Audio,
-    notifications: &Notifications,
-) -> Box<dyn Widget> {
+fn dashboard(media: &Media, audio: &Audio, notifications: &Notifications) -> Box<dyn Widget> {
     let clock = Clock::read();
 
     let hero = Row::new(vec![
@@ -217,13 +247,10 @@ fn dashboard(
     .height(126.0)
     .gap(GRID_GAP);
 
-    let main = Row::new(vec![
-        boxed(calendar_card(&clock)),
-        boxed(media_card(media)),
-    ])
-    .width(Parent)
-    .height(310.0)
-    .gap(GRID_GAP);
+    let main = Row::new(vec![boxed(calendar_card(&clock)), boxed(media_card(media))])
+        .width(Parent)
+        .height(310.0)
+        .gap(GRID_GAP);
 
     let footer = Row::new(vec![
         boxed(system_card()),
@@ -252,8 +279,12 @@ fn clock_card(clock: &Clock) -> Rectangle {
         Parent,
         theme::PRIMARY_CONTAINER,
         Column::new(children![
-            Text::new("agora").size(11.0).color(theme::ON_PRIMARY_CONTAINER),
-            Text::new(clock.time.as_str()).size(43.0).color(theme::ON_PRIMARY_CONTAINER),
+            Text::new("agora")
+                .size(11.0)
+                .color(theme::ON_PRIMARY_CONTAINER),
+            Text::new(clock.time.as_str())
+                .size(43.0)
+                .color(theme::ON_PRIMARY_CONTAINER),
             Text::new(clock.date.as_str())
                 .size(12.0)
                 .color(theme::ON_PRIMARY_CONTAINER)
@@ -271,8 +302,12 @@ fn weather_card() -> Rectangle {
         Row::new(children![
             Text::new("☁").size(48.0).color(theme::TERTIARY),
             Column::new(children![
-                Text::new("clima").size(12.0).color(theme::ON_SURFACE_VARIANT),
-                Text::new("sem previsão").size(19.0).color(theme::ON_SURFACE),
+                Text::new("clima")
+                    .size(12.0)
+                    .color(theme::ON_SURFACE_VARIANT),
+                Text::new("sem previsão")
+                    .size(19.0)
+                    .color(theme::ON_SURFACE),
                 Text::new("integração ainda não conectada")
                     .size(10.0)
                     .color(theme::ON_SURFACE_VARIANT)
@@ -287,7 +322,12 @@ fn weather_card() -> Rectangle {
 
 fn user_card() -> Rectangle {
     let username = std::env::var("USER").unwrap_or_else(|_| "usuária".into());
-    let initial = username.chars().next().unwrap_or('U').to_uppercase().to_string();
+    let initial = username
+        .chars()
+        .next()
+        .unwrap_or('U')
+        .to_uppercase()
+        .to_string();
     let session = if std::env::var_os("NIRI_SOCKET").is_some() {
         "niri · wayland"
     } else {
@@ -305,11 +345,22 @@ fn user_card() -> Rectangle {
                 .radius(29.0)
                 .fill(theme::PRIMARY_CONTAINER)
                 .align_child(Center, Center)
-                .child(Text::new(initial).size(27.0).color(theme::ON_PRIMARY_CONTAINER)),
+                .child(
+                    Text::new(initial)
+                        .size(27.0)
+                        .color(theme::ON_PRIMARY_CONTAINER)
+                ),
             Column::new(children![
-                Text::new(username).size(18.0).color(theme::ON_SURFACE).elide(),
-                Text::new(session).size(11.0).color(theme::ON_SURFACE_VARIANT),
-                Text::new(uptime_label()).size(10.0).color(theme::ON_SURFACE_VARIANT),
+                Text::new(username)
+                    .size(18.0)
+                    .color(theme::ON_SURFACE)
+                    .elide(),
+                Text::new(session)
+                    .size(11.0)
+                    .color(theme::ON_SURFACE_VARIANT),
+                Text::new(uptime_label())
+                    .size(10.0)
+                    .color(theme::ON_SURFACE_VARIANT),
             ])
             .gap(3.0),
         ])
@@ -319,20 +370,21 @@ fn user_card() -> Rectangle {
 }
 
 fn calendar_card(clock: &Clock) -> Rectangle {
-    let first_weekday = (clock.weekday.saturating_sub(1) + 7 - (clock.day.saturating_sub(1) % 7)) % 7;
+    let first_weekday =
+        (clock.weekday.saturating_sub(1) + 7 - (clock.day.saturating_sub(1) % 7)) % 7;
     let month_days = days_in_month(clock.month, clock.year);
 
-    let mut content: Vec<Box<dyn Widget>> = vec![
-        boxed(
-            Row::new(children![
-                Text::new(clock.month_label.as_str()).size(16.0).color(theme::ON_SURFACE),
-                Text::new("hoje").size(10.0).color(theme::PRIMARY),
-            ])
-            .width(Parent)
-            .height(24.0)
-            .justify(amane::SpaceBetween),
-        ),
-    ];
+    let mut content: Vec<Box<dyn Widget>> = vec![boxed(
+        Row::new(children![
+            Text::new(clock.month_label.as_str())
+                .size(16.0)
+                .color(theme::ON_SURFACE),
+            Text::new("hoje").size(10.0).color(theme::PRIMARY),
+        ])
+        .width(Parent)
+        .height(24.0)
+        .justify(amane::SpaceBetween),
+    )];
 
     let weekdays = ["seg", "ter", "qua", "qui", "sex", "sáb", "dom"];
     let weekday_cells = weekdays
@@ -341,10 +393,7 @@ fn calendar_card(clock: &Clock) -> Rectangle {
         .collect();
 
     content.push(boxed(
-        Row::new(weekday_cells)
-            .width(Parent)
-            .height(20.0)
-            .gap(4.0),
+        Row::new(weekday_cells).width(Parent).height(20.0).gap(4.0),
     ));
 
     let mut weeks: Vec<Box<dyn Widget>> = Vec::new();
@@ -363,12 +412,7 @@ fn calendar_card(clock: &Clock) -> Rectangle {
             )));
         }
 
-        weeks.push(boxed(
-            Row::new(days)
-                .width(Parent)
-                .height(25.0)
-                .gap(4.0),
-        ));
+        weeks.push(boxed(Row::new(days).width(Parent).height(25.0).gap(4.0)));
     }
 
     content.push(boxed(Column::new(weeks).width(Parent).gap(4.0)));
@@ -396,11 +440,15 @@ fn calendar_cell(label: Option<&str>, selected: bool, weekend: bool) -> Rectangl
         .radius(13.0)
         .fill(fill)
         .align_child(Center, Center)
-        .child(Text::new(label.unwrap_or("")).size(11.0).color(if selected {
-            theme::ON_PRIMARY_CONTAINER
-        } else {
-            theme::ON_SURFACE_VARIANT
-        }))
+        .child(
+            Text::new(label.unwrap_or(""))
+                .size(11.0)
+                .color(if selected {
+                    theme::ON_PRIMARY_CONTAINER
+                } else {
+                    theme::ON_SURFACE_VARIANT
+                }),
+        )
 }
 
 fn days_in_month(month: u32, year: i32) -> u32 {
@@ -447,7 +495,10 @@ fn media_card(media: &Media) -> Rectangle {
         boxed(
             Column::new(children![
                 Text::new(title).size(14.0).color(theme::ON_SURFACE).elide(),
-                Text::new(artist).size(11.0).color(theme::ON_SURFACE_VARIANT).elide(),
+                Text::new(artist)
+                    .size(11.0)
+                    .color(theme::ON_SURFACE_VARIANT)
+                    .elide(),
             ])
             .width(Parent)
             .gap(4.0),
@@ -460,7 +511,9 @@ fn media_card(media: &Media) -> Rectangle {
 
     let controls = Row::new(children![
         media_button("‹", |_| Media::previous()),
-        media_button(if media.playing() { "Ⅱ" } else { "▶" }, |_| Media::play_pause()),
+        media_button(if media.playing() { "Ⅱ" } else { "▶" }, |_| {
+            Media::play_pause()
+        }),
         media_button("›", |_| Media::next()),
     ])
     .width(Parent)
@@ -473,7 +526,11 @@ fn media_card(media: &Media) -> Rectangle {
         310.0,
         theme::SURFACE_CONTAINER_HIGH,
         Column::new(vec![
-            boxed(Text::new("reprodução").size(11.0).color(theme::ON_SURFACE_VARIANT)),
+            boxed(
+                Text::new("reprodução")
+                    .size(11.0)
+                    .color(theme::ON_SURFACE_VARIANT),
+            ),
             boxed(details),
             boxed(progress(media, 0.0)),
             boxed(controls),
@@ -503,7 +560,11 @@ fn system_card() -> Rectangle {
         Parent,
         theme::SURFACE_CONTAINER,
         Column::new(vec![
-            boxed(Text::new("sistema").size(11.0).color(theme::ON_SURFACE_VARIANT)),
+            boxed(
+                Text::new("sistema")
+                    .size(11.0)
+                    .color(theme::ON_SURFACE_VARIANT),
+            ),
             boxed(meter_line("cpu", cpu)),
             boxed(meter_line("memória", memory)),
         ])
@@ -519,7 +580,9 @@ fn meter_line(label: &str, value: u8) -> Column {
         boxed(
             Row::new(children![
                 Text::new(label).size(10.0).color(theme::ON_SURFACE_VARIANT),
-                Text::new(format!("{value}%")).size(10.0).color(theme::ON_SURFACE),
+                Text::new(format!("{value}%"))
+                    .size(10.0)
+                    .color(theme::ON_SURFACE),
             ])
             .width(Parent)
             .justify(amane::SpaceBetween),
@@ -553,8 +616,12 @@ fn audio_card(audio: &Audio) -> Rectangle {
         Parent,
         theme::PRIMARY_CONTAINER,
         Column::new(children![
-            Text::new("áudio").size(11.0).color(theme::ON_PRIMARY_CONTAINER),
-            Text::new(format!("{volume}%")).size(27.0).color(theme::ON_PRIMARY_CONTAINER),
+            Text::new("áudio")
+                .size(11.0)
+                .color(theme::ON_PRIMARY_CONTAINER),
+            Text::new(format!("{volume}%"))
+                .size(27.0)
+                .color(theme::ON_PRIMARY_CONTAINER),
             Text::new(format!("microfone · {mic}%"))
                 .size(10.0)
                 .color(theme::ON_PRIMARY_CONTAINER),
@@ -573,18 +640,30 @@ fn connectivity_card() -> Rectangle {
     let network = Network::read();
     let bluetooth = Bluetooth::read();
     let wifi_label = if network.connected() {
-        if network.ssid().is_empty() { "conectada" } else { network.ssid() }
+        if network.ssid().is_empty() {
+            "conectada"
+        } else {
+            network.ssid()
+        }
     } else {
         "desconectada"
     };
-    let bluetooth_label = if bluetooth.powered() { "ativo" } else { "desligado" };
+    let bluetooth_label = if bluetooth.powered() {
+        "ativo"
+    } else {
+        "desligado"
+    };
 
     card(
         Parent,
         Parent,
         theme::SURFACE_CONTAINER,
         Column::new(vec![
-            boxed(Text::new("conexões").size(11.0).color(theme::ON_SURFACE_VARIANT)),
+            boxed(
+                Text::new("conexões")
+                    .size(11.0)
+                    .color(theme::ON_SURFACE_VARIANT),
+            ),
             boxed(
                 Rectangle::new()
                     .width(Parent)
@@ -596,10 +675,16 @@ fn connectivity_card() -> Rectangle {
                         let enabled = Network::read().wifi_enabled();
                         Network::set_wifi(!enabled);
                     })
-                    .child(Row::new(children![
-                        Text::new("⌁").size(15.0).color(theme::PRIMARY),
-                        Text::new(wifi_label).size(10.0).color(theme::ON_SURFACE).elide(),
-                    ]).gap(5.0)),
+                    .child(
+                        Row::new(children![
+                            Text::new("⌁").size(15.0).color(theme::PRIMARY),
+                            Text::new(wifi_label)
+                                .size(10.0)
+                                .color(theme::ON_SURFACE)
+                                .elide(),
+                        ])
+                        .gap(5.0),
+                    ),
             ),
             boxed(
                 Rectangle::new()
@@ -612,13 +697,16 @@ fn connectivity_card() -> Rectangle {
                         let enabled = Bluetooth::read().powered();
                         Bluetooth::set_powered(!enabled);
                     })
-                    .child(Row::new(children![
-                        Text::new("ᛒ").size(14.0).color(theme::PRIMARY),
-                        Text::new(format!("bluetooth · {bluetooth_label}"))
-                            .size(10.0)
-                            .color(theme::ON_SURFACE)
-                            .elide(),
-                    ]).gap(5.0)),
+                    .child(
+                        Row::new(children![
+                            Text::new("ᛒ").size(14.0).color(theme::PRIMARY),
+                            Text::new(format!("bluetooth · {bluetooth_label}"))
+                                .size(10.0)
+                                .color(theme::ON_SURFACE)
+                                .elide(),
+                        ])
+                        .gap(5.0),
+                    ),
             ),
         ])
         .gap(3.0),
@@ -638,9 +726,16 @@ fn notifications_card(notifications: &Notifications) -> Rectangle {
         Parent,
         theme::SURFACE_CONTAINER,
         Column::new(children![
-            Text::new("notificações").size(11.0).color(theme::ON_SURFACE_VARIANT),
-            Text::new(count.to_string()).size(27.0).color(theme::ON_SURFACE),
-            Text::new(summary).size(10.0).color(theme::ON_SURFACE_VARIANT).elide(),
+            Text::new("notificações")
+                .size(11.0)
+                .color(theme::ON_SURFACE_VARIANT),
+            Text::new(count.to_string())
+                .size(27.0)
+                .color(theme::ON_SURFACE),
+            Text::new(summary)
+                .size(10.0)
+                .color(theme::ON_SURFACE_VARIANT)
+                .elide(),
         ])
         .gap(1.0),
     )
@@ -667,7 +762,10 @@ fn launcher_page() -> Box<dyn Widget> {
                         .on_click(move |_| launch.launch())
                         .child(
                             Column::new(children![
-                                Text::new(app.name()).size(14.0).color(theme::ON_SURFACE).elide(),
+                                Text::new(app.name())
+                                    .size(14.0)
+                                    .color(theme::ON_SURFACE)
+                                    .elide(),
                                 Text::new(app.description().unwrap_or("aplicativo"))
                                     .size(10.0)
                                     .color(theme::ON_SURFACE_VARIANT)
@@ -680,19 +778,24 @@ fn launcher_page() -> Box<dyn Widget> {
             .collect();
 
         while tiles.len() < 3 {
-            tiles.push(boxed(Rectangle::new().width(Parent).height(76.0).fill(amane::Color::rgba(0, 0, 0, 0))));
+            tiles.push(boxed(
+                Rectangle::new()
+                    .width(Parent)
+                    .height(76.0)
+                    .fill(amane::Color::rgba(0, 0, 0, 0)),
+            ));
         }
 
         rows.push(boxed(
-            Row::new(tiles)
-                .width(Parent)
-                .height(76.0)
-                .gap(GRID_GAP),
+            Row::new(tiles).width(Parent).height(76.0).gap(GRID_GAP),
         ));
     }
 
     if rows.is_empty() {
-        rows.push(boxed(tile("carregando aplicativos", "a lista de aplicativos está sendo atualizada")));
+        rows.push(boxed(tile(
+            "carregando aplicativos",
+            "a lista de aplicativos está sendo atualizada",
+        )));
     }
 
     page_shell(
@@ -712,63 +815,101 @@ fn control_center_page(audio: &Audio) -> Box<dyn Widget> {
     let battery = Battery::read();
 
     let rows = vec![
-        boxed(Row::new(vec![
-            boxed(control_tile(
-                "volume",
-                &format!("{}%", audio.volume()),
-                "◖",
-                !audio.muted(),
-                |_| Audio::toggle_mute(),
-            )),
-            boxed(control_tile(
-                "microfone",
-                &format!("{}%", audio.microphone_volume()),
-                "⌁",
-                !audio.microphone_muted(),
-                |_| Audio::toggle_microphone_mute(),
-            ).on_scroll(change_microphone)),
-        ]).width(Parent).height(126.0).gap(GRID_GAP)),
-        boxed(Row::new(vec![
-            boxed(control_tile(
-                "wi-fi",
-                if network.wifi_enabled() { "ligado" } else { "desligado" },
-                "⌁",
-                network.wifi_enabled(),
-                |_| {
-                    let enabled = Network::read().wifi_enabled();
-                    Network::set_wifi(!enabled);
-                },
-            )),
-            boxed(control_tile(
-                "bluetooth",
-                if bluetooth.powered() { "ligado" } else { "desligado" },
-                "ᛒ",
-                bluetooth.powered(),
-                |_| {
-                    let enabled = Bluetooth::read().powered();
-                    Bluetooth::set_powered(!enabled);
-                },
-            )),
-        ]).width(Parent).height(126.0).gap(GRID_GAP)),
-        boxed(Row::new(vec![
-            boxed(control_tile(
-                "brilho",
-                if brightness.present() { format!("{}%", brightness.percent()) } else { "indisponível".into() },
-                "☼",
-                brightness.present(),
-                |_| {
-                    let current = Brightness::read().percent();
-                    Brightness::set(if current >= 90 { 25 } else { current.saturating_add(10) });
-                },
-            )),
-            boxed(control_tile(
-                "bateria",
-                if battery.present() { format!("{}%", battery.percent()) } else { "sem bateria".into() },
-                "▰",
-                battery.present(),
-                |_| {},
-            )),
-        ]).width(Parent).height(126.0).gap(GRID_GAP)),
+        boxed(
+            Row::new(vec![
+                boxed(control_tile(
+                    "volume",
+                    &format!("{}%", audio.volume()),
+                    "◖",
+                    !audio.muted(),
+                    |_| Audio::toggle_mute(),
+                )),
+                boxed(
+                    control_tile(
+                        "microfone",
+                        &format!("{}%", audio.microphone_volume()),
+                        "⌁",
+                        !audio.microphone_muted(),
+                        |_| Audio::toggle_microphone_mute(),
+                    )
+                    .on_scroll(change_microphone),
+                ),
+            ])
+            .width(Parent)
+            .height(126.0)
+            .gap(GRID_GAP),
+        ),
+        boxed(
+            Row::new(vec![
+                boxed(control_tile(
+                    "wi-fi",
+                    if network.wifi_enabled() {
+                        "ligado"
+                    } else {
+                        "desligado"
+                    },
+                    "⌁",
+                    network.wifi_enabled(),
+                    |_| {
+                        let enabled = Network::read().wifi_enabled();
+                        Network::set_wifi(!enabled);
+                    },
+                )),
+                boxed(control_tile(
+                    "bluetooth",
+                    if bluetooth.powered() {
+                        "ligado"
+                    } else {
+                        "desligado"
+                    },
+                    "ᛒ",
+                    bluetooth.powered(),
+                    |_| {
+                        let enabled = Bluetooth::read().powered();
+                        Bluetooth::set_powered(!enabled);
+                    },
+                )),
+            ])
+            .width(Parent)
+            .height(126.0)
+            .gap(GRID_GAP),
+        ),
+        boxed(
+            Row::new(vec![
+                boxed(control_tile(
+                    "brilho",
+                    if brightness.present() {
+                        format!("{}%", brightness.percent())
+                    } else {
+                        "indisponível".into()
+                    },
+                    "☼",
+                    brightness.present(),
+                    |_| {
+                        let current = Brightness::read().percent();
+                        Brightness::set(if current >= 90 {
+                            25
+                        } else {
+                            current.saturating_add(10)
+                        });
+                    },
+                )),
+                boxed(control_tile(
+                    "bateria",
+                    if battery.present() {
+                        format!("{}%", battery.percent())
+                    } else {
+                        "sem bateria".into()
+                    },
+                    "▰",
+                    battery.present(),
+                    |_| {},
+                )),
+            ])
+            .width(Parent)
+            .height(126.0)
+            .gap(GRID_GAP),
+        ),
     ];
 
     page_shell(
@@ -791,7 +932,11 @@ fn control_tile(
     card(
         Parent,
         Parent,
-        if active { theme::PRIMARY_CONTAINER } else { theme::SURFACE_CONTAINER },
+        if active {
+            theme::PRIMARY_CONTAINER
+        } else {
+            theme::SURFACE_CONTAINER
+        },
         Row::new(children![
             Text::new(glyph).size(31.0).color(if active {
                 theme::ON_PRIMARY_CONTAINER
@@ -830,7 +975,11 @@ fn notifications_page(notifications: &Notifications) -> Box<dyn Widget> {
                 .fill(theme::PRIMARY_CONTAINER)
                 .align_child(Center, Center)
                 .on_click(|_| Notifications::clear())
-                .child(Text::new("limpar notificações").size(12.0).color(theme::ON_PRIMARY_CONTAINER)),
+                .child(
+                    Text::new("limpar notificações")
+                        .size(12.0)
+                        .color(theme::ON_PRIMARY_CONTAINER),
+                ),
         ));
     }
 
@@ -850,7 +999,10 @@ fn notifications_page(notifications: &Notifications) -> Box<dyn Widget> {
                 .child(
                     Column::new(children![
                         Text::new(title).size(13.0).color(theme::ON_SURFACE).elide(),
-                        Text::new(body).size(11.0).color(theme::ON_SURFACE_VARIANT).elide(),
+                        Text::new(body)
+                            .size(11.0)
+                            .color(theme::ON_SURFACE_VARIANT)
+                            .elide(),
                     ])
                     .gap(4.0),
                 ),
@@ -858,7 +1010,10 @@ fn notifications_page(notifications: &Notifications) -> Box<dyn Widget> {
     }
 
     if entries.is_empty() {
-        entries.push(boxed(tile("tudo em dia", "você não tem notificações novas")));
+        entries.push(boxed(tile(
+            "tudo em dia",
+            "você não tem notificações novas",
+        )));
     }
 
     page_shell(
@@ -878,7 +1033,10 @@ fn tile(title: &str, detail: &str) -> Rectangle {
         theme::SURFACE_CONTAINER,
         Column::new(children![
             Text::new(title).size(13.0).color(theme::ON_SURFACE),
-            Text::new(detail).size(11.0).color(theme::ON_SURFACE_VARIANT).elide(),
+            Text::new(detail)
+                .size(11.0)
+                .color(theme::ON_SURFACE_VARIANT)
+                .elide(),
         ])
         .gap(4.0),
     )
@@ -909,7 +1067,9 @@ fn compact(notifications: &Notifications) -> Box<dyn Widget> {
                         .align_child(Center, Center)
                         .child(Text::new("✦").size(18.0).color(theme::ON_PRIMARY_CONTAINER)),
                     Column::new(children![
-                        Text::new("chloe's shell").size(13.0).color(theme::ON_SURFACE),
+                        Text::new("chloe's shell")
+                            .size(13.0)
+                            .color(theme::ON_SURFACE),
                         Text::new(label).size(11.0).color(theme::ON_SURFACE_VARIANT),
                     ])
                     .gap(1.0),
@@ -949,7 +1109,11 @@ fn player(media: &Media) -> Box<dyn Widget> {
             .child(Text::new("♫").size(24.0).color(theme::ON_PRIMARY_CONTAINER))
     };
 
-    let title = if media.title().is_empty() { "sem título" } else { media.title() };
+    let title = if media.title().is_empty() {
+        "sem título"
+    } else {
+        media.title()
+    };
     let artist = if media.artist().is_empty() {
         media.active().map_or("reprodutor", |p| p.identity())
     } else {
@@ -961,11 +1125,16 @@ fn player(media: &Media) -> Box<dyn Widget> {
             cover,
             Column::new(children![
                 Text::new(title).size(14.0).color(theme::ON_SURFACE).elide(),
-                Text::new(artist).size(12.0).color(theme::ON_SURFACE_VARIANT).elide(),
+                Text::new(artist)
+                    .size(12.0)
+                    .color(theme::ON_SURFACE_VARIANT)
+                    .elide(),
                 progress(media, phase),
             ])
             .gap(3.0),
-            media_button(if media.playing() { "Ⅱ" } else { "▶" }, |_| Media::play_pause()),
+            media_button(if media.playing() { "Ⅱ" } else { "▶" }, |_| {
+                Media::play_pause()
+            }),
         ])
         .gap(12.0),
     )
@@ -994,7 +1163,10 @@ fn progress(media: &Media, phase: f32) -> Canvas {
         .stroke(2.0, theme::OUTLINE)
         .cap(Cap::Round);
 
-    Canvas::new().width(width).height(14.0).shapes(shapes![remainder, active])
+    Canvas::new()
+        .width(width)
+        .height(14.0)
+        .shapes(shapes![remainder, active])
 }
 
 fn change_volume(scroll: Scroll) {
