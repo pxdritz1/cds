@@ -4,7 +4,7 @@ use std::sync::OnceLock;
 use std::time::{Duration, Instant};
 
 use amane::{
-    Animation, Apps, Audio, Battery, Bluetooth, Button, Canvas, Cap, Column, Cpu, Easing, Image, Key, Keyboard, Layer,
+    Animation, Apps, Audio, Battery, Bluetooth, Button, Canvas, Cap, Column, Cpu, Easing, Full, Image, Key, Keyboard, Layer,
     LayerWindow, Media, Memory, Network, Notifications, Parent, Path as DrawPath, Rectangle, Row,
     Scroll, ScrollArea, Service, Shape, Text, Vertical, Widget, Workspaces, children, request_frame,
     shapes,
@@ -20,6 +20,7 @@ pub fn view() -> LayerWindow {
     let notifications = Notifications::read();
 
     let expanded = state.overlay == Some(Overlay::Dashboard);
+    let visible = state.revealed || expanded || has_media;
     let has_media = !media.title().is_empty();
     let target_height = if expanded {
         540.0
@@ -52,6 +53,7 @@ pub fn view() -> LayerWindow {
         .height(height)
         .anchor_vertical(Vertical::Top)
         .layer(Layer::Overlay)
+        .visible(visible)
         .keyboard(if expanded { Keyboard::OnDemand } else { Keyboard::None })
         .on_key(key_pressed)
         .margin(amane::Margin {
@@ -67,11 +69,31 @@ pub fn view() -> LayerWindow {
                 .radius(if expanded { 32.0 } else { 28.0 })
                 .fill(theme::SURFACE)
                 .border(1.0, theme::OUTLINE)
+                .on_hover(set_revealed)
                 .padding(if expanded { 18.0 } else { 10.0 })
                 .on_click(island_clicked)
                 .on_scroll(change_volume)
                 .child(Column::new(vec![content])),
         )
+}
+
+pub fn reveal() -> LayerWindow {
+    LayerWindow::new()
+        .width(Full)
+        .height(4.0)
+        .anchor_vertical(Vertical::Top)
+        .layer(Layer::Overlay)
+        .child(
+            Rectangle::new()
+                .width(Parent)
+                .height(4.0)
+                .fill(amane::Color::rgba(0, 0, 0, 0))
+                .on_hover(set_revealed),
+        )
+}
+
+fn set_revealed(inside: bool) {
+    ShellState::write().revealed = inside;
 }
 
 fn compact(notifications: &Notifications) -> Box<dyn Widget> {
@@ -232,7 +254,7 @@ fn dash(media: &Media, audio: &Audio, notifications: &Notifications) -> Box<dyn 
         sections.push(player(media));
     }
 
-    sections.push(section_title("seus aplicativos"));
+    sections.push(section_title("acesso rápido"));
     sections.push(app_launcher());
 
     sections.push(section_title("notificações"));
@@ -278,33 +300,40 @@ fn system_cards(audio: &Audio) -> Box<dyn Widget> {
     let network_label = if network.connected() { "conectada" } else { "desconectada" };
     let bluetooth_label = if bluetooth.powered() { "ativo" } else { "inativo" };
 
-    Box::new(Column::new(vec![
+    let rows: Vec<Box<dyn Widget>> = vec![
         Box::new(Row::new(children![
-            info_card("som", &format!("{volume}%{}", if audio.muted() { " · mudo" } else { "" }), "◖", true),
-            info_card("wi-fi", network_label, "⌁", false),
+            info_card("áudio", &format!("{volume}%{}", if audio.muted() { " · mudo" } else { "" }), "◖", true),
+            info_card("rede", network_label, "⌁", false),
+        ]).gap(10.0)),
+        Box::new(Row::new(children![
             info_card("bluetooth", bluetooth_label, "ᛒ", false),
             info_card("bateria", &battery_label, "▰", false),
-        ]).gap(8.0)),
+        ]).gap(10.0)),
         Box::new(Row::new(children![
             info_card("processador", &format!("{}%", cpu.percent()), "◌", false),
             info_card("memória", &format!("{}%", memory.percent()), "▤", false),
-            info_card("espaços", &format!("{} ativos", workspaces.list().len()), "▦", false),
-        ]).gap(8.0)),
-    ]).gap(8.0))
+        ]).gap(10.0)),
+        Box::new(Row::new(children![
+            info_card("espaços de trabalho", &format!("{} ativos", workspaces.list().len()), "▦", false),
+            tile("atalhos rápidos", "launcher · controles · notificações"),
+        ]).gap(10.0)),
+    ];
+
+    Box::new(Column::new(rows).gap(10.0))
 }
 
 fn info_card(title: &str, value: &str, glyph: &str, volume: bool) -> Rectangle {
     let card = Rectangle::new()
         .width(Parent)
-        .height(76.0)
-        .radius(20.0)
+        .height(104.0)
+        .radius(24.0)
         .fill(if volume { theme::PRIMARY_CONTAINER } else { theme::SURFACE_CONTAINER })
-        .padding(10.0)
+        .padding(14.0)
         .child(
             Column::new(children![
-                Text::new(glyph).size(16.0).color(if volume { theme::ON_PRIMARY_CONTAINER } else { theme::PRIMARY }),
-                Text::new(title).size(10.0).color(if volume { theme::ON_PRIMARY_CONTAINER } else { theme::ON_SURFACE_VARIANT }),
-                Text::new(value).size(13.0).color(if volume { theme::ON_PRIMARY_CONTAINER } else { theme::ON_SURFACE }),
+                Text::new(glyph).size(25.0).color(if volume { theme::ON_PRIMARY_CONTAINER } else { theme::PRIMARY }),
+                Text::new(title).size(11.0).color(if volume { theme::ON_PRIMARY_CONTAINER } else { theme::ON_SURFACE_VARIANT }),
+                Text::new(value).size(18.0).color(if volume { theme::ON_PRIMARY_CONTAINER } else { theme::ON_SURFACE }),
             ])
             .gap(1.0),
         );
