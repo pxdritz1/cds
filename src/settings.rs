@@ -13,6 +13,8 @@ pub struct Settings {
     scheme: String,
     dark: bool,
     directory: PathBuf,
+    // where the weather reads its forecast from, "lat,lon", empty is auto
+    location: String,
     wallpapers: Vec<String>,
 }
 
@@ -23,6 +25,7 @@ impl Service for Settings {
             scheme: String::from("scheme-tonal-spot"),
             dark: true,
             directory: home_directory("HOME", "").join("Pictures/Wallpapers"),
+            location: String::new(),
             wallpapers: Vec::new(),
         };
 
@@ -56,6 +59,66 @@ impl Settings {
 
     pub fn scheme_name(&self) -> &str {
         self.scheme.as_str()
+    }
+
+    // where the wallpaper tab reads its images from
+    pub fn directory_path(&self) -> &str {
+        self.directory.to_str().unwrap_or("")
+    }
+
+    // the weather coordinates, empty when the ip decides where we are
+    pub fn location(&self) -> &str {
+        &self.location
+    }
+
+    // MIME of the location, "lat,lon" pairs only, so weather reads it safely
+    pub fn coordinates(&self) -> Option<(f32, f32)> {
+        let (latitude, longitude) = self.location.trim().split_once(',')?;
+
+        Some((
+            latitude.trim().parse().ok()?,
+            longitude.trim().parse().ok()?,
+        ))
+    }
+
+    // moves the wallpaper source directory, rescanning right away
+    pub fn set_directory(path: &str) -> String {
+        if fs::metadata(path).is_err() {
+            return format!("failed: no directory at {path}");
+        }
+
+        let mut settings = Self::write();
+
+        settings.directory = PathBuf::from(path);
+        settings.save();
+
+        settings.scan();
+
+        String::from("ok")
+    }
+
+    // sets the weather spot, "lat,lon"; empty puts it back on auto
+    pub fn set_location(location: &str) -> String {
+        let location = location.trim().to_lowercase();
+
+        if !location.is_empty() {
+            let Some((latitude, longitude)) = location.split_once(',') else {
+                return "failed: use latitude,longitude like -20.44,-54.65".into();
+            };
+
+            if latitude.trim().parse::<f32>().is_err()
+                || longitude.trim().parse::<f32>().is_err()
+            {
+                return "failed: latitude and longitude are numbers".into();
+            }
+        }
+
+        let mut settings = Self::write();
+
+        settings.location = location;
+        settings.save();
+
+        String::from("ok")
     }
 
     pub fn set_wallpaper(path: &str) -> String {
@@ -136,6 +199,7 @@ impl Settings {
                 "scheme" => self.scheme = String::from(value),
                 "dark" => self.dark = value != "false",
                 "directory" => self.directory = PathBuf::from(value),
+                "location" => self.location = String::from(value),
                 _ => {}
             }
         }
@@ -149,11 +213,12 @@ impl Settings {
         }
 
         let text = format!(
-            "wallpaper={}\nscheme={}\ndark={}\ndirectory={}\n",
+            "wallpaper={}\nscheme={}\ndark={}\ndirectory={}\nlocation={}\n",
             self.wallpaper,
             self.scheme,
             self.dark,
-            self.directory.display()
+            self.directory.display(),
+            self.location,
         );
 
         let _ = fs::write(file, text);
@@ -218,6 +283,20 @@ pub fn command(arguments: &[String]) -> String {
             None => format!("scheme={}", Settings::read().scheme),
         },
 
+        // moves the wallpaper source directory, the tab rescans right away
+        "directory" => match rest.join(" ").trim() {
+            "" => format!("directory={}", Settings::read().directory_path()),
+            path => Settings::set_directory(path),
+        },
+
+        // the weather coordinates, empty back on auto by ip
+        "location" => match rest.join(" ").trim() {
+            "" => format!("location={}", Settings::read().location()),
+            // the empty words goes back to the ip deciding
+            "auto" | "ip" => Settings::set_location(""),
+            spot => Settings::set_location(spot),
+        },
+
         // regenerates matugen for the shell and every external app template
         "refresh" => {
             let settings = Settings::read();
@@ -243,6 +322,6 @@ pub fn command(arguments: &[String]) -> String {
 
 fn usage() -> String {
     String::from(
-        "usage: settings wallpaper [image|nothing] | wallpapers | dark [true|false|toggle] | scheme [name] | refresh",
+        "usage: settings wallpaper [image] | wallpapers | dark [true|false|toggle] | scheme [name] | directory [path] | location [lat,lon|auto] | refresh",
     )
 }

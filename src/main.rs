@@ -7,6 +7,7 @@ mod motion;
 mod overlay;
 mod power;
 mod settings;
+mod settingsview;
 mod theme;
 mod tray;
 mod ui;
@@ -24,6 +25,7 @@ fn main() {
         .window_per_monitor(launcher::view)
         .window_per_monitor(clipboard::view)
         .window_per_monitor(power::view)
+        .window_per_monitor(settingsview::view)
         .ipc("theme", theme::command)
         .ipc("island", ui::command)
         .ipc("settings", settings::command)

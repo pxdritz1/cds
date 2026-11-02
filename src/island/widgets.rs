@@ -1,6 +1,8 @@
 use std::time::Duration;
 
-use amane::{Color, Parent, Rectangle, Service, Stack, Text, Widget};
+use amane::{
+    Canvas, Color, Parent, Path, Rectangle, Service, Shape, Stack, Text, Widget,
+};
 
 use crate::motion;
 use crate::theme::{mix, Scheme, Theme};
@@ -33,7 +35,11 @@ pub const CHECK: &str = "\u{e5ca}";
 // tray and menus
 pub const EXPAND_MORE: &str = "\u{e5cf}";
 pub const TUNE: &str = "\u{e429}";
-pub const PALETTE: &str = "\u{e40a}";
+pub const OPEN_NEW: &str = "\u{e89e}";
+
+// appearance
+pub const DARK_MODE: &str = "\u{e51c}";
+pub const LIGHT_MODE: &str = "\u{e518}";
 
 // weather
 pub const SUNNY: &str = "\u{e81a}";
@@ -96,6 +102,48 @@ pub fn card(width: f32, fill: Color) -> Rectangle {
         .fill(fill)
         .radius(24.0)
         .padding(16.0)
+}
+
+/*
+ * the material 3 expressive cookie shape: a circle whose edge scallops
+ * `lobes` bumps around it, drawn as a closed path sampled in polar
+ * coordinates. depth is how deep the notches between the bumps cut.
+ */
+pub fn cookie(lobes: f32, size: f32, fill: Color) -> Canvas {
+    const STEPS: usize = 96;
+
+    let radius = size / 2.0;
+
+    // notches take about a twelfth of the radius, so bumps read but stay soft
+    let depth = radius * 0.09;
+
+    let sample = |angle: f32| {
+        let wave = (lobes * angle).cos();
+
+        radius - depth + depth * wave
+    };
+
+    let mut path = Path::new();
+
+    for step in 0..=STEPS {
+        let angle = std::f32::consts::TAU * step as f32 / STEPS as f32;
+
+        let (sin, cos) = angle.sin_cos();
+
+        let x = radius + radius * 0.0 + sample(angle) * cos;
+        let y = radius + sample(angle) * sin;
+
+        if step == 0 {
+            path = path.move_to(x, y);
+        } else {
+            path = path.line_to(x, y);
+        }
+    }
+
+    Canvas::new()
+        .width(size)
+        .height(size)
+        .shapes(vec![Box::new(path.fill(fill))])
 }
 
 // a material filter chip, animating its container and label between states

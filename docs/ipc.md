@@ -13,10 +13,10 @@ amane ipc call <serviço> <ação...>
 | `island toggle`                    | abre/fecha o dash                        |
 | `island open [aba]`                | abre o dash na aba dada                  |
 | `island close`                     | fecha o dash e a tray                    |
-| `island tray`                      | abre/fecha a tray de apps                |
+| `island tray`                      | abre/fecha a tray de apps em 2º plano    |
 
-Abas aceitas: `overview`, `media`, `wallpapers`, `alerts`, `apps`,
-`settings` (ou `ajustes`).
+Abas aceitas: `overview`, `media`, `wallpapers`, `alerts`, `weather`
+(ou `clima`), `settings` (ou `ajustes`).
 
 ## overlay — as ilhas de ferramentas
 
@@ -25,6 +25,7 @@ Abas aceitas: `overview`, `media`, `wallpapers`, `alerts`, `apps`,
 | `overlay launcher`                 | abre/fecha o launcher de apps            |
 | `overlay clipboard`                | abre/fecha o histórico de clipboard      |
 | `overlay power`                    | abre/fecha o menu de energia             |
+| `overlay settings`                 | abre/fecha o painel de Ajustes           |
 | `overlay close`                    | fecha o que estiver aberto               |
 | `overlay panel`                    | diz qual painel está aberto (ou `none`)  |
 
@@ -37,25 +38,38 @@ Abas aceitas: `overview`, `media`, `wallpapers`, `alerts`, `apps`,
 | `settings wallpapers`              | lista as imagens do diretório            |
 | `settings dark true|false|toggle`  | modo escuro/claro (regenera tudo)        |
 | `settings scheme <nome>`           | troca o esquema matugen e regenera       |
+| `settings scheme`                  | mostra o esquema atual                   |
+| `settings directory <pasta>`       | muda a pasta de onde a dash lê imagens   |
+| `settings directory`               | mostra a pasta atual                     |
+| `settings location <lat,lon>`      | fixa as coordenadas do clima             |
+| `settings location auto`           | volta ao automático pelo ip              |
+| `settings location`                | mostra o lugar atual (vazio = auto)      |
 | `settings refresh`                 | roda o matugen de novo sem mudar nada    |
 
 Esquemas válidos: `scheme-tonal-spot`, `scheme-content`,
 `scheme-expressive`, `scheme-neutral`, `scheme-vibrant`,
 `scheme-rainbow`, `scheme-fruit-salad`, `scheme-fidelity`.
 
-## tray — apps fixados na barra
+Tudo aqui é o mesmo que o painel de Ajustes (`overlay settings`)
+configura visualmente: aparência, pasta de papéis de parede e lugar
+do clima.
+
+## tray — apps em segundo plano
+
+A tray mostra as janelas que o niri conhece — os apps rodando em
+segundo plano ou parados em outro workspace — com o ícone real do
+.desktop de cada um.
 
 | Comando                            | Efeito                                   |
 |------------------------------------|------------------------------------------|
 | `tray toggle`                      | abre/fecha o menu                        |
 | `tray close`                       | fecha o menu                             |
-| `tray pin "Nome do App"`           | fixa um app (nome do .desktop)           |
-| `tray unpin "Nome do App"`          | desafixa                                 |
-| `tray list`                        | lista os apps fixados                    |
+| `tray list`                        | lista as janelas ativas (id + título)    |
+| `tray focus <id>`                  | levanta a janela (como o clique na tray) |
+| `tray close-window <id>`           | fecha a janela (como o menu Fechar)      |
 
-A lista fixada vive em `~/.config/chloe-dynamic-shell/tray.conf`,
-um nome por linha. Numa primeira instalação, sem arquivo, a tray mostra
-um menu padrão com os apps comuns que já estiverem instalados.
+Na interface: clique esquerdo levanta a janela, clique direito abre
+o menu com **Abrir** e **Fechar**.
 
 ## theme — cor crua (sem tocar no wallpaper)
 
@@ -84,12 +98,13 @@ amane ipc call overlay launcher
 # trocar de wallpaper
 amane ipc call settings wallpaper ~/Pictures/Wallpapers/dragona.png
 
-# forçar modo claro
-amane ipc call settings dark false
+# abrir o painel de Ajustes (visual)
+amane ipc call overlay settings
 
-# ver a cada quanto esquema estamos
-amane ipc call settings scheme
+# fixar o lugar do clima pelas coordenadas
+amane ipc call settings location -20.44,-54.65
 
-# fixar o firefox na tray
-amane ipc call tray pin firefox
+# ver quem está em segundo plano e levantar uma janela
+amane ipc call tray list
+amane ipc call tray focus 8
 ```

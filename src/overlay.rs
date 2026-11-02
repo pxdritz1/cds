@@ -14,6 +14,7 @@ pub enum Panel {
     Launcher,
     Clipboard,
     Power,
+    Settings,
 }
 
 impl Panel {
@@ -23,6 +24,7 @@ impl Panel {
             Panel::Launcher => "launcher",
             Panel::Clipboard => "clipboard",
             Panel::Power => "power",
+            Panel::Settings => "settings",
         }
     }
 }
@@ -267,11 +269,13 @@ pub fn command(arguments: &[String]) -> String {
         "launcher" => crate::launcher::Launcher::toggle(),
         "clipboard" => crate::clipboard::Clipboard::toggle(),
         "power" => crate::power::Power::toggle(),
+        "settings" => crate::settingsview::SettingsView::toggle(),
 
         "toggle" => match rest.first().map(String::as_str) {
             Some("launcher") => crate::launcher::Launcher::toggle(),
             Some("clipboard") => crate::clipboard::Clipboard::toggle(),
             Some("power") => crate::power::Power::toggle(),
+            Some("settings") => crate::settingsview::SettingsView::toggle(),
             _ => return usage(),
         },
 
@@ -286,5 +290,5 @@ pub fn command(arguments: &[String]) -> String {
 }
 
 fn usage() -> String {
-    String::from("usage: overlay launcher|clipboard|power | toggle <panel> | close | panel")
+    String::from("usage: overlay launcher|clipboard|power|settings | toggle <panel> | close | panel")
 }

@@ -1,18 +1,18 @@
 use amane::{
-    Apps, Audio, Battery, Brightness, Button, Center, Column, Cpu, End, Image, Media, Memory,
-    Notifications, Parent, Pointer, Rectangle, Row, ScrollArea, Service, SpaceBetween, Widget,
+    Audio, Battery, Brightness, Center, Column, Cpu, End, Image, Media, Memory,
+    Notifications, Parent, Pointer, Rectangle, Row, ScrollArea, Service, SpaceBetween, Stack,
+    Widget,
 };
 
 use crate::art::{artwork, media_labels};
 use crate::clock::Clock;
 use crate::settings::Settings;
-use crate::theme::{Scheme, mix};
-use crate::tray::Tray;
+use crate::theme::Scheme;
 use crate::ui::{Tab, Ui};
-use crate::weather::Weather;
+use crate::weather::{Hour, Weather};
 
 use super::widgets::{
-    APPS, BELL, BRIGHTNESS, CLOSE, DROP, MUTED, NEXT, PAUSE, PLAY, PREVIOUS, VOLUME, WALLPAPER,
+    BELL, BRIGHTNESS, CLOSE, DROP, MUTED, NEXT, PAUSE, PLAY, PREVIOUS, VOLUME, WALLPAPER,
     AIR, boxed, card, chip, icon, icon_button, label, progress, round_button, slider, text,
 };
 
@@ -30,8 +30,8 @@ pub fn view(scheme: &Scheme, tab: Tab, alpha: f32) -> Rectangle {
         (Tab::Overview, "Overview"),
         (Tab::Media, "Media"),
         (Tab::Wallpapers, "Wallpapers"),
-        (Tab::Alerts, "Alerts"),
-        (Tab::Apps, "Apps"),
+        (Tab::Alerts, "Alertas"),
+        (Tab::Weather, "Clima"),
         (Tab::Settings, "Ajustes"),
     ];
 
@@ -51,7 +51,7 @@ pub fn view(scheme: &Scheme, tab: Tab, alpha: f32) -> Rectangle {
         Tab::Media => media(scheme),
         Tab::Wallpapers => wallpapers(scheme),
         Tab::Alerts => alerts(scheme),
-        Tab::Apps => apps(scheme),
+        Tab::Weather => weather_tab(scheme),
         Tab::Settings => settings_tab(scheme),
     };
 
@@ -649,125 +649,184 @@ fn alert_card(scheme: &Scheme, notification: &amane::Notification) -> Rectangle 
         )
 }
 
-fn apps(scheme: &Scheme) -> Box<dyn Widget> {
-    let apps = Apps::read();
-    let list = apps.list();
+/*
+ * the weather tab: a big current card plus the hourly strip that the
+ * weather service refreshes in the background
+ */
+fn weather_tab(scheme: &Scheme) -> Box<dyn Widget> {
+    let (condition, temp, humidity, wind, glyph) = {
+        let weather = Weather::read();
 
-    let rows: Vec<Box<dyn Widget>> = list
-        .iter()
-        .map(|app| boxed(app_row(scheme, app)))
-        .collect();
-
-    let body: Box<dyn Widget> = if rows.is_empty() {
-        boxed(empty(
-            APPS,
-            "Looking for applications",
-            "The launcher fills in after the first scan",
-            scheme,
-        ))
-    } else {
-        let hint = boxed(
-            Row::new(vec![boxed(text(
-                "Botão direito fixa o app no tray · esquerdo abre",
-                11.5,
-                scheme.on_surface_variant,
-                amane::Weight::Regular,
-            ))])
-            .width(660.0)
-            .justify(Center),
-        );
-
-        boxed(
-            ScrollArea::new(
-                "apps-rows",
-                Column::new(vec![
-                    boxed(Column::new(rows).gap(6.0).width(660.0)),
-                    hint,
-                ])
-                .gap(8.0)
-                .width(660.0),
-            )
-            .width(660.0)
-            .height(BODY),
+        (
+            String::from(weather.condition()),
+            String::from(weather.temperature()),
+            String::from(weather.humidity()),
+            String::from(weather.wind()),
+            weather.glyph(),
         )
     };
 
-    body
-}
+    let color = scheme.on_secondary_container;
 
-fn app_row(scheme: &Scheme, app: &amane::DesktopApp) -> Rectangle {
-    let key = format!("app:{}", app.name());
-    let state = crate::motion::hover(&key);
-
-    let fill = mix(
-        scheme.surface_container_high,
-        scheme.on_surface,
-        0.08 * state,
-    );
-
-    let icon_box: Box<dyn Widget> = match app.icon_path() {
-        Some(path) if Image::loaded(path) => boxed(
-            Rectangle::new()
-                .width(36.0)
-                .height(36.0)
-                .radius(10.0)
-                .clip()
-                .fill(Image::cover(path).thumbnail(72, 72)),
-        ),
-        _ => boxed(
-            Rectangle::new()
-                .width(36.0)
-                .height(36.0)
-                .radius(10.0)
-                .fill(scheme.secondary_container)
-                .align_child(Center, Center)
-                .child(icon(APPS, 20.0, scheme.on_secondary_container)),
-        ),
+    let condition = if condition.is_empty() {
+        String::from("Sem dados")
+    } else {
+        condition
     };
 
-    let description = app.description().unwrap_or("Application");
+    let temp = if temp.is_empty() {
+        String::from("—")
+    } else {
+        temp
+    };
 
-    let info = Column::new(vec![
-        boxed(label(
-            app.name(),
-            13.5,
-            scheme.on_surface,
-            amane::Weight::Medium,
-            1,
-        )),
-        boxed(label(
-            description,
-            11.0,
-            scheme.on_surface_variant,
-            amane::Weight::Regular,
-            1,
-        )),
-    ])
-    .gap(1.0)
-    .width(Parent);
+    let humidity = if humidity.is_empty() {
+        String::from("—")
+    } else {
+        humidity
+    };
 
-    let owned = key.clone();
-    let exec = String::from(app.exec());
-    let name = String::from(app.name());
+    let wind = if wind.is_empty() {
+        String::from("—")
+    } else {
+        wind
+    };
+
+    // the cookie shape behind the condition icon, the M3 expressive badge
+    let badge = Rectangle::new()
+        .width(92.0)
+        .height(92.0)
+        .align_child(Center, Center)
+        .child(
+            Stack::new(vec![
+                Box::new(super::widgets::cookie(7.0, 92.0, scheme.primary_container)) as Box<dyn Widget>,
+                Box::new(icon(glyph, 44.0, scheme.on_primary_container)) as Box<dyn Widget>,
+            ]),
+        );
+
+    let detail = |glyph: &'static str, value: &str| {
+        Row::new(vec![
+            Box::new(icon(glyph, 16.0, color)) as Box<dyn Widget>,
+            Box::new(text(value, 14.0, color, amane::Weight::Medium)) as Box<dyn Widget>,
+        ])
+        .gap(5.0)
+        .align(Center)
+    };
+
+    let current = card(660.0, scheme.secondary_container).child(
+        Column::new(vec![
+            Box::new(
+                Row::new(vec![Box::new(badge)])
+                    .width(Parent)
+                    .justify(Center),
+            ),
+            Box::new(
+                Row::new(vec![Box::new(text(
+                    &temp,
+                    44.0,
+                    color,
+                    amane::Weight::SemiBold,
+                ))])
+                .width(Parent)
+                .justify(Center),
+            ),
+            Box::new(
+                Row::new(vec![Box::new(text(
+                    &condition,
+                    18.0,
+                    color,
+                    amane::Weight::Medium,
+                ))])
+                .width(Parent)
+                .justify(Center),
+            ),
+            Box::new(
+                Row::new(vec![
+                    Box::new(detail(DROP, &humidity)),
+                    Box::new(detail(AIR, &wind)),
+                ])
+                .width(Parent)
+                .gap(20.0)
+                .justify(Center),
+            ),
+        ])
+        .gap(10.0)
+        .width(Parent)
+        .height(Parent)
+        .justify(Center),
+    );
+
+    // the hourly strip, one cookie-ish chip per hour from the forecast
+    let hours: Vec<Box<dyn Widget>> = Weather::read()
+        .hourly()
+        .iter()
+        .map(|hour| boxed(hour_chip(hour, scheme)))
+        .collect();
+
+    let strip = card(660.0, scheme.surface_container_high).child(if hours.is_empty() {
+        Stack::new(vec![Box::new(
+            Rectangle::new()
+                .width(Parent)
+                .height(Parent)
+                .align_child(Center, Center)
+                .child(text(
+                    "Previsão por hora chega junto do próximo ciclo",
+                    12.0,
+                    scheme.on_surface_variant,
+                    amane::Weight::Regular,
+                )),
+        ) as Box<dyn Widget>])
+    } else {
+        Stack::new(vec![
+            Box::new(Row::new(hours).gap(8.0).width(Parent).align(Center)) as Box<dyn Widget>,
+        ])
+    });
+
+    boxed(
+        Column::new(vec![Box::new(current), Box::new(strip)])
+            .gap(12.0)
+            .width(660.0),
+    )
+}
+
+// one hour of the strip: the hour, a small condition icon and the temp
+fn hour_chip(hour: &Hour, scheme: &Scheme) -> Rectangle {
+    let color = scheme.on_surface;
 
     Rectangle::new()
-        .width(648.0)
-        .height(56.0)
-        .fill(fill)
-        .radius(16.0)
-        .padding(10.0)
-        .cursor(Pointer)
-        .on_hover(move |inside| crate::motion::set_hover(owned.clone(), inside))
-        .on_click(move |button| match button {
-            Button::Left => amane::spawn(&exec),
-            Button::Right => Tray::pin(name.clone()),
-            _ => {}
-        })
+        .width(76.0)
+        .height(104.0)
+        .fill(scheme.surface_container_highest)
+        .radius(20.0)
+        .clip()
         .child(
-            Row::new(vec![icon_box, boxed(info)])
-                .gap(12.0)
-                .align(Center)
-                .width(Parent),
+            Column::new(vec![
+                Box::new(
+                    Row::new(vec![Box::new(text(
+                        &hour.label,
+                        11.0,
+                        scheme.on_surface_variant,
+                        amane::Weight::Medium,
+                    ))])
+                    .width(Parent)
+                    .justify(Center),
+                ),
+                Box::new(icon(hour.glyph, 20.0, color)) as Box<dyn Widget>,
+                Box::new(
+                    Row::new(vec![Box::new(text(
+                        &hour.temperature,
+                        12.5,
+                        color,
+                        amane::Weight::SemiBold,
+                    ))])
+                    .width(Parent)
+                    .justify(Center),
+                ),
+            ])
+            .gap(4.0)
+            .width(Parent)
+            .height(Parent)
+            .justify(Center),
         )
 }
 

@@ -6,10 +6,11 @@ Um shell de desktop para Wayland, construído em Rust com o framework Amane e um
 
 ## Características
 
-- **Material Design 3**: paleta dinâmica gerada pelo matugen, tipografia Google Sans Flex e ícones Material Symbols Rounded.
+- **Material Design 3**: paleta dinâmica gerada pelo matugen, tipografia Google Sans Flex e ícones Material Symbols Rounded — incluindo os **shapes expressivos** M3 (cookie), usados no badge da aba Clima.
 - **Dynamic Island**: barra compacta que vira pílula de mídia ao passar o mouse, mostra notificações recentes e abre o dash com um clique.
-- **Dash**: seis abas (Overview, Media, Wallpapers, Alerts, Apps e **Ajustes**) com relógio, **card de clima (open-meteo)**, controles de áudio/brilho, medidores de CPU/RAM/bateria, grade de wallpapers e **configuração visual** (claro/escuro + esquema matugen na hora).
-- **Tray de apps**: o chevron da barra substitui o ícone de wifi e abre um menuzinho com os apps fixados; clique esquerdo abre, **clique direito abre o menu de contexto** (Abrir / Desafixar). Fixe apps pelo menu da aba Apps ou do launcher (clique direito).
+- **Dash**: seis abas (Overview, Media, Wallpapers, Alertas, **Clima** e Ajustes) com relógio, **card de clima (open-meteo) com previsão por hora**, controles de áudio/brilho, medidores de CPU/RAM/bateria, grade de wallpapers e configuração visual.
+- **Ajustes por IPC**: um appzinho visual (`overlay settings`) que configura o shell na hora — modo escuro/claro, os 8 esquemas matugen, a pasta de papéis de parede e o lugar do clima (coordenadas ou automático pelo ip) — tudo acessível também por `amane ipc call settings …`.
+- **Tray de apps em segundo plano**: o chevron da barra lista as **janelas que o niri conhece** (apps rodando em outro workspace ou minimizados ao fundo) com o ícone real do `.desktop`; clique esquerdo levanta a janela, **clique direito abre o menu de contexto** (Abrir / Fechar).
 - **Launcher**: busca de aplicativos por nome ou descrição, navegação por teclado e abertura com `Enter`.
 - **Clipboard**: histórico persistente do `wl-clipboard`, busca, cópia de volta ao clipboard e limpeza do histórico.
 - **Menu de energia**: bloquear, sair da sessão, suspender, reiniciar e desligar.
@@ -50,17 +51,19 @@ amane ipc call overlay close          # fecha qualquer overlay
 amane ipc call overlay panel          # imprime o painel aberto
 
 amane ipc call island toggle          # alterna o dash
-amane ipc call island open [aba]      # abre o dash numa aba (…|settings)
+amane ipc call island open [aba]      # overview|media|wallpapers|alerts|clima|settings
 amane ipc call island close
-amane ipc call island tray            # alterna a tray de apps
+amane ipc call island tray            # alterna a tray de apps em 2º plano
 
 amane ipc call settings wallpaper ~/Pictures/Wallpapers/foo.png
 amane ipc call settings wallpapers
 amane ipc call settings dark [true|false|toggle]
 amane ipc call settings scheme <esquema>
+amane ipc call settings directory [pasta]   # de onde a dash lê os wallpapers
+amane ipc call settings location [lat,lon|auto] # o lugar do clima
 amane ipc call settings refresh       # regenera o matugen de tudo
 
-amane ipc call tray [toggle|close|pin "App"|unpin "App"|list]
+amane ipc call tray [toggle|close|list|focus <id>|close-window <id>]
 amane ipc call weather
 
 amane ipc call theme set <imagem> [scheme] [dark|light]
@@ -79,17 +82,18 @@ src/
 ├── motion.rs           # Animações, presença de overlay e state layers
 ├── overlay.rs          # Painel ativo, scrim e componentes compartilhados
 ├── power.rs            # Menu de energia e ações de sessão
-├── settings.rs         # Wallpapers, tema, esquema e IPC
+├── settings.rs         # Wallpapers, tema, esquema, lugar do clima e IPC
+├── settingsview.rs     # Painel de Ajustes (visual), por IPC
 ├── theme.rs            # Tokens de cor, matugen e tipografia
-├── tray.rs             # Tray de apps fixados, menu de contexto e IPC
+├── tray.rs             # Tray de apps em segundo plano (janelas do niri) e IPC
 ├── ui.rs               # Estado do dash e comandos IPC
 ├── wallpaper.rs        # Janela do papel de parede
-├── weather.rs          # Clima (open-meteo) para a dashboard
+├── weather.rs          # Clima (open-meteo, com previsão por hora)
 └── island/
     ├── compact.rs      # Barra compacta (workspaces, relógio, chevron)
-    ├── dash.rs         # Conteúdo das abas do dash (inclui Ajustes)
+    ├── dash.rs         # Conteúdo das abas do dash (Clima, cookie M3)
     ├── peek.rs         # Pílulas de mídia e notificação
-    └── widgets.rs      # Componentes e ícones Material
+    └── widgets.rs      # Componentes, ícones e o shape cookie (M3)
 ```
 
 Cada overlay é uma layer window própria em tela cheia, criada com `visible(false)`. Ao abrir, o estado global em `overlay.rs` mostra só a janela do monitor focado, aplica `Keyboard::Exclusive` e anima a presença; ao fechar, a janela continua mapeada até o fade terminar. Assim o compositor não perde o foco do teclado no meio da animação e o `Esc` sempre chega ao painel. Ver [`docs/arquitetura.md`](docs/arquitetura.md) para o completo.

@@ -15,17 +15,18 @@ seção `binds { }` do `~/.config/niri/config.kdl`.
     Mod+M            { spawn "sh" "-c" "amane ipc call island open media"; }
     Mod+W            { spawn "sh" "-c" "amane ipc call island open wallpapers"; }
     Mod+A            { spawn "sh" "-c" "amane ipc call island open alerts"; }
-    Mod+G            { spawn "sh" "-c" "amane ipc call island open apps"; }
+    Mod+G            { spawn "sh" "-c" "amane ipc call island open clima"; }
 
-    // tray de apps fixados (o mesmo chevron da barra)
+    // tray de apps em segundo plano (o mesmo chevron da barra)
     Mod+T            { spawn "sh" "-c" "amane ipc call island tray"; }
 
     // overlays estilo ilha
     Mod+D            { spawn "sh" "-c" "amane ipc call overlay launcher"; }
     Mod+V            { spawn "sh" "-c" "amane ipc call overlay clipboard"; }
     Mod+Shift+E      { spawn "sh" "-c" "amane ipc call overlay power"; }
+    Mod+S            { spawn "sh" "-c" "amane ipc call overlay settings"; }
 
-    // fechar qualquer ilha aberta (dash, tray, launcher, clipboard, power)
+    // fechar qualquer ilha aberta (dash, tray, launcher, ajustes…)
     Escape           { spawn "sh" "-c" "amane ipc call overlay close; amane ipc call island close"; }
 
     // tema: trocar wallpaper / alternar claro e escuro / regenerar tudo
@@ -46,6 +47,7 @@ seção `binds { }` do `~/.config/niri/config.kdl`.
 | Launcher         | ↑/↓ escolhe, Enter abre, Tab desce, Esc fecha |
 | Clipboard        | ↑/↓ escolhe, Enter copia, Esc fecha |
 | Power            | ↑/↓ escolhe, Enter executa, Esc fecha |
+| Ajustes          | campos aceitam Enter pra aplicar, Esc fecha |
 | Dash             | Esc fecha (o foco de teclado é exclusivo) |
 | Tray             | clique fora do menu fecha; Esc fecha se a janela tiver foco |
 
@@ -53,9 +55,8 @@ seção `binds { }` do `~/.config/niri/config.kdl`.
 
 | Lugar                    | Esquerdo         | Direito                             |
 |--------------------------|------------------|-------------------------------------|
-| Ícone na tray            | abre o app       | abre o menu de contexto (Abrir / Desafixar) |
-| App na aba "Apps"        | abre o app       | fixa o app na tray                  |
-| Resultado do launcher    | abre o app       | fixa o app na tray                  |
+| App na tray              | levanta a janela | abre o menu de contexto (Abrir / Fechar) |
+| Resultado do launcher    | abre o app       | —                                   |
 | Entrada do clipboard     | copia de volta   | —                                   |
 | Chevron da barra         | abre/fecha a tray| —                                   |
 | Fora de qualquer ilha    | fecha a ilha     | —                                   |
