@@ -315,7 +315,7 @@ fn system_cards(audio: &Audio) -> Box<dyn Widget> {
         ]).gap(10.0)),
         Box::new(Row::new(children![
             info_card("espaços de trabalho", &format!("{} ativos", workspaces.list().len()), "▦", false),
-            tile("atalhos rápidos", "launcher · controles · notificações"),
+            info_card("atalhos rápidos", "launcher · controles · notificações", "⌘", false),
         ]).gap(10.0)),
     ];
 
