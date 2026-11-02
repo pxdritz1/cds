@@ -3,10 +3,10 @@ use std::sync::OnceLock;
 use std::time::Instant;
 
 use amane::{
-    Service,
-    Apps, Audio, Battery, Bluetooth, Button, Canvas, Cap, Column, Cpu, Image, Layer, LayerWindow,
-    Media, Memory, Network, Notifications, Parent, Path as DrawPath, Rectangle, Row, Scroll,
-    ScrollArea, Shape, Text, Vertical, Widget, Workspaces, children, request_frame, shapes,
+    Apps, Audio, Battery, Bluetooth, Button, Canvas, Cap, Column, Cpu, Image, Key, Keyboard, Layer,
+    LayerWindow, Media, Memory, Network, Notifications, Parent, Path as DrawPath, Rectangle, Row,
+    Scroll, ScrollArea, Service, Text, Vertical, Widget, Workspaces, children, request_frame,
+    shapes,
 };
 
 use crate::shell::state::{Overlay, ShellState};
@@ -21,18 +21,18 @@ pub fn view() -> LayerWindow {
     let expanded = state.overlay == Some(Overlay::Dashboard);
     let has_media = !media.title().is_empty();
     let height = if expanded {
-        520.0
+        540.0
     } else if has_media {
         94.0
     } else {
-        52.0
+        56.0
     };
     let width = if expanded {
-        620.0
+        640.0
     } else if has_media {
         420.0
     } else {
-        230.0
+        236.0
     };
 
     let content: Box<dyn Widget> = if expanded {
@@ -48,6 +48,8 @@ pub fn view() -> LayerWindow {
         .height(height)
         .anchor_vertical(Vertical::Top)
         .layer(Layer::Overlay)
+        .keyboard(if expanded { Keyboard::OnDemand } else { Keyboard::None })
+        .on_key(key_pressed)
         .margin(amane::Margin {
             top: 8,
             right: 0,
@@ -58,10 +60,10 @@ pub fn view() -> LayerWindow {
             Rectangle::new()
                 .width(Parent)
                 .height(Parent)
-                .radius(26.0)
+                .radius(if expanded { 32.0 } else { 28.0 })
                 .fill(theme::SURFACE)
                 .border(1.0, theme::OUTLINE)
-                .padding(12.0)
+                .padding(if expanded { 18.0 } else { 10.0 })
                 .on_click(island_clicked)
                 .on_scroll(change_volume)
                 .child(Column::new(vec![content])),
@@ -80,14 +82,23 @@ fn compact(notifications: &Notifications) -> Box<dyn Widget> {
         Rectangle::new()
             .width(Parent)
             .height(Parent)
-            .radius(18.0)
+            .radius(20.0)
             .fill(theme::SURFACE_CONTAINER)
             .on_click(toggle_dash)
             .child(
                 Row::new(children![
-                    Text::new("◈").size(18.0).color(theme::PRIMARY),
-                    Text::new(label).size(14.0).color(theme::ON_SURFACE),
-                    Text::new("⌄").size(16.0).color(theme::ON_SURFACE_VARIANT),
+                    Rectangle::new()
+                        .width(34.0)
+                        .height(34.0)
+                        .radius(17.0)
+                        .fill(theme::PRIMARY_CONTAINER)
+                        .child(Text::new("✦").size(18.0).color(theme::ON_PRIMARY_CONTAINER)),
+                    Column::new(children![
+                        Text::new("chloe's shell").size(13.0).color(theme::ON_SURFACE),
+                        Text::new(label).size(11.0).color(theme::ON_SURFACE_VARIANT),
+                    ])
+                    .gap(1.0),
+                    Text::new("⌄").size(18.0).color(theme::ON_SURFACE_VARIANT),
                 ])
                 .gap(10.0),
             ),
@@ -109,10 +120,7 @@ fn player(media: &Media) -> Box<dyn Widget> {
         Rectangle::new()
             .width(58.0)
             .height(58.0)
-            .radius_top_left(18.0)
-            .radius_top_right(10.0)
-            .radius_bottom_right(18.0)
-            .radius_bottom_left(10.0)
+            .radius(18.0)
             .fill(Image::cover(path))
             .rotate(rotation)
             .border(2.0, theme::PRIMARY)
@@ -126,11 +134,7 @@ fn player(media: &Media) -> Box<dyn Widget> {
             .child(Text::new("♫").size(24.0).color(theme::ON_PRIMARY_CONTAINER))
     };
 
-    let title = if media.title().is_empty() {
-        "sem título"
-    } else {
-        media.title()
-    };
+    let title = if media.title().is_empty() { "sem título" } else { media.title() };
     let artist = if media.artist().is_empty() {
         media.active().map_or("reprodutor", |p| p.identity())
     } else {
@@ -142,9 +146,7 @@ fn player(media: &Media) -> Box<dyn Widget> {
             cover,
             Column::new(children![
                 Text::new(title).size(14.0).color(theme::ON_SURFACE),
-                Text::new(artist)
-                    .size(12.0)
-                    .color(theme::ON_SURFACE_VARIANT),
+                Text::new(artist).size(12.0).color(theme::ON_SURFACE_VARIANT),
                 progress(media, phase),
             ])
             .gap(3.0),
@@ -154,15 +156,11 @@ fn player(media: &Media) -> Box<dyn Widget> {
                 .radius(21.0)
                 .fill(theme::SURFACE_CONTAINER)
                 .on_click(|_| Media::play_pause())
-                .child(
-                    Text::new(if media.playing() { "Ⅱ" } else { "▶" })
-                        .size(17.0)
-                        .color(theme::PRIMARY)
-                ),
+                .child(Text::new(if media.playing() { "Ⅱ" } else { "▶" }).size(17.0).color(theme::PRIMARY)),
             Rectangle::new()
-                .width(28.0)
+                .width(30.0)
                 .height(42.0)
-                .radius(14.0)
+                .radius(15.0)
                 .fill(theme::SURFACE_CONTAINER)
                 .on_click(toggle_dash)
                 .child(Text::new("⌄").size(16.0).color(theme::ON_SURFACE)),
@@ -187,48 +185,55 @@ fn progress(media: &Media, phase: f32) -> Canvas {
         wave = wave.line_to(x, y);
     }
 
-    let worm = wave.stroke(3.0, theme::PRIMARY).cap(Cap::Round);
-    let tail = DrawPath::new()
+    let active = wave.stroke(3.0, theme::PRIMARY).cap(Cap::Round);
+    let remainder = DrawPath::new()
         .move_to(end + 4.0, 7.0)
         .line_to(width, 7.0)
         .stroke(2.0, theme::OUTLINE)
         .cap(Cap::Round);
 
-    Canvas::new()
-        .width(width)
-        .height(14.0)
-        .shapes(shapes![tail, worm])
+    Canvas::new().width(width).height(14.0).shapes(shapes![remainder, active])
 }
 
 fn dash(media: &Media, audio: &Audio, notifications: &Notifications) -> Box<dyn Widget> {
     let mut sections: Vec<Box<dyn Widget>> = Vec::new();
 
-    sections.push(section_title("controles"));
-    sections.push(system_controls(audio));
-    sections.push(section_title("tray"));
-    sections.push(tile(
-        "área de notificação",
-        "integração status notifier pendente",
-    ));
-    sections.push(section_title("apps"));
-    sections.push(app_launcher());
-    sections.push(section_title("clipboard"));
-    sections.push(tile("área de transferência", "histórico em integração"));
-    sections.push(section_title("clima"));
-    sections.push(tile("clima", "provedor meteorológico não configurado"));
-    sections.push(section_title("mídia"));
+    sections.push(
+        Box::new(
+            Row::new(children![
+                Column::new(children![
+                    Text::new("bom te ver").size(12.0).color(theme::ON_SURFACE_VARIANT),
+                    Text::new("seu espaço").size(27.0).color(theme::ON_SURFACE),
+                    Text::new("tudo em um só lugar").size(12.0).color(theme::ON_SURFACE_VARIANT),
+                ])
+                .gap(2.0),
+                Rectangle::new()
+                    .width(54.0)
+                    .height(54.0)
+                    .radius(27.0)
+                    .fill(theme::PRIMARY_CONTAINER)
+                    .child(Text::new("✦").size(28.0).color(theme::ON_PRIMARY_CONTAINER)),
+            ])
+            .gap(12.0),
+        )
+    );
+
+    sections.push(section_title("visão geral"));
+    sections.push(system_cards(audio));
+
+    sections.push(section_title("reprodução"));
     if media.title().is_empty() {
-        sections.push(tile(
-            "nenhuma mídia ativa",
-            "abra um player compatível com mpris",
-        ));
+        sections.push(tile("nada tocando agora", "quando iniciar uma música, ela aparece aqui"));
     } else {
         sections.push(player(media));
     }
-    sections.push(section_title("notificações"));
 
+    sections.push(section_title("seus aplicativos"));
+    sections.push(app_launcher());
+
+    sections.push(section_title("notificações"));
     if notifications.list().is_empty() {
-        sections.push(tile("tudo tranquilo", "nenhuma notificação"));
+        sections.push(tile("tudo em dia", "você não tem notificações novas"));
     } else {
         for notification in notifications.list().iter().rev().take(3) {
             let id = notification.id();
@@ -237,31 +242,26 @@ fn dash(media: &Media, audio: &Audio, notifications: &Notifications) -> Box<dyn 
             sections.push(Box::new(
                 Rectangle::new()
                     .width(Parent)
-                    .height(52.0)
-                    .radius(14.0)
+                    .height(58.0)
+                    .radius(18.0)
                     .fill(theme::SURFACE_CONTAINER)
-                    .padding(10.0)
+                    .padding(12.0)
                     .on_click(move |_| Notifications::click(id))
                     .child(
                         Column::new(children![
                             Text::new(label).size(12.0).color(theme::ON_SURFACE),
                             Text::new(body).size(11.0).color(theme::ON_SURFACE_VARIANT),
                         ])
-                        .gap(2.0),
+                        .gap(3.0),
                     ),
             ));
         }
     }
 
-    Box::new(ScrollArea::new(
-        "island-dash",
-        Column::new(sections).gap(8.0),
-    ))
+    Box::new(ScrollArea::new("cds-dashboard", Column::new(sections).gap(12.0)))
 }
 
-fn system_controls(audio: &Audio) -> Box<dyn Widget> {
-    let volume = audio.volume();
-    let muted = audio.muted();
+fn system_cards(audio: &Audio) -> Box<dyn Widget> {
     let network = Network::read();
     let bluetooth = Bluetooth::read();
     let battery = Battery::read();
@@ -269,102 +269,97 @@ fn system_controls(audio: &Audio) -> Box<dyn Widget> {
     let memory = Memory::read();
     let workspaces = Workspaces::read();
 
-    let status = format!(
-        "volume {volume}%{} · rede {} · bluetooth {} · bateria {} · cpu {}% · ram {}%",
-        if muted { " (mudo)" } else { "" },
-        if network.connected() {
-            "conectada"
-        } else {
-            "desconectada"
-        },
-        if bluetooth.powered() {
-            "ativo"
-        } else {
-            "inativo"
-        },
-        if battery.present() {
-            format!("{}%", battery.percent())
-        } else {
-            String::from("—")
-        },
-        cpu.percent(),
-        memory.percent(),
-    );
-    let workspace_count = workspaces.list().len();
+    let volume = audio.volume();
+    let battery_label = if battery.present() { format!("{}%", battery.percent()) } else { "—".into() };
+    let network_label = if network.connected() { "conectada" } else { "desconectada" };
+    let bluetooth_label = if bluetooth.powered() { "ativo" } else { "inativo" };
 
-    let controls: Vec<Box<dyn Widget>> = vec![
-        Box::new(
-            Rectangle::new()
-                .width(Parent)
-                .height(40.0)
-                .radius(14.0)
-                .fill(theme::SURFACE_CONTAINER)
-                .on_scroll(change_volume)
-                .on_click(|button| {
-                    if button == Button::Left {
-                        Audio::toggle_mute();
-                    }
-                })
-                .padding(10.0)
-                .child(Text::new(status).size(11.0).color(theme::ON_SURFACE)),
-        ),
-        tile(
-            "áreas de trabalho",
-            &format!("{workspace_count} espaços detectados"),
-        ),
+    let cards: Vec<Box<dyn Widget>> = vec![
+        info_card("som", &format!("{volume}%{}", if audio.muted() { " · mudo" } else { "" }), "◖", true),
+        info_card("wi-fi", network_label, "⌁", false),
+        info_card("bluetooth", bluetooth_label, "ᛒ", false),
+        info_card("bateria", &battery_label, "▰", false),
+        info_card("processador", &format!("{}%", cpu.percent()), "◌", false),
+        info_card("memória", &format!("{}%", memory.percent()), "▤", false),
+        info_card("espaços", &format!("{} ativos", workspaces.list().len()), "▦", false),
     ];
 
-    Box::new(Column::new(controls).gap(6.0))
+    Box::new(Column::new(vec![
+        Box::new(Row::new(cards[..4].to_vec()).gap(8.0)),
+        Box::new(Row::new(cards[4..].to_vec()).gap(8.0)),
+    ]).gap(8.0))
+}
+
+fn info_card(title: &str, value: &str, glyph: &str, volume: bool) -> Box<dyn Widget> {
+    let card = Rectangle::new()
+        .width(Parent)
+        .height(76.0)
+        .radius(20.0)
+        .fill(if volume { theme::PRIMARY_CONTAINER } else { theme::SURFACE_CONTAINER })
+        .padding(10.0)
+        .child(
+            Column::new(children![
+                Text::new(glyph).size(16.0).color(if volume { theme::ON_PRIMARY_CONTAINER } else { theme::PRIMARY }),
+                Text::new(title).size(10.0).color(if volume { theme::ON_PRIMARY_CONTAINER } else { theme::ON_SURFACE_VARIANT }),
+                Text::new(value).size(13.0).color(if volume { theme::ON_PRIMARY_CONTAINER } else { theme::ON_SURFACE }),
+            ])
+            .gap(1.0),
+        );
+
+    if volume {
+        Box::new(card.on_scroll(change_volume).on_click(|button| {
+            if button == Button::Left {
+                Audio::toggle_mute();
+            }
+        }))
+    } else {
+        Box::new(card)
+    }
 }
 
 fn app_launcher() -> Box<dyn Widget> {
     let apps = Apps::read();
     let mut entries: Vec<Box<dyn Widget>> = Vec::new();
 
-    for app in apps.list().iter().take(8) {
+    for app in apps.list().iter().take(6) {
         let launch = app.clone();
         entries.push(Box::new(
             Rectangle::new()
                 .width(Parent)
-                .height(34.0)
-                .radius(10.0)
+                .height(42.0)
+                .radius(14.0)
                 .fill(theme::SURFACE_CONTAINER)
                 .on_click(move |_| launch.launch())
-                .padding(8.0)
+                .padding(10.0)
                 .child(Text::new(app.name()).size(12.0).color(theme::ON_SURFACE)),
         ));
     }
 
     if entries.is_empty() {
-        entries.push(tile(
-            "carregando aplicativos",
-            "a lista é atualizada em segundo plano",
-        ));
+        entries.push(tile("carregando aplicativos", "a lista está sendo atualizada"));
     }
 
-    Box::new(Column::new(entries).gap(4.0))
+    Box::new(Column::new(entries).gap(6.0))
 }
 
 fn section_title(label: &str) -> Box<dyn Widget> {
-    Box::new(Text::new(label).size(11.0).color(theme::PRIMARY))
+    Box::new(Text::new(label).size(13.0).color(theme::PRIMARY))
 }
 
 fn tile(title: &str, detail: &str) -> Box<dyn Widget> {
     Box::new(
         Rectangle::new()
             .width(Parent)
-            .height(42.0)
-            .radius(12.0)
+            .height(58.0)
+            .radius(18.0)
             .fill(theme::SURFACE_CONTAINER)
-            .padding(8.0)
+            .padding(12.0)
             .child(
                 Column::new(children![
                     Text::new(title).size(12.0).color(theme::ON_SURFACE),
-                    Text::new(detail)
-                        .size(10.0)
-                        .color(theme::ON_SURFACE_VARIANT),
+                    Text::new(detail).size(10.0).color(theme::ON_SURFACE_VARIANT),
                 ])
-                .gap(1.0),
+                .gap(3.0),
             ),
     )
 }
@@ -377,11 +372,16 @@ fn change_volume(scroll: Scroll) {
 
 fn toggle_dash(_: Button) {
     let mut state = ShellState::write();
-    state.overlay = if state.overlay == Some(Overlay::Dashboard) {
-        None
-    } else {
-        Some(Overlay::Dashboard)
-    };
+    state.overlay = if state.overlay == Some(Overlay::Dashboard) { None } else { Some(Overlay::Dashboard) };
+}
+
+fn key_pressed(key: Key) {
+    if key == Key::Escape {
+        let mut state = ShellState::write();
+        if state.overlay == Some(Overlay::Dashboard) {
+            state.overlay = None;
+        }
+    }
 }
 
 fn island_clicked(button: Button) {
@@ -392,11 +392,7 @@ fn island_clicked(button: Button) {
 
 fn local_art(url: &str) -> Option<&str> {
     let path = url.strip_prefix("file://").unwrap_or(url);
-    if path.starts_with('/') && Path::new(path).exists() {
-        Some(path)
-    } else {
-        None
-    }
+    if path.starts_with('/') && Path::new(path).exists() { Some(path) } else { None }
 }
 
 static EPOCH: OnceLock<Instant> = OnceLock::new();
