@@ -11,13 +11,16 @@
 │   ├── cds-clipboard ·       ilha do clipboard             │
 │   ├── cds-power     ·       ilha de energia               │
 │   ├── cds-settingsview·     painel de Ajustes (Overlay)   │
+│   ├── cds-rail      · ilhas de workspaces na borda         │
+│   ├── (lock)        · tela de lock via ext-session-lock    │
 │   └── wallpaper     · fundo de tela (Layer::Bottom)       │
 └───────────────────────────────────────────────────────────┘
         ↑ camada de serviços (RwLock por serviço)
 ┌───────────────────────────────────────────────────────────┐
 │ Services: Theme, Settings, Ui, Overlay, SettingsView,     │
-│ Tray, Weather, Launcher, Clipboard, Power + serviços da   │
-│ amane (Apps, Media, Audio, Battery, Network, Workspaces…) │
+│ Tray, Weather, Launcher, Clipboard, Power, Spotlight +    │
+│ serviços da amane (Lock, Apps, Media, Audio, Battery,     │
+│ Network, Bluetooth, Brightness, Workspaces…)              │
 └───────────────────────────────────────────────────────────┘
         ↑ IPC (amane ipc call …) ── threads de escuta
 ```
@@ -36,7 +39,13 @@
 | `island/dash.rs`           | dash de 6 abas: Overview/Media/Wallpapers/Alertas/Clima/Ajustes  |
 | `island/peek.rs`           | media peek e notice peek                                        |
 | `island/widgets.rs`        | ícones, chips, sliders, cards, botões e o shape cookie (M3)      |
-| `overlay.rs`               | serviço Overlay + helper `layer` que ancora painéis no topo      |
+| `overlay.rs`               | serviço Overlay + helper `layer` (Under/Spot/Right/Middle)       |
+| `ipc.rs`                   | pontos de entrada do CLI (nomes curtos: open/lock/dash/…)   |
+| `apps.rs`                  | grade de aplicativos (app drawer M3)                        |
+| `spotlight.rs`             | busca central: apps + ações rápidas do shell               |
+| `control.rs`               | central de controle à direita (wifi/bt/dnd/sliders)          |
+| `rail.rs`                  | ilhas de workspaces na borda esquerda                       |
+| `lockscreen.rs`            | tela de lock via ext-session-lock + PAM                     |
 | `launcher.rs`              | launcher: pesquisa de apps, setas/Enter, clique abre            |
 | `clipboard.rs`             | clipboard:poll de wl-paste, wl-copy, histórico persistido        |
 | `power.rs`                 | menu de energia (lock/logout/suspend/reboot/shutdown)           |
@@ -77,12 +86,15 @@ Regras que mantêm a UI fluida:
 | `~/.cache/chloe-dynamic-shell/clipboard.conf`  | histórico (1 entrada/linha)   |
 | `~/.cache/chloe-dynamic-shell/weather.json`    | última leitura do clima       |
 
-## Overlays: como uma "ilha de ferramenta" abre
+## Painéis: como uma "ilha de ferramenta" abre
 
-As três ferramentas (launcher, clipboard, power) usam o helper
-`overlay::layer`: uma janela full-screen `Layer::Overlay`, backdrop
-escurecido, e um painel com sombra-32 que cai de baixo da barra
-(margin-top 58px) com fade + settle (0.96 → 1.0). Teclado é
+Os painéis (launcher, clipboard, power, apps, spotlight, control, config)
+usam o helper `overlay::layer`: uma janela full-screen `Layer::Overlay`,
+backdrop escurecido, e um painel com sombra-36 que cai de baixo da barra
+(margin-top 58px) com fade + settle (0.96 → 1.0). O lugar de cada painel
+é definido por `Frame::place` — `Under` (launcher e amigos, logo abaixo da
+barra), `Spot` (spotlight, centralizado e maior), `Right` (a central de
+controle, ancorada na borda direita) ou `Middle`. Teclado é
 `Keyboard::Exclusive` quando aberto, Esc fecha, clique fora fecha.
 A presença não desaparece na hora: a janela fica mapeada até a animação
 terminar (`motion::presence`), tanto na abertura como no fechamento.

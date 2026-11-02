@@ -6,12 +6,14 @@ Um shell de desktop para Wayland, construído em Rust com o framework Amane e um
 
 ## Características
 
-- **Material Design 3**: paleta dinâmica gerada pelo matugen, tipografia Google Sans Flex e ícones Material Symbols Rounded — incluindo os **shapes expressivos** M3 (cookie), usados no badge da aba Clima.
+- **Material Design 3**: paleta dinâmica gerada pelo matugen, tipografia Google Sans Flex e ícones Material Symbols Rounded — incluindo os **shapes expressivos** M3 (cookie), usados no badge da aba Clima e no lockscreen.
 - **Dynamic Island**: barra compacta que vira pílula de mídia ao passar o mouse, mostra notificações recentes e abre o dash com um clique.
-- **Dash**: seis abas (Overview, Media, Wallpapers, Alertas, **Clima** e Ajustes) com relógio, **card de clima (open-meteo) com previsão por hora**, controles de áudio/brilho, medidores de CPU/RAM/bateria, grade de wallpapers e configuração visual.
-- **Ajustes por IPC**: um appzinho visual (`overlay settings`) que configura o shell na hora — modo escuro/claro, os 8 esquemas matugen, a pasta de papéis de parede e o lugar do clima (coordenadas ou automático pelo ip) — tudo acessível também por `amane ipc call settings …`.
-- **Tray de apps em segundo plano**: o chevron da barra lista as **janelas que o niri conhece** (apps rodando em outro workspace ou minimizados ao fundo) com o ícone real do `.desktop`; clique esquerdo levanta a janela, **clique direito abre o menu de contexto** (Abrir / Fechar).
-- **Launcher**: busca de aplicativos por nome ou descrição, navegação por teclado e abertura com `Enter`.
+- **Rail de workspaces**: ilha fininha na borda esquerda com os workspaces numerados (ativo destacado, urgente em erro, vazios em meia força).
+- **Dash**: cinco abas (Home, Media, Clima, Papéis e Alertas) com hero de relógio, clima, controles, medidores wavy M3 e mídia.
+- **Painéis**: Launcher (pesquisa), **Spotlight** (busca central + ações rápidas), **Grade de Apps** (o app drawer), Clipboard, Menu de energia e **Central de Controle** à direita (Wi-Fi, Bluetooth, Não perturbe, tema, sliders de volume/brilho, bateria e notificações).
+- **Lockscreen**: tela de bloqueio real via `ext-session-lock` com PAM — relógio grande e senha.
+- **Ajustes por IPC**: um appzinho visual (`open config`) que configura o shell na hora — modo escuro/claro, os 8 esquemas matugen, a pasta de papéis de parede e o lugar do clima.
+- **Tray de apps em segundo plano**: o chevron da barra lista as **janelas que o niri conhece** com o ícone real do `.desktop`; clique esquerdo levanta, clique direito abre o menu (Abrir / Fechar).
 - **Clipboard**: histórico persistente do `wl-clipboard`, busca, cópia de volta ao clipboard e limpeza do histórico.
 - **Menu de energia**: bloquear, sair da sessão, suspender, reiniciar e desligar.
 - **Animações M3**: morphing da ilha, overlays com scrim, fade e escala, fades de conteúdo por modo/aba, state layers de hover, cores e larguras animadas.
@@ -22,12 +24,14 @@ Um shell de desktop para Wayland, construído em Rust com o framework Amane e um
 O shell não configura bindings sozinho; use os comandos IPC no seu compositor. Para o niri:
 
 ```kdl
-Mod+Space       { spawn-sh "amane ipc call island toggle"; }        // dash
-Mod+D           { spawn-sh "amane ipc call overlay launcher"; }
-Mod+Shift+V     { spawn-sh "amane ipc call overlay clipboard"; }
-Mod+Shift+E     { spawn-sh "amane ipc call overlay power"; }
-Mod+T           { spawn-sh "amane ipc call island tray"; }          // tray de apps
+Mod+Space       { spawn-sh "amane ipc call dash"; }                // dash
+Mod+D           { spawn-sh "amane ipc call open launcher"; }
+Mod+V           { spawn-sh "amane ipc call open clipboard"; }
+Mod+Shift+E     { spawn-sh "amane ipc call open power"; }
+Mod+S           { spawn-sh "amane ipc call open control"; }         // central à direita
+Mod+T           { spawn-sh "amane ipc call tray toggle"; }          // tray de apps
 Mod+N           { spawn-sh "amane ipc call settings dark toggle"; }
+Mod+Shift+L     { spawn-sh "amane ipc call lock"; }                 // bloqueia a sessão
 ```
 
 Dentro dos ilhas:
@@ -44,16 +48,18 @@ A lista completa de sugestões de binds vive em [`docs/binds.md`](docs/binds.md)
 ## IPC
 
 ```bash
-amane ipc call overlay launcher       # alterna o launcher
-amane ipc call overlay clipboard      # alterna o clipboard
-amane ipc call overlay power          # alterna o menu de energia
-amane ipc call overlay close          # fecha qualquer overlay
-amane ipc call overlay panel          # imprime o painel aberto
+amane ipc call open launcher       # alterna o launcher
+amane ipc call open apps           # grade de aplicativos (o app drawer)
+amane ipc call open spotlight      # busca central estilo spotlight
+amane ipc call open clipboard      # alterna o clipboard
+amane ipc call open power          # alterna o menu de energia
+amane ipc call open control        # central de controle à direita
+amane ipc call open config         # o painel de Ajustes do shell
+amane ipc call closed              # fecha tudo que estiver aberto
 
-amane ipc call island toggle          # alterna o dash
-amane ipc call island open [aba]      # overview|media|wallpapers|alerts|clima|settings
-amane ipc call island close
-amane ipc call island tray            # alterna a tray de apps em 2º plano
+amane ipc call dash [aba]          # abre/fecha o dash (clima, media, papeis…)
+amane ipc call tray [toggle|close|list|focus <id>|close-window <id>]
+amane ipc call lock                # bloqueia a sessão (tela de lock)
 
 amane ipc call settings wallpaper ~/Pictures/Wallpapers/foo.png
 amane ipc call settings wallpapers
@@ -62,28 +68,32 @@ amane ipc call settings scheme <esquema>
 amane ipc call settings directory [pasta]   # de onde a dash lê os wallpapers
 amane ipc call settings location [lat,lon|auto] # o lugar do clima
 amane ipc call settings refresh       # regenera o matugen de tudo
-
-amane ipc call tray [toggle|close|list|focus <id>|close-window <id>]
-amane ipc call weather
-
 amane ipc call theme set <imagem> [scheme] [dark|light]
 amane ipc call theme color <hex> [scheme] [dark|light]
 ```
+
+Os nomes antigos (`overlay`, `island`) ainda funcionam como apelidos, mas a documentação aponta pros novos.
 
 ## Arquitetura
 
 ```
 src/
 ├── art.rs              # Capa de álbum e fallbacks de metadados
+├── apps.rs             # Grade de aplicativos (app drawer M3)
 ├── clipboard.rs        # Histórico do clipboard, IPC e overlay
 ├── clock.rs            # Relógio, data e saudação (via date(1))
+├── control.rs          # Central de controle à direita (M3)
 ├── island.rs           # Janela da ilha, modos e transições
+├── ipc.rs              # Comandos IPC (nomes curtos)
 ├── launcher.rs         # Busca de aplicativos e overlay
+├── lockscreen.rs       # Tela de lock (ext-session-lock + PAM)
+├── m3.rs               # Biblioteca de componentes M3
 ├── motion.rs           # Animações, presença de overlay e state layers
 ├── overlay.rs          # Painel ativo, scrim e componentes compartilhados
-├── power.rs            # Menu de energia e ações de sessão
+├── rail.rs             # Ilha de workspaces na borda esquerda
 ├── settings.rs         # Wallpapers, tema, esquema, lugar do clima e IPC
-├── settingsview.rs     # Painel de Ajustes (visual), por IPC
+├── settingsview.rs     # Painel de Ajustes (open config)
+├── spotlight.rs        # Spotlight: busca + ações rápidas
 ├── theme.rs            # Tokens de cor, matugen e tipografia
 ├── tray.rs             # Tray de apps em segundo plano (janelas do niri) e IPC
 ├── ui.rs               # Estado do dash e comandos IPC

@@ -23,6 +23,13 @@ pub fn open(arguments: &[String]) -> String {
     show(arguments)
 }
 
+// locks the session with the lock screen registered on App
+pub fn open_lock(_arguments: &[String]) -> String {
+    amane::Lock::start();
+
+    String::from("ok")
+}
+
 pub fn closed(_arguments: &[String]) -> String {
     Overlay::close();
 
@@ -54,6 +61,8 @@ pub fn root(arguments: &[String]) -> String {
     match action.as_str() {
         "open" => show(rest),
         "closed" | "close" => closed(&[]),
+        // locks the session with the lock screen registered on App
+        "lock" => open_lock(&[]),
         "dash" => toggle_dash(rest),
         "tray" => crate::tray::command(rest),
         "settings" => settings_verb(rest),

@@ -7,27 +7,33 @@ seção `binds { }` do `~/.config/niri/config.kdl`.
 ## Aba de comandos sugeridos
 
 ```kdl
-    // dash da island (o painel grande com as 6 abas)
-    Mod+Space        { spawn "sh" "-c" "amane ipc call island toggle"; }
+    // dash do shell (o painel grande)
+    Mod+Space        { spawn "sh" "-c" "amane ipc call dash"; }
 
     // abrir o dash direto em uma aba
-    Mod+O            { spawn "sh" "-c" "amane ipc call island open overview"; }
-    Mod+M            { spawn "sh" "-c" "amane ipc call island open media"; }
-    Mod+W            { spawn "sh" "-c" "amane ipc call island open wallpapers"; }
-    Mod+A            { spawn "sh" "-c" "amane ipc call island open alerts"; }
-    Mod+G            { spawn "sh" "-c" "amane ipc call island open clima"; }
+    Mod+O            { spawn "sh" "-c" "amane ipc call dash home"; }
+    Mod+M            { spawn "sh" "-c" "amane ipc call dash media"; }
+    Mod+W            { spawn "sh" "-c" "amane ipc call dash papeis"; }
+    Mod+A            { spawn "sh" "-c" "amane ipc call dash alertas"; }
+    Mod+G            { spawn "sh" "-c" "amane ipc call dash clima"; }
 
     // tray de apps em segundo plano (o mesmo chevron da barra)
     Mod+T            { spawn "sh" "-c" "amane ipc call island tray"; }
 
-    // overlays estilo ilha
-    Mod+D            { spawn "sh" "-c" "amane ipc call overlay launcher"; }
-    Mod+V            { spawn "sh" "-c" "amane ipc call overlay clipboard"; }
-    Mod+Shift+E      { spawn "sh" "-c" "amane ipc call overlay power"; }
-    Mod+S            { spawn "sh" "-c" "amane ipc call overlay settings"; }
+    // painéis estilo ilha
+    Mod+D            { spawn "sh" "-c" "amane ipc call open launcher"; }
+    Mod+V            { spawn "sh" "-c" "amane ipc call open clipboard"; }
+    Mod+Shift+E      { spawn "sh" "-c" "amane ipc call open power"; }
+    Mod+S            { spawn "sh" "-c" "amane ipc call open control"; }
 
-    // fechar qualquer ilha aberta (dash, tray, launcher, ajustes…)
-    Escape           { spawn "sh" "-c" "amane ipc call overlay close; amane ipc call island close"; }
+    // o lock screen real (ext-session-lock + PAM)
+    Mod+Shift+L      { spawn "sh" "-c" "amane ipc call lock"; }
+
+    // o spotlight: busca central de apps e ações
+    Mod+Shift+D      { spawn "sh" "-c" "amane ipc call open spotlight"; }
+
+    // fechar qualquer ilha aberta (dash, tray, launcher, painéis…)
+    Escape           { spawn "sh" "-c" "amane ipc call closed"; }
 
     // tema: trocar wallpaper / alternar claro e escuro / regenerar tudo
     Mod+N            { spawn "sh" "-c" "amane ipc call settings dark toggle"; }
@@ -45,9 +51,12 @@ seção `binds { }` do `~/.config/niri/config.kdl`.
 | Lugar            | Teclas                       |
 |------------------|------------------------------|
 | Launcher         | ↑/↓ escolhe, Enter abre, Tab desce, Esc fecha |
+| Spotlight        | ↑/↓ escolhe, Enter executa, Esc fecha |
+| Grade de apps    | clique abre, Esc fecha |
 | Clipboard        | ↑/↓ escolhe, Enter copia, Esc fecha |
 | Power            | ↑/↓ escolhe, Enter executa, Esc fecha |
 | Ajustes          | campos aceitam Enter pra aplicar, Esc fecha |
+| Central de controle | clique ativa/desativa, sliders arrastáveis, Esc fecha |
 | Dash             | Esc fecha (o foco de teclado é exclusivo) |
 | Tray             | clique fora do menu fecha; Esc fecha se a janela tiver foco |
 

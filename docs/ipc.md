@@ -6,28 +6,45 @@ Toda comunicação com o shell passa pelo CLI:
 amane ipc call <serviço> <ação...>
 ```
 
-## island — a ilha principal
+## Nomes curtos (o padrão)
 
 | Comando                            | Efeito                                   |
 |------------------------------------|------------------------------------------|
-| `island toggle`                    | abre/fecha o dash                        |
-| `island open [aba]`                | abre o dash na aba dada                  |
-| `island close`                     | fecha o dash e a tray                    |
-| `island tray`                      | abre/fecha a tray de apps em 2º plano    |
+| `open <painel>`                    | abre/fecha um painel (launcher, apps, spotlight, clipboard, power, control, config) |
+| `closed`                           | fecha **tudo** que estiver aberto        |
+| `dash [aba]`                       | abre/fecha o dash (clima, media, papeis…)|
+| `lock`                             | bloqueia a sessão (tela de lock)         |
 
-Abas aceitas: `overview`, `media`, `wallpapers`, `alerts`, `weather`
-(ou `clima`), `settings` (ou `ajustes`).
+Aliases antigos (`island`, `overlay`) ainda funcionam, mas a documentação usa os novos.
 
-## overlay — as ilhas de ferramentas
+## open — os painéis
 
 | Comando                            | Efeito                                   |
 |------------------------------------|------------------------------------------|
-| `overlay launcher`                 | abre/fecha o launcher de apps            |
-| `overlay clipboard`                | abre/fecha o histórico de clipboard      |
-| `overlay power`                    | abre/fecha o menu de energia             |
-| `overlay settings`                 | abre/fecha o painel de Ajustes           |
-| `overlay close`                    | fecha o que estiver aberto               |
-| `overlay panel`                    | diz qual painel está aberto (ou `none`)  |
+| `open launcher`                    | busca de aplicativos                     |
+| `open apps`                        | grade de aplicativos (app drawer)        |
+| `open spotlight`                   | busca central + ações rápidas do shell   |
+| `open clipboard`                   | histórico de clipboard                   |
+| `open power`                       | menu de energia                          |
+| `open control`                     | central de controle à direita            |
+| `open config`                      | painel de Ajustes do shell               |
+
+## dash — o painel grande
+
+```bash
+amane ipc call dash                # alterna o dash
+amane ipc call dash clima          # abre o dash direto na aba clima
+```
+
+Abas aceitas: `home`, `media`, `clima`, `papeis`, `alertas`.
+
+## lock — a tela de bloqueio
+
+```bash
+amane ipc call lock
+```
+
+Fecha tudo, mostra a tela de lock real via `ext-session-lock` com PAM. Encerra-se com a senha do usuário.
 
 ## settings — imagens e modo
 
@@ -50,7 +67,7 @@ Esquemas válidos: `scheme-tonal-spot`, `scheme-content`,
 `scheme-expressive`, `scheme-neutral`, `scheme-vibrant`,
 `scheme-rainbow`, `scheme-fruit-salad`, `scheme-fidelity`.
 
-Tudo aqui é o mesmo que o painel de Ajustes (`overlay settings`)
+Tudo aqui é o mesmo que o painel de Ajustes (`open config`)
 configura visualmente: aparência, pasta de papéis de parede e lugar
 do clima.
 
@@ -93,13 +110,13 @@ nunca trava a interface. A última leitura fica em
 
 ```bash
 # abrir o launcher e procurar
-amane ipc call overlay launcher
+amane ipc call open launcher
 
 # trocar de wallpaper
 amane ipc call settings wallpaper ~/Pictures/Wallpapers/dragona.png
 
 # abrir o painel de Ajustes (visual)
-amane ipc call overlay settings
+amane ipc call open config
 
 # fixar o lugar do clima pelas coordenadas
 amane ipc call settings location -20.44,-54.65

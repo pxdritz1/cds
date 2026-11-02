@@ -11,8 +11,10 @@ mod island;
 mod ipc;
 mod m3;
 mod launcher;
+mod lockscreen;
 mod motion;
 mod overlay;
+mod rail;
 mod power;
 mod settings;
 mod settingsview;
@@ -37,7 +39,9 @@ fn main() {
         .window_per_monitor(clipboard::view)
         .window_per_monitor(power::view)
         .window_per_monitor(control::view)
+        .window_per_monitor(rail::view)
         .window_per_monitor(settingsview::view)
+        .lock(lockscreen::view)
         .ipc("open", ipc::open)
         .ipc("closed", ipc::closed)
         .ipc("dash", ipc::dash)
@@ -45,6 +49,7 @@ fn main() {
         .ipc("settings", ipc::settings)
         .ipc("weather", weather::command)
         .ipc("theme", theme::command)
+        .ipc("lock", ipc::open_lock)
         .ipc("island", ipc::island_legacy)
         .ipc("overlay", ipc::overlay_legacy)
         .run();
