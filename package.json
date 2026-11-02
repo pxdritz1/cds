@@ -1,6 +1,6 @@
 {
   "name": "chloes-dynamic-shell",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "private": true,
   "type": "module",
   "scripts": {
@@ -8,8 +8,7 @@
     "check": "ags types -d ."
   },
   "dependencies": {
-    "ags": "*",
-    "gnim": "*"
+    "gnim": "^1.9.1"
   },
   "devDependencies": {
     "typescript": "^5.8.3"
