@@ -337,7 +337,7 @@ fn calendar_card(clock: &Clock) -> Rectangle {
     let weekdays = ["seg", "ter", "qua", "qui", "sex", "sáb", "dom"];
     let weekday_cells = weekdays
         .iter()
-        .map(|day| calendar_cell(Some(day), false, false))
+        .map(|day| boxed(calendar_cell(Some(day), false, false)))
         .collect();
 
     content.push(boxed(
@@ -583,28 +583,46 @@ fn connectivity_card() -> Rectangle {
         Parent,
         Parent,
         theme::SURFACE_CONTAINER,
-        Column::new(children![
-            Text::new("conexões").size(11.0).color(theme::ON_SURFACE_VARIANT),
-            Row::new(children![
-                Text::new("⌁").size(17.0).color(theme::PRIMARY),
-                Text::new(wifi_label).size(10.0).color(theme::ON_SURFACE).elide(),
-            ])
-            .gap(6.0),
-            Row::new(children![
-                Text::new("ᛒ").size(16.0).color(theme::PRIMARY),
-                Text::new(format!("bluetooth · {bluetooth_label}"))
-                    .size(10.0)
-                    .color(theme::ON_SURFACE)
-                    .elide(),
-            ])
-            .gap(6.0),
+        Column::new(vec![
+            boxed(Text::new("conexões").size(11.0).color(theme::ON_SURFACE_VARIANT)),
+            boxed(
+                Rectangle::new()
+                    .width(Parent)
+                    .height(24.0)
+                    .radius(10.0)
+                    .fill(theme::SURFACE_CONTAINER_HIGH)
+                    .padding(4.0)
+                    .on_click(|_| {
+                        let enabled = Network::read().wifi_enabled();
+                        Network::set_wifi(!enabled);
+                    })
+                    .child(Row::new(children![
+                        Text::new("⌁").size(15.0).color(theme::PRIMARY),
+                        Text::new(wifi_label).size(10.0).color(theme::ON_SURFACE).elide(),
+                    ]).gap(5.0)),
+            ),
+            boxed(
+                Rectangle::new()
+                    .width(Parent)
+                    .height(24.0)
+                    .radius(10.0)
+                    .fill(theme::SURFACE_CONTAINER_HIGH)
+                    .padding(4.0)
+                    .on_click(|_| {
+                        let enabled = Bluetooth::read().powered();
+                        Bluetooth::set_powered(!enabled);
+                    })
+                    .child(Row::new(children![
+                        Text::new("ᛒ").size(14.0).color(theme::PRIMARY),
+                        Text::new(format!("bluetooth · {bluetooth_label}"))
+                            .size(10.0)
+                            .color(theme::ON_SURFACE)
+                            .elide(),
+                    ]).gap(5.0)),
+            ),
         ])
         .gap(3.0),
     )
-    .on_click(|_| {
-        let enabled = Network::read().wifi_enabled();
-        Network::set_wifi(!enabled);
-    })
 }
 
 fn notifications_card(notifications: &Notifications) -> Rectangle {
