@@ -14,7 +14,6 @@ mod launcher;
 mod lockscreen;
 mod motion;
 mod overlay;
-mod rail;
 mod power;
 mod settings;
 mod settingsview;
@@ -39,7 +38,6 @@ fn main() {
         .window_per_monitor(clipboard::view)
         .window_per_monitor(power::view)
         .window_per_monitor(control::view)
-        .window_per_monitor(rail::view)
         .window_per_monitor(settingsview::view)
         .lock(lockscreen::view)
         .ipc("open", ipc::open)

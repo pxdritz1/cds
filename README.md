@@ -8,7 +8,6 @@ Um shell de desktop para Wayland, construído em Rust com o framework Amane e um
 
 - **Material Design 3**: paleta dinâmica gerada pelo matugen, tipografia Google Sans Flex e ícones Material Symbols Rounded — incluindo os **shapes expressivos** M3 (cookie), usados no badge da aba Clima e no lockscreen.
 - **Dynamic Island**: barra compacta que vira pílula de mídia ao passar o mouse, mostra notificações recentes e abre o dash com um clique.
-- **Rail de workspaces**: ilha fininha na borda esquerda com os workspaces numerados (ativo destacado, urgente em erro, vazios em meia força).
 - **Dash**: cinco abas (Home, Media, Clima, Papéis e Alertas) com hero de relógio, clima, controles, medidores wavy M3 e mídia.
 - **Painéis**: Launcher (pesquisa), **Spotlight** (busca central + ações rápidas), **Grade de Apps** (o app drawer), Clipboard, Menu de energia e **Central de Controle** à direita (Wi-Fi, Bluetooth, Não perturbe, tema, sliders de volume/brilho, bateria e notificações).
 - **Lockscreen**: tela de bloqueio real via `ext-session-lock` com PAM — relógio grande e senha.
@@ -90,7 +89,6 @@ src/
 ├── m3.rs               # Biblioteca de componentes M3
 ├── motion.rs           # Animações, presença de overlay e state layers
 ├── overlay.rs          # Painel ativo, scrim e componentes compartilhados
-├── rail.rs             # Ilha de workspaces na borda esquerda
 ├── settings.rs         # Wallpapers, tema, esquema, lugar do clima e IPC
 ├── settingsview.rs     # Painel de Ajustes (open config)
 ├── spotlight.rs        # Spotlight: busca + ações rápidas

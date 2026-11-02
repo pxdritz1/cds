@@ -11,7 +11,6 @@
 │   ├── cds-clipboard ·       ilha do clipboard             │
 │   ├── cds-power     ·       ilha de energia               │
 │   ├── cds-settingsview·     painel de Ajustes (Overlay)   │
-│   ├── cds-rail      · ilhas de workspaces na borda         │
 │   ├── (lock)        · tela de lock via ext-session-lock    │
 │   └── wallpaper     · fundo de tela (Layer::Bottom)       │
 └───────────────────────────────────────────────────────────┘
@@ -44,7 +43,6 @@
 | `apps.rs`                  | grade de aplicativos (app drawer M3)                        |
 | `spotlight.rs`             | busca central: apps + ações rápidas do shell               |
 | `control.rs`               | central de controle à direita (wifi/bt/dnd/sliders)          |
-| `rail.rs`                  | ilhas de workspaces na borda esquerda                       |
 | `lockscreen.rs`            | tela de lock via ext-session-lock + PAM                     |
 | `launcher.rs`              | launcher: pesquisa de apps, setas/Enter, clique abre            |
 | `clipboard.rs`             | clipboard:poll de wl-paste, wl-copy, histórico persistido        |
