@@ -1,5 +1,5 @@
 use amane::{
-    Apps, Audio, Battery, Brightness, Center, Column, Cpu, End, Image, Media, Memory,
+    Apps, Audio, Battery, Brightness, Button, Center, Column, Cpu, End, Image, Media, Memory,
     Notifications, Parent, Pointer, Rectangle, Row, ScrollArea, Service, SpaceBetween, Widget,
 };
 
@@ -7,11 +7,13 @@ use crate::art::{artwork, media_labels};
 use crate::clock::Clock;
 use crate::settings::Settings;
 use crate::theme::{Scheme, mix};
+use crate::tray::Tray;
 use crate::ui::{Tab, Ui};
+use crate::weather::Weather;
 
 use super::widgets::{
-    APPS, BELL, BRIGHTNESS, CLOSE, MUTED, NEXT, PAUSE, PLAY, PREVIOUS, VOLUME, WALLPAPER,
-    boxed, card, chip, icon, icon_button, label, progress, round_button, slider, text,
+    APPS, BELL, BRIGHTNESS, CLOSE, DROP, MUTED, NEXT, PAUSE, PLAY, PREVIOUS, VOLUME, WALLPAPER,
+    AIR, boxed, card, chip, icon, icon_button, label, progress, round_button, slider, text,
 };
 
 pub const WIDTH: f32 = 700.0;
@@ -30,6 +32,7 @@ pub fn view(scheme: &Scheme, tab: Tab, alpha: f32) -> Rectangle {
         (Tab::Wallpapers, "Wallpapers"),
         (Tab::Alerts, "Alerts"),
         (Tab::Apps, "Apps"),
+        (Tab::Settings, "Ajustes"),
     ];
 
     let header: Vec<Box<dyn Widget>> = tabs
@@ -37,7 +40,7 @@ pub fn view(scheme: &Scheme, tab: Tab, alpha: f32) -> Rectangle {
         .map(|&(target, name)| {
             let key = format!("tab:{name}");
 
-            boxed(chip(&key, name, 104.0, tab == target, scheme, move || {
+            boxed(chip(&key, name, 100.0, tab == target, scheme, move || {
                 Ui::select(target)
             }))
         })
@@ -49,6 +52,7 @@ pub fn view(scheme: &Scheme, tab: Tab, alpha: f32) -> Rectangle {
         Tab::Wallpapers => wallpapers(scheme),
         Tab::Alerts => alerts(scheme),
         Tab::Apps => apps(scheme),
+        Tab::Settings => settings_tab(scheme),
     };
 
     // the body fades whenever the tab changes, after the header is built
@@ -71,12 +75,147 @@ pub fn view(scheme: &Scheme, tab: Tab, alpha: f32) -> Rectangle {
 
 fn overview(scheme: &Scheme) -> Box<dyn Widget> {
     boxed(
-        Row::new(vec![
-            boxed(time_card(scheme)),
-            boxed(media_card(scheme)),
+        Column::new(vec![
+            boxed(
+                Row::new(vec![
+                    boxed(time_card(scheme)),
+                    boxed(weather_card(scheme)),
+                    boxed(media_mini(scheme)),
+                ])
+                .gap(12.0),
+            ),
             boxed(controls_card(scheme)),
         ])
         .gap(12.0),
+    )
+}
+
+// the weather as wttr.in answered it last, with the condition translated
+fn media_mini(scheme: &Scheme) -> Rectangle {
+    let media = Media::read();
+
+    let (title, artist) = media_labels(&media);
+
+    let glyph = if media.playing() { PAUSE } else { PLAY };
+
+    let artwork = crate::art::artwork(media.art_url(), 96.0, 14.0, scheme);
+
+    card(196.0, scheme.surface_container_high).child(
+        Row::new(vec![
+            boxed(artwork),
+            boxed(
+                Column::new(vec![
+                    boxed(label(
+                        title,
+                        13.0,
+                        scheme.on_surface,
+                        amane::Weight::SemiBold,
+                        1,
+                    )),
+                    boxed(label(
+                        artist,
+                        11.0,
+                        scheme.on_surface_variant,
+                        amane::Weight::Regular,
+                        1,
+                    )),
+                    boxed(round_button(
+                        "overview-play",
+                        glyph,
+                        36.0,
+                        scheme.primary,
+                        scheme.on_primary,
+                        Media::play_pause,
+                    )),
+                ])
+                .gap(5.0)
+                .width(Parent),
+            ),
+        ])
+        .gap(10.0)
+        .width(Parent)
+        .height(Parent)
+        .align(Center),
+    )
+}
+
+// the weather as open-meteo answered it last, with the condition translated
+fn weather_card(scheme: &Scheme) -> Rectangle {
+    let weather = Weather::read();
+
+    let glyph = weather.glyph();
+    let name = weather.condition().to_string();
+
+    let temperature = String::from(weather.temperature());
+    let humidity = String::from(weather.humidity());
+    let wind = String::from(weather.wind());
+
+    drop(weather);
+
+    let color = scheme.on_secondary_container;
+
+    let temperature = if temperature.is_empty() {
+        String::from("—")
+    } else {
+        temperature
+    };
+
+    let name = if name.is_empty() {
+        String::from("Sem dados")
+    } else {
+        name
+    };
+
+    let detail = |glyph: &'static str, value: &str| {
+        Row::new(vec![
+            boxed(icon(glyph, 12.0, color)),
+            boxed(text(value, 11.0, color, amane::Weight::Medium)),
+        ])
+        .gap(4.0)
+        .align(Center)
+    };
+
+    card(196.0, scheme.secondary_container).child(
+        Column::new(vec![
+            boxed(
+                Row::new(vec![boxed(icon(glyph, 34.0, color))])
+                    .width(Parent)
+                    .justify(Center),
+            ),
+            boxed(
+                Row::new(vec![boxed(text(
+                    temperature,
+                    30.0,
+                    color,
+                    amane::Weight::SemiBold,
+                ))])
+                .width(Parent)
+                .justify(Center),
+            ),
+            boxed(
+                Row::new(vec![boxed(text(
+                    name,
+                    12.5,
+                    color,
+                    amane::Weight::Medium,
+                ))])
+                .width(Parent)
+                .justify(Center),
+            ),
+            boxed(
+                Row::new(vec![
+                    boxed(detail(DROP, &humidity)),
+                    boxed(detail(AIR, &wind)),
+                ])
+                .width(Parent)
+                .gap(10.0)
+                .justify(Center),
+            ),
+        ])
+        .gap(5.0)
+        .width(Parent)
+        .height(Parent)
+        .justify(Center),
     )
 }
 
@@ -102,74 +241,6 @@ fn time_card(scheme: &Scheme) -> Rectangle {
     )
 }
 
-fn media_card(scheme: &Scheme) -> Rectangle {
-    let media = Media::read();
-
-    let (title, artist) = media_labels(&media);
-
-    let glyph = if media.playing() { PAUSE } else { PLAY };
-
-    let controls = Row::new(vec![
-        boxed(round_button(
-            "card-previous",
-            PREVIOUS,
-            38.0,
-            scheme.secondary_container,
-            scheme.on_secondary_container,
-            Media::previous,
-        )),
-        boxed(round_button(
-            "card-play",
-            glyph,
-            44.0,
-            scheme.primary,
-            scheme.on_primary,
-            Media::play_pause,
-        )),
-        boxed(round_button(
-            "card-next",
-            NEXT,
-            38.0,
-            scheme.secondary_container,
-            scheme.on_secondary_container,
-            Media::next,
-        )),
-    ])
-    .gap(10.0)
-    .align(Center)
-    .justify(Center)
-    .width(Parent);
-
-    card(240.0, scheme.surface_container_high).child(
-        Column::new(vec![
-            boxed(
-                Row::new(vec![boxed(artwork(media.art_url(), 128.0, 24.0, scheme))])
-                    .width(Parent)
-                    .justify(Center),
-            ),
-            boxed(label(
-                title,
-                15.0,
-                scheme.on_surface,
-                amane::Weight::SemiBold,
-                1,
-            )),
-            boxed(label(
-                artist,
-                12.0,
-                scheme.on_surface_variant,
-                amane::Weight::Regular,
-                1,
-            )),
-            boxed(controls),
-        ])
-        .gap(9.0)
-        .width(Parent)
-        .height(Parent)
-        .justify(SpaceBetween),
-    )
-}
-
 fn controls_card(scheme: &Scheme) -> Rectangle {
     let audio = Audio::read();
     let brightness = Brightness::read();
@@ -177,67 +248,81 @@ fn controls_card(scheme: &Scheme) -> Rectangle {
 
     let volume_glyph = if audio.muted() { MUTED } else { VOLUME };
 
-    let mut rows: Vec<Box<dyn Widget>> = vec![boxed(
+    let mut sliders: Vec<Box<dyn Widget>> = vec![boxed(
         Row::new(vec![
             boxed(icon_button(
                 "mute",
                 volume_glyph,
-                26.0,
+                24.0,
                 scheme,
                 Audio::toggle_mute,
             )),
             boxed(slider(
                 "volume",
                 f32::from(audio.volume()) / 100.0,
-                132.0,
+                118.0,
                 scheme,
                 |value| Audio::set_volume((value * 100.0).round() as u8),
             )),
         ])
-        .gap(6.0)
+        .gap(4.0)
         .align(Center),
     )];
 
     if brightness.present() {
-        rows.push(boxed(
+        sliders.push(boxed(
             Row::new(vec![
                 boxed(
                     Rectangle::new()
-                        .width(26.0)
-                        .height(26.0)
+                        .width(24.0)
+                        .height(24.0)
                         .align_child(Center, Center)
-                        .child(icon(BRIGHTNESS, 18.0, scheme.on_surface_variant)),
+                        .child(icon(BRIGHTNESS, 16.0, scheme.on_surface_variant)),
                 ),
                 boxed(slider(
                     "brightness",
                     f32::from(brightness.percent()) / 100.0,
-                    132.0,
+                    118.0,
                     scheme,
                     |value| Brightness::set((value * 100.0).round() as u8),
                 )),
             ])
-            .gap(6.0)
+            .gap(4.0)
             .align(Center),
         ));
     }
 
-    rows.push(stat("CPU", Cpu::read().percent(), scheme));
-    rows.push(stat("RAM", Memory::read().percent(), scheme));
+    /*
+     * the hardware numbers spread along the card instead of stacking
+     * below the sliders, so the overview keeps to its rows
+     */
+    let mut stats: Vec<Box<dyn Widget>> = vec![
+        stat("CPU", Cpu::read().percent(), 140.0, scheme),
+        stat("RAM", Memory::read().percent(), 140.0, scheme),
+    ];
 
     if battery.present() {
-        rows.push(stat("BAT", battery.percent(), scheme));
+        stats.push(stat("BAT", battery.percent(), 140.0, scheme));
     }
 
-    card(196.0, scheme.surface_container_high).child(
-        Column::new(rows)
-            .gap(14.0)
-            .width(Parent)
-            .height(Parent)
-            .justify(Center),
+    card(660.0, scheme.surface_container_high).child(
+        Row::new(vec![
+            boxed(
+                Column::new(sliders)
+                    .gap(10.0)
+                    .align(Center),
+            ),
+            boxed(Row::new(stats).gap(14.0).align(Center)),
+        ])
+        .gap(14.0)
+        .width(Parent)
+        .height(Parent)
+        .justify(SpaceBetween)
+        .align(Center),
     )
 }
 
-fn stat(name: &str, percent: u8, scheme: &Scheme) -> Box<dyn Widget> {
+fn stat(name: &str, percent: u8, width: f32, scheme: &Scheme) -> Box<dyn Widget> {
     boxed(
         Column::new(vec![
             boxed(
@@ -258,13 +343,12 @@ fn stat(name: &str, percent: u8, scheme: &Scheme) -> Box<dyn Widget> {
                 .justify(SpaceBetween)
                 .width(Parent),
             ),
-            boxed(meter(name, percent, 164.0, scheme)),
+            boxed(meter(name, percent, width, scheme)),
         ])
         .gap(5.0)
         .width(Parent),
     )
 }
-
 // a thin progress bar that grows toward its value instead of snapping
 fn meter(key: &str, percent: u8, width: f32, scheme: &Scheme) -> Rectangle {
     let target = f32::from(percent.min(100)) / 100.0;
@@ -582,14 +666,33 @@ fn apps(scheme: &Scheme) -> Box<dyn Widget> {
             scheme,
         ))
     } else {
-        boxed(Column::new(rows).gap(6.0).width(660.0))
-    };
+        let hint = boxed(
+            Row::new(vec![boxed(text(
+                "Botão direito fixa o app no tray · esquerdo abre",
+                11.5,
+                scheme.on_surface_variant,
+                amane::Weight::Regular,
+            ))])
+            .width(660.0)
+            .justify(Center),
+        );
 
-    boxed(
-        ScrollArea::new("apps", Column::new(vec![body]).width(660.0))
+        boxed(
+            ScrollArea::new(
+                "apps-rows",
+                Column::new(vec![
+                    boxed(Column::new(rows).gap(6.0).width(660.0)),
+                    hint,
+                ])
+                .gap(8.0)
+                .width(660.0),
+            )
             .width(660.0)
             .height(BODY),
-    )
+        )
+    };
+
+    body
 }
 
 fn app_row(scheme: &Scheme, app: &amane::DesktopApp) -> Rectangle {
@@ -645,6 +748,7 @@ fn app_row(scheme: &Scheme, app: &amane::DesktopApp) -> Rectangle {
 
     let owned = key.clone();
     let exec = String::from(app.exec());
+    let name = String::from(app.name());
 
     Rectangle::new()
         .width(648.0)
@@ -654,7 +758,11 @@ fn app_row(scheme: &Scheme, app: &amane::DesktopApp) -> Rectangle {
         .padding(10.0)
         .cursor(Pointer)
         .on_hover(move |inside| crate::motion::set_hover(owned.clone(), inside))
-        .on_click(move |_| amane::spawn(&exec))
+        .on_click(move |button| match button {
+            Button::Left => amane::spawn(&exec),
+            Button::Right => Tray::pin(name.clone()),
+            _ => {}
+        })
         .child(
             Row::new(vec![icon_box, boxed(info)])
                 .gap(12.0)
@@ -663,7 +771,123 @@ fn app_row(scheme: &Scheme, app: &amane::DesktopApp) -> Rectangle {
         )
 }
 
-// a centered icon and two lines, for lists that have nothing to show yet
+/*
+ * the visual settings tab: dark or light mode and the matugen scheme,
+ * regenerating every color the user's config knows about
+ */
+fn settings_tab(scheme: &Scheme) -> Box<dyn Widget> {
+    let settings = Settings::read();
+
+    let dark = settings.dark();
+
+    let current = settings.scheme_name().to_string();
+
+    drop(settings);
+
+    const SCHEMES: [(&str, &str); 8] = [
+        ("scheme-tonal-spot", "Tonal"),
+        ("scheme-content", "Content"),
+        ("scheme-expressive", "Expressivo"),
+        ("scheme-neutral", "Neutro"),
+        ("scheme-vibrant", "Vibrante"),
+        ("scheme-rainbow", "Rainbow"),
+        ("scheme-fruit-salad", "Frutas"),
+        ("scheme-fidelity", "Fidelidade"),
+    ];
+
+    let mode_row = Row::new(vec![
+        boxed(chip(
+            "mode-dark",
+            "Escuro",
+            96.0,
+            dark,
+            scheme,
+            || Settings::set_dark(true),
+        )),
+        boxed(chip(
+            "mode-light",
+            "Claro",
+            96.0,
+            !dark,
+            scheme,
+            || Settings::set_dark(false),
+        )),
+        boxed(label(
+            "Troca o matugen de tudo: shell, alacritty, niri, spicetify…",
+            11.0,
+            scheme.on_surface_variant,
+            amane::Weight::Regular,
+            2,
+        )),
+    ])
+    .gap(8.0)
+    .align(Center)
+    .width(Parent);
+
+    let rows: Vec<Box<dyn Widget>> = SCHEMES
+        .chunks(4)
+        .map(|chunk| {
+            let chips: Vec<Box<dyn Widget>> = chunk
+                .iter()
+                .map(|&(value, name)| {
+                    boxed(chip(
+                        &format!("scheme:{value}"),
+                        name,
+                        142.0,
+                        current == value,
+                        scheme,
+                        move || {
+                            Settings::set_scheme(value);
+                        },
+                    ))
+                })
+                .collect();
+
+            boxed(Row::new(chips).gap(6.0))
+        })
+        .collect();
+
+    let scheme_card = card(660.0, scheme.surface_container_high).child(
+        Column::new(vec![
+            boxed(label(
+                "Esquema de cores",
+                14.0,
+                scheme.on_surface,
+                amane::Weight::Medium,
+                1,
+            )),
+            boxed(
+                Column::new(rows)
+                    .gap(6.0)
+                    .width(Parent),
+            ),
+            boxed(text(
+                &format!("Atual: {current}"),
+                11.5,
+                scheme.on_surface_variant,
+                amane::Weight::Medium,
+            )),
+        ])
+        .gap(12.0)
+        .width(Parent)
+        .height(Parent),
+    );
+
+    let mode_card = card(660.0, scheme.surface_container_high).child(mode_row);
+
+    boxed(
+        ScrollArea::new(
+            "settings-tab",
+            Column::new(vec![boxed(mode_card), boxed(scheme_card)])
+                .gap(12.0)
+                .width(660.0),
+        )
+        .width(660.0)
+        .height(BODY),
+    )
+}
+
+// the centered icon and two lines, for lists that have nothing to show yet
 fn empty(glyph: &str, title: &str, body: &str, scheme: &Scheme) -> Rectangle {
     let circle = Rectangle::new()
         .width(64.0)

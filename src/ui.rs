@@ -8,6 +8,7 @@ pub enum Tab {
     Wallpapers,
     Alerts,
     Apps,
+    Settings,
 }
 
 impl Tab {
@@ -19,6 +20,7 @@ impl Tab {
             Tab::Wallpapers => 2,
             Tab::Alerts => 3,
             Tab::Apps => 4,
+            Tab::Settings => 5,
         }
     }
 }
@@ -111,6 +113,7 @@ pub fn command(arguments: &[String]) -> String {
         "toggle" => Ui::toggle(),
         "close" => Ui::close(),
         "open" => Ui::open(parse_tab(rest.first())),
+        "tray" => crate::tray::Tray::toggle(),
         _ => return usage(),
     }
 
@@ -123,10 +126,11 @@ fn parse_tab(name: Option<&String>) -> Tab {
         Some("wallpapers") => Tab::Wallpapers,
         Some("alerts") => Tab::Alerts,
         Some("apps") => Tab::Apps,
+        Some("settings") | Some("ajustes") => Tab::Settings,
         _ => Tab::Overview,
     }
 }
 
 fn usage() -> String {
-    String::from("usage: island toggle | close | open [overview|media|wallpapers|alerts|apps]")
+    String::from("usage: island toggle | close | open [tab] | tray")
 }

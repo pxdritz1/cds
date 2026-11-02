@@ -1,6 +1,6 @@
 use amane::{
-    Center, Column, Key, LayerWindow, Monitor, Padding, Parent, Pointer, Rectangle, Row, Service,
-    SpaceBetween, Widget,
+    Button, Center, Column, Key, LayerWindow, Monitor, Padding, Parent, Pointer, Rectangle, Row,
+    Service, SpaceBetween, Widget,
 };
 
 use crate::island::widgets::{
@@ -293,7 +293,11 @@ fn action_row(scheme: &Scheme, action: Action, index: usize, selected: bool) -> 
         .padding(8.0)
         .cursor(Pointer)
         .on_hover(move |inside| crate::motion::set_hover(owned.clone(), inside))
-        .on_click(move |_| Power::activate(index))
+        .on_click(move |button| {
+            if button == Button::Left {
+                Power::activate(index);
+            }
+        })
         .child(
             Row::new(children)
                 .gap(12.0)

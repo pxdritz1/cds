@@ -54,6 +54,10 @@ impl Settings {
         self.dark
     }
 
+    pub fn scheme_name(&self) -> &str {
+        self.scheme.as_str()
+    }
+
     pub fn set_wallpaper(path: &str) -> String {
         if !PathBuf::from(path).is_file() {
             return format!("failed: no image at {path}");
@@ -91,6 +95,24 @@ impl Settings {
         }
 
         theme::apply("image", &wallpaper, &scheme, dark);
+    }
+
+    // changes the matugen scheme and regenerates everything with it
+    pub fn set_scheme(scheme: &str) -> String {
+        let (wallpaper, dark) = {
+            let mut settings = Self::write();
+
+            settings.scheme = String::from(scheme);
+            settings.save();
+
+            (settings.wallpaper.clone(), settings.dark)
+        };
+
+        if wallpaper.is_empty() {
+            return String::from("failed: set a wallpaper first");
+        }
+
+        theme::apply("image", &wallpaper, scheme, dark)
     }
 
     fn file() -> PathBuf {
@@ -173,26 +195,16 @@ pub fn command(arguments: &[String]) -> String {
     match action.as_str() {
         "wallpaper" => match rest.first() {
             Some(path) => Settings::set_wallpaper(path),
-            None => {
-                let settings = Settings::new();
-                format!("wallpaper={}", settings.wallpaper())
-            },
+            None => format!("wallpaper={}", Settings::read().wallpaper()),
         },
 
-        "wallpapers" => {
-            let settings = Settings::new();
-
-            settings.wallpapers().join("\n")
-        }
+        "wallpapers" => Settings::read().wallpapers().join("\n"),
 
         "dark" => {
             let dark = match rest.first().map(String::as_str) {
                 Some("true") | Some("on") => true,
                 Some("false") | Some("off") => false,
-                Some("toggle") => {
-                    let settings = Settings::new();
-                    !settings.dark()
-                },
+                Some("toggle") => !Settings::read().dark(),
                 _ => return usage(),
             };
 
@@ -201,12 +213,36 @@ pub fn command(arguments: &[String]) -> String {
             String::from("ok")
         }
 
+        "scheme" => match rest.first().map(String::as_str) {
+            Some(name) => Settings::set_scheme(name),
+            None => format!("scheme={}", Settings::read().scheme),
+        },
+
+        // regenerates matugen for the shell and every external app template
+        "refresh" => {
+            let settings = Settings::read();
+
+            let (wallpaper, scheme, dark) = (
+                settings.wallpaper().to_string(),
+                settings.scheme.clone(),
+                settings.dark(),
+            );
+
+            drop(settings);
+
+            if wallpaper.is_empty() {
+                return String::from("failed: set a wallpaper first");
+            }
+
+            theme::apply("image", &wallpaper, &scheme, dark)
+        }
+
         _ => usage(),
     }
 }
 
 fn usage() -> String {
     String::from(
-        "usage: settings wallpaper [image] | wallpapers | dark [true|false|toggle]",
+        "usage: settings wallpaper [image|nothing] | wallpapers | dark [true|false|toggle] | scheme [name] | refresh",
     )
 }

@@ -1,11 +1,12 @@
 use amane::{
-    Apps, Center, Column, DesktopApp, Image, Key, LayerWindow, Monitor, Padding, Parent, Pointer,
-    Rectangle, Row, ScrollArea, Service, SpaceBetween, TextInput, Widget,
+    Apps, Button, Center, Column, DesktopApp, Image, Key, LayerWindow, Monitor, Padding, Parent,
+    Pointer, Rectangle, Row, ScrollArea, Service, SpaceBetween, TextInput, Widget,
 };
 
 use crate::island::widgets::{APPS, FORWARD, SEARCH, boxed, icon, label, text};
 use crate::overlay::{self, Overlay, Panel, row_fill};
 use crate::theme::{Scheme, Theme, fade, mix};
+use crate::tray::Tray;
 
 const WIDTH: f32 = 640.0;
 const HEIGHT: f32 = 460.0;
@@ -306,6 +307,7 @@ fn result_row(scheme: &Scheme, app: &DesktopApp, index: usize, selected: bool) -
 
     let owned = key.clone();
     let exec = String::from(app.exec());
+    let name = String::from(app.name());
 
     Rectangle::new()
         .width(Parent)
@@ -315,9 +317,13 @@ fn result_row(scheme: &Scheme, app: &DesktopApp, index: usize, selected: bool) -
         .padding(8.0)
         .cursor(Pointer)
         .on_hover(move |inside| crate::motion::set_hover(owned.clone(), inside))
-        .on_click(move |_| {
-            amane::spawn(&exec);
-            Overlay::close();
+        .on_click(move |button| match button {
+            Button::Left => {
+                amane::spawn(&exec);
+                Overlay::close();
+            }
+            Button::Right => Tray::pin(name.clone()),
+            _ => {}
         })
         .child(
             Row::new(children)

@@ -2,36 +2,43 @@
 
 Um shell de desktop para Wayland, construído em Rust com o framework Amane e uma identidade visual baseada no Material Design 3 (Material You).
 
+> 📖 **Documentação completa em [`docs/`](docs/):** [`binds.md`](docs/binds.md) (atalhos do niri), [`ipc.md`](docs/ipc.md) (comando por comando) e [`arquitetura.md`](docs/arquitetura.md) (como o shell funciona por dentro).
+
 ## Características
 
 - **Material Design 3**: paleta dinâmica gerada pelo matugen, tipografia Google Sans Flex e ícones Material Symbols Rounded.
 - **Dynamic Island**: barra compacta que vira pílula de mídia ao passar o mouse, mostra notificações recentes e abre o dash com um clique.
-- **Dash**: cinco abas (visão geral, mídia, papéis de parede, alertas e aplicativos) com relógio, controles de áudio/brilho, medidores de CPU/RAM/bateria e grade de wallpapers.
+- **Dash**: seis abas (Overview, Media, Wallpapers, Alerts, Apps e **Ajustes**) com relógio, **card de clima (open-meteo)**, controles de áudio/brilho, medidores de CPU/RAM/bateria, grade de wallpapers e **configuração visual** (claro/escuro + esquema matugen na hora).
+- **Tray de apps**: o chevron da barra substitui o ícone de wifi e abre um menuzinho com os apps fixados; clique esquerdo abre, **clique direito abre o menu de contexto** (Abrir / Desafixar). Fixe apps pelo menu da aba Apps ou do launcher (clique direito).
 - **Launcher**: busca de aplicativos por nome ou descrição, navegação por teclado e abertura com `Enter`.
 - **Clipboard**: histórico persistente do `wl-clipboard`, busca, cópia de volta ao clipboard e limpeza do histórico.
 - **Menu de energia**: bloquear, sair da sessão, suspender, reiniciar e desligar.
 - **Animações M3**: morphing da ilha, overlays com scrim, fade e escala, fades de conteúdo por modo/aba, state layers de hover, cores e larguras animadas.
-- **Interação no estilo Dux**: hover para espiar a mídia, clique para abrir o dash, clique fora ou `Esc` para fechar qualquer painel.
+- **Interação no estilo Dux**: hover para espiar a mídia, clique para abrir o dash, clique fora ou `Esc` para fechar qualquer painel; launcher, clipboard e energia entram como **ilhas ancoradas no topo**, caindo de trás da barra.
 
 ## Atalhos
 
 O shell não configura bindings sozinho; use os comandos IPC no seu compositor. Para o niri:
 
 ```kdl
-Mod+Space       { spawn-sh "amane ipc call overlay launcher"; }
+Mod+Space       { spawn-sh "amane ipc call island toggle"; }        // dash
+Mod+D           { spawn-sh "amane ipc call overlay launcher"; }
 Mod+Shift+V     { spawn-sh "amane ipc call overlay clipboard"; }
 Mod+Shift+E     { spawn-sh "amane ipc call overlay power"; }
-Mod+D           { spawn-sh "amane ipc call island open"; }
+Mod+T           { spawn-sh "amane ipc call island tray"; }          // tray de apps
+Mod+N           { spawn-sh "amane ipc call settings dark toggle"; }
 ```
 
-Dentro dos overlays:
+Dentro dos ilhas:
 
 | Tecla | Ação |
 | --- | --- |
-| `Esc` | fecha o painel atual |
+| `Esc` | fecha o painel atual (dash, tray e overlays) |
 | `↑` / `↓` / `Tab` | percorre as opções |
 | `Enter` | abre o app, copia o item ou executa a ação |
 | clique fora | fecha o painel |
+
+A lista completa de sugestões de binds vive em [`docs/binds.md`](docs/binds.md).
 
 ## IPC
 
@@ -42,13 +49,19 @@ amane ipc call overlay power          # alterna o menu de energia
 amane ipc call overlay close          # fecha qualquer overlay
 amane ipc call overlay panel          # imprime o painel aberto
 
-amane ipc call island toggle
-amane ipc call island open [overview|media|wallpapers|alerts|apps]
+amane ipc call island toggle          # alterna o dash
+amane ipc call island open [aba]      # abre o dash numa aba (…|settings)
 amane ipc call island close
+amane ipc call island tray            # alterna a tray de apps
 
 amane ipc call settings wallpaper ~/Pictures/Wallpapers/foo.png
 amane ipc call settings wallpapers
 amane ipc call settings dark [true|false|toggle]
+amane ipc call settings scheme <esquema>
+amane ipc call settings refresh       # regenera o matugen de tudo
+
+amane ipc call tray [toggle|close|pin "App"|unpin "App"|list]
+amane ipc call weather
 
 amane ipc call theme set <imagem> [scheme] [dark|light]
 amane ipc call theme color <hex> [scheme] [dark|light]
@@ -66,18 +79,20 @@ src/
 ├── motion.rs           # Animações, presença de overlay e state layers
 ├── overlay.rs          # Painel ativo, scrim e componentes compartilhados
 ├── power.rs            # Menu de energia e ações de sessão
-├── settings.rs         # Wallpapers, tema claro/escuro e IPC
+├── settings.rs         # Wallpapers, tema, esquema e IPC
 ├── theme.rs            # Tokens de cor, matugen e tipografia
+├── tray.rs             # Tray de apps fixados, menu de contexto e IPC
 ├── ui.rs               # Estado do dash e comandos IPC
 ├── wallpaper.rs        # Janela do papel de parede
+├── weather.rs          # Clima (open-meteo) para a dashboard
 └── island/
-    ├── compact.rs      # Barra compacta (workspaces, relógio, status)
-    ├── dash.rs         # Conteúdo das abas do dash
+    ├── compact.rs      # Barra compacta (workspaces, relógio, chevron)
+    ├── dash.rs         # Conteúdo das abas do dash (inclui Ajustes)
     ├── peek.rs         # Pílulas de mídia e notificação
     └── widgets.rs      # Componentes e ícones Material
 ```
 
-Cada overlay é uma layer window própria em tela cheia, criada com `visible(false)`. Ao abrir, o estado global em `overlay.rs` mostra só a janela do monitor focado, aplica `Keyboard::Exclusive` e anima a presença; ao fechar, a janela continua mapeada até o fade terminar. Assim o compositor não perde o foco do teclado no meio da animação e o `Esc` sempre chega ao painel.
+Cada overlay é uma layer window própria em tela cheia, criada com `visible(false)`. Ao abrir, o estado global em `overlay.rs` mostra só a janela do monitor focado, aplica `Keyboard::Exclusive` e anima a presença; ao fechar, a janela continua mapeada até o fade terminar. Assim o compositor não perde o foco do teclado no meio da animação e o `Esc` sempre chega ao painel. Ver [`docs/arquitetura.md`](docs/arquitetura.md) para o completo.
 
 ## Execução
 

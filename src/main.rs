@@ -8,8 +8,10 @@ mod overlay;
 mod power;
 mod settings;
 mod theme;
+mod tray;
 mod ui;
 mod wallpaper;
+mod weather;
 
 use amane::App;
 
@@ -26,5 +28,7 @@ fn main() {
         .ipc("island", ui::command)
         .ipc("settings", settings::command)
         .ipc("overlay", overlay::command)
+        .ipc("tray", tray::command)
+        .ipc("weather", weather::command)
         .run();
 }

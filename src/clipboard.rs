@@ -488,7 +488,11 @@ fn entry_row(scheme: &Scheme, text: &str, position: usize, selected: bool) -> Re
 
             move |inside| crate::motion::set_hover(owned.clone(), inside)
         })
-        .on_click(move |_| Clipboard::copy_text(&click))
+        .on_click(move |button| {
+            if button == amane::Button::Left {
+                Clipboard::copy_text(&click);
+            }
+        })
         .child(
             Row::new(vec![
                 boxed(badge),

@@ -6,13 +6,14 @@ pub(crate) mod widgets;
 use std::time::Duration;
 
 use amane::{
-    Center, Full, InputArea, Key, Keyboard, Layer, LayerWindow, Margin, Media, Monitor,
+    Button, Center, Full, InputArea, Key, Keyboard, Layer, LayerWindow, Margin, Media, Monitor,
     Notification, Notifications, Parent, Rectangle, Service, Shadow, Stack, Start, Vertical,
     Widget, Zone, request_frame,
 };
 
 use crate::motion;
 use crate::theme::{Theme, fade};
+use crate::tray::{self, Tray};
 use crate::ui::Ui;
 
 const WINDOW_WIDTH: f32 = 760.0;
@@ -20,6 +21,8 @@ const WINDOW_HEIGHT: f32 = 480.0;
 const MARGIN: i32 = 10;
 const RESERVED: f32 = 44.0;
 const COMPACT_HEIGHT: f32 = 40.0;
+// the tray sheet rounds like a card, not like the pill the bar uses
+const TRAY_RADIUS: f32 = 26.0;
 const NOTICE_TIME: Duration = Duration::from_secs(5);
 
 // what the island is showing, which decides its size and how content fades
@@ -52,8 +55,21 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
 
     let notice = recent(&notifications);
 
+    /*
+     * the tray keeps the island in its compact shape: with the menu open
+     * the hover media peek would fight the drawn menu for space, so the
+     * compact bar stays put while apps are chosen
+     */
+    let tray_open = {
+        let tray = Tray::read();
+
+        tray.open()
+    };
+
     let mode = if ui.dash() {
         Mode::Dash
+    } else if tray_open {
+        Mode::Compact
     } else if notice.is_some() {
         Mode::Notice
     } else if ui.hover() && has_media {
@@ -95,6 +111,24 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
             peek::MEDIA_HEIGHT / 2.0,
         ),
 
+        Mode::Compact if tray_open => {
+            let (bar, bar_width) = compact::view(monitor, scheme, alpha);
+
+            let (menu, menu_width, menu_height) = tray::menu(scheme);
+
+            (
+                Box::new(
+                    amane::Column::new(vec![bar, menu])
+                        .align(amane::Center)
+                        .gap(8.0),
+                ),
+                // wider of the bar and the menu, so one morphs out of the other
+                f32::max(bar_width, menu_width),
+                COMPACT_HEIGHT + 8.0 + menu_height,
+                TRAY_RADIUS,
+            )
+        }
+
         Mode::Compact => {
             let (content, width) = compact::view(monitor, scheme, alpha);
 
@@ -119,9 +153,12 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
         .border(1.0, fade(scheme.outline_variant, 80))
         .on_hover(Ui::set_hover);
 
+    // clicking the island itself: close the dash, settle the tray or toggle it
     if ui.dash() {
         // keeps a click inside the surface from reaching the backdrop below
         island = island.on_click(|_| {});
+    } else if tray_open {
+        island = island.on_click(|_| Tray::close());
     } else {
         island = island.on_click(|_| Ui::toggle());
     }
@@ -173,6 +210,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
         .on_key(|key| {
             if key == Key::Escape {
                 Ui::close();
+                Tray::close();
             }
         })
         .child(
@@ -180,7 +218,12 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
                 .width(Parent)
                 .height(Parent)
                 .align_child(Center, Start)
-                .on_click(|_| Ui::close())
+                .on_click(|button| {
+                    if button == Button::Left {
+                        Ui::close();
+                        Tray::close();
+                    }
+                })
                 .child(island),
         )
 }

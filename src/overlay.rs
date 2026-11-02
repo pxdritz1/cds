@@ -1,6 +1,6 @@
 use amane::{
-    Center, Full, Key, Keyboard, Layer, LayerWindow, Parent, Rectangle, Service, Shadow, Widget,
-    Zone, Workspaces,
+    Button, Center, Full, Key, Keyboard, Layer, LayerWindow, Padding, Parent, Rectangle, Service,
+    Shadow, Widget, Zone, Workspaces,
 };
 
 use crate::motion;
@@ -94,9 +94,10 @@ impl Overlay {
 }
 
 /*
- * the dimmed backdrop and the panel both fade in, while the panel also
- * settles down into place; the caller keeps the window mapped until the
- * presence reaches zero, so closing is as soft as opening
+ * the launcher, clipboard and power open like the island itself: a panel
+ * drops from the top under the compact bar, over a dimmed backdrop. the
+ * panel fades in while settling down, and the caller keeps the window
+ * mapped until the presence reaches zero, so closing is as soft as opening.
  */
 pub fn layer(
     name: &'static str,
@@ -130,8 +131,8 @@ pub fn layer(
                 .offset(0.0, 14.0),
         )
         .opacity(presence)
-        .scale(0.94 + 0.06 * presence)
-        .translate(0.0, 18.0 * (1.0 - presence))
+        .scale(0.96 + 0.04 * presence)
+        .translate(0.0, -14.0 * (1.0 - presence))
         .on_click(|_| {})
         .child(content);
 
@@ -139,8 +140,19 @@ pub fn layer(
         .width(Parent)
         .height(Parent)
         .fill(fade(scheme.scrim, (alpha as f32 * 0.55) as u8))
-        .on_click(|_| Overlay::close())
-        .align_child(Center, Center)
+        .on_click(|button| {
+            if button == Button::Left {
+                Overlay::close();
+            }
+        })
+        .padding(Padding {
+            // the bar reserves this much, so the panel drops just under it
+            top: 58.0,
+            right: 0.0,
+            bottom: 0.0,
+            left: 0.0,
+        })
+        .align_child(Center, amane::Start)
         .child(panel);
 
     LayerWindow::new()

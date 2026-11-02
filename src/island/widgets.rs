@@ -6,8 +6,6 @@ use crate::motion;
 use crate::theme::{mix, Scheme, Theme};
 
 // material symbols rounded codepoints
-pub const WIFI: &str = "\u{e63e}";
-pub const WIFI_OFF: &str = "\u{e648}";
 pub const BELL: &str = "\u{e7f4}";
 pub const BRIGHTNESS: &str = "\u{e3ab}";
 pub const CLOSE: &str = "\u{e5cd}";
@@ -29,11 +27,23 @@ pub const POWER: &str = "\u{e8ac}";
 pub const LOCK: &str = "\u{e88d}";
 pub const LOGOUT: &str = "\u{e9ba}";
 pub const RESTART: &str = "\u{f053}";
-pub const DARK_MODE: &str = "\u{e51c}";
-pub const LIGHT_MODE: &str = "\u{e518}";
-pub const HISTORY: &str = "\u{e889}";
 pub const FORWARD: &str = "\u{e5c8}";
 pub const CHECK: &str = "\u{e5ca}";
+
+// tray and menus
+pub const EXPAND_MORE: &str = "\u{e5cf}";
+pub const TUNE: &str = "\u{e429}";
+pub const PALETTE: &str = "\u{e40a}";
+
+// weather
+pub const SUNNY: &str = "\u{e81a}";
+pub const FOGGY: &str = "\u{e818}";
+pub const RAINY: &str = "\u{f176}";
+pub const STORM: &str = "\u{ebdb}";
+pub const CLOUDY: &str = "\u{f15c}";
+pub const AIR: &str = "\u{efd8}";
+pub const DROP: &str = "\u{e798}";
+pub const SNOWING: &str = "\u{e80f}";
 
 const PROGRESS: Duration = Duration::from_millis(180);
 
