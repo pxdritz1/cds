@@ -5,29 +5,20 @@ use std::time::Instant;
 use amane::{
     request_frame, Apps, Audio, Battery, Bluetooth, Button, Canvas, Cap, Column, Cpu, Image,
     Layer, LayerWindow, Media, Memory, Network, Notifications, Parent, Path as DrawPath,
-    Rectangle, Row, Scroll, ScrollArea, Service, Shape, Text, Vertical, Widget, Workspaces,
+    Rectangle, Row, Scroll, ScrollArea, Shape, Text, Vertical, Widget, Workspaces,
     children, shapes,
 };
 
+use crate::shell::state::ShellState;
 use crate::theme;
 
-struct IslandState {
-    expanded: bool,
-}
-
-impl Service for IslandState {
-    fn new() -> Self {
-        Self { expanded: false }
-    }
-}
-
 pub fn view() -> LayerWindow {
-    let state = IslandState::read();
+    let state = ShellState::read();
     let media = Media::read();
     let audio = Audio::read();
     let notifications = Notifications::read();
 
-    let expanded = state.expanded;
+    let expanded = state.dash_open;
     let has_media = !media.title().is_empty();
     let height = if expanded { 520.0 } else if has_media { 94.0 } else { 52.0 };
     let width = if expanded { 620.0 } else if has_media { 420.0 } else { 230.0 };
