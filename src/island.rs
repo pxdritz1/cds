@@ -3,6 +3,7 @@ use std::sync::OnceLock;
 use std::time::Instant;
 
 use amane::{
+    Service,
     Apps, Audio, Battery, Bluetooth, Button, Canvas, Cap, Column, Cpu, Image, Layer, LayerWindow,
     Media, Memory, Network, Notifications, Parent, Path as DrawPath, Rectangle, Row, Scroll,
     ScrollArea, Shape, Text, Vertical, Widget, Workspaces, children, request_frame, shapes,
