@@ -36,7 +36,7 @@ pub fn view() -> LayerWindow {
     } else if has_media {
         388.0
     } else {
-        188.0
+        224.0
     };
     let target_height = if expanded {
         PANEL_HEIGHT
@@ -1052,8 +1052,11 @@ fn tile(title: &str, detail: &str) -> Rectangle {
 
 fn compact(notifications: &Notifications) -> Box<dyn Widget> {
     let count = notifications.list().len();
-    let label = if count == 0 {
-        String::from("chloe dynamic shell")
+    let clock = Clock::read();
+    let network = Network::read();
+    let bluetooth = Bluetooth::read();
+    let status = if count == 0 {
+        "sistema pronto".to_string()
     } else {
         format!("{count} notificações")
     };
@@ -1062,7 +1065,7 @@ fn compact(notifications: &Notifications) -> Box<dyn Widget> {
         Rectangle::new()
             .width(Parent)
             .height(Parent)
-            .radius(20.0)
+            .radius(26.0)
             .fill(theme::SURFACE_CONTAINER)
             .on_click(toggle_dash)
             .child(
@@ -1076,14 +1079,31 @@ fn compact(notifications: &Notifications) -> Box<dyn Widget> {
                         .child(Text::new("✦").size(18.0).color(theme::ON_PRIMARY_CONTAINER)),
                     Column::new(children![
                         Text::new("chloe's shell")
-                            .size(13.0)
+                            .size(12.0)
                             .color(theme::ON_SURFACE),
-                        Text::new(label).size(11.0).color(theme::ON_SURFACE_VARIANT),
+                        Text::new(status).size(10.0).color(theme::ON_SURFACE_VARIANT),
                     ])
                     .gap(1.0),
-                    Text::new("⌄").size(18.0).color(theme::ON_SURFACE_VARIANT),
+                    Text::new(if network.connected() { "⌁" } else { "×" })
+                        .size(15.0)
+                        .color(if network.connected() {
+                            theme::PRIMARY
+                        } else {
+                            theme::ON_SURFACE_VARIANT
+                        }),
+                    Text::new(if bluetooth.powered() { "ᛒ" } else { "·" })
+                        .size(14.0)
+                        .color(if bluetooth.powered() {
+                            theme::PRIMARY
+                        } else {
+                            theme::ON_SURFACE_VARIANT
+                        }),
+                    Text::new(clock.time.as_str())
+                        .size(12.0)
+                        .color(theme::ON_SURFACE),
                 ])
-                .gap(10.0),
+                .gap(7.0)
+                .align(Center),
             ),
     )
 }
@@ -1140,9 +1160,11 @@ fn player(media: &Media) -> Box<dyn Widget> {
                 progress(media, phase),
             ])
             .gap(3.0),
+            media_button("‹", |_| Media::previous()),
             media_button(if media.playing() { "Ⅱ" } else { "▶" }, |_| {
                 Media::play_pause()
             }),
+            media_button("›", |_| Media::next()),
         ])
         .gap(12.0),
     )
