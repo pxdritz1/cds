@@ -20,8 +20,8 @@ pub fn view() -> LayerWindow {
     let notifications = Notifications::read();
 
     let expanded = state.overlay == Some(Overlay::Dashboard);
-    let visible = state.revealed || expanded || has_media;
     let has_media = !media.title().is_empty();
+    let visible = state.revealed || expanded || has_media;
     let target_height = if expanded {
         540.0
     } else if has_media {
@@ -44,8 +44,10 @@ pub fn view() -> LayerWindow {
         dash(&media, &audio, &notifications)
     } else if has_media {
         player(&media)
-    } else {
+    } else if visible {
         compact(&notifications)
+    } else {
+        Box::new(Rectangle::new().width(Parent).height(Parent).fill(amane::Color::rgba(0, 0, 0, 0)))
     };
 
     LayerWindow::new()
@@ -53,7 +55,9 @@ pub fn view() -> LayerWindow {
         .height(height)
         .anchor_vertical(Vertical::Top)
         .layer(Layer::Overlay)
-        .visible(visible)
+        .namespace("cds-island")
+        .visible(true)
+        .space(if expanded { amane::Zone::Ignore } else { amane::Zone::Reserve })
         .keyboard(if expanded { Keyboard::OnDemand } else { Keyboard::None })
         .on_key(key_pressed)
         .margin(amane::Margin {
@@ -67,8 +71,8 @@ pub fn view() -> LayerWindow {
                 .width(Parent)
                 .height(Parent)
                 .radius(if expanded { 32.0 } else { 28.0 })
-                .fill(theme::SURFACE)
-                .border(1.0, theme::OUTLINE)
+                .fill(if visible { theme::SURFACE } else { amane::Color::rgba(0, 0, 0, 0) })
+                .border(if visible { 1.0 } else { 0.0 }, theme::OUTLINE)
                 .on_hover(set_revealed)
                 .padding(if expanded { 18.0 } else { 10.0 })
                 .on_click(island_clicked)
@@ -83,12 +87,13 @@ pub fn reveal() -> LayerWindow {
         .height(4.0)
         .anchor_vertical(Vertical::Top)
         .layer(Layer::Overlay)
+        .namespace("cds-reveal")
         .child(
             Rectangle::new()
                 .width(Parent)
                 .height(4.0)
                 .fill(amane::Color::rgba(0, 0, 0, 0))
-                .on_hover(set_revealed),
+                .on_hover(|inside| { if inside { set_revealed(true); } }),
         )
 }
 
