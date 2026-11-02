@@ -6,7 +6,7 @@ use std::time::{Duration, Instant};
 use amane::{
     Animation, Apps, Audio, Battery, Bluetooth, Button, Canvas, Cap, Column, Cpu, Easing, Image, Key, Keyboard, Layer,
     LayerWindow, Media, Memory, Network, Notifications, Parent, Path as DrawPath, Rectangle, Row,
-    Scroll, ScrollArea, Service, Text, Vertical, Widget, Workspaces, children, request_frame,
+    Scroll, ScrollArea, Service, Shape, Text, Vertical, Widget, Workspaces, children, request_frame,
     shapes,
 };
 
@@ -293,7 +293,7 @@ fn system_cards(audio: &Audio) -> Box<dyn Widget> {
     ]).gap(8.0))
 }
 
-fn info_card(title: &str, value: &str, glyph: &str, volume: bool) -> Box<dyn Widget> {
+fn info_card(title: &str, value: &str, glyph: &str, volume: bool) -> Rectangle {
     let card = Rectangle::new()
         .width(Parent)
         .height(76.0)
@@ -310,13 +310,13 @@ fn info_card(title: &str, value: &str, glyph: &str, volume: bool) -> Box<dyn Wid
         );
 
     if volume {
-        Box::new(card.on_scroll(change_volume).on_click(|button| {
+        card.on_scroll(change_volume).on_click(|button| {
             if button == Button::Left {
                 Audio::toggle_mute();
             }
-        }))
+        })
     } else {
-        Box::new(card)
+        card
     }
 }
 
