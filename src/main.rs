@@ -8,6 +8,7 @@ fn main() {
     App::new()
         .font("SF Pro")
         .window(shell::dismiss::view)
+        .window(island::reveal)
         .window(island::view)
         .run();
 }
