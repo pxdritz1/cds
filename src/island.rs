@@ -817,13 +817,16 @@ fn control_center_page(audio: &Audio) -> Box<dyn Widget> {
     let rows = vec![
         boxed(
             Row::new(vec![
-                boxed(control_tile(
-                    "volume",
-                    &format!("{}%", audio.volume()),
-                    "◖",
-                    !audio.muted(),
-                    |_| Audio::toggle_mute(),
-                )),
+                boxed(
+                    control_tile(
+                        "volume",
+                        &format!("{}%", audio.volume()),
+                        "◖",
+                        !audio.muted(),
+                        |_| Audio::toggle_mute(),
+                    )
+                    .on_scroll(change_volume),
+                ),
                 boxed(
                     control_tile(
                         "microfone",
@@ -876,24 +879,27 @@ fn control_center_page(audio: &Audio) -> Box<dyn Widget> {
         ),
         boxed(
             Row::new(vec![
-                boxed(control_tile(
-                    "brilho",
-                    if brightness.present() {
-                        format!("{}%", brightness.percent())
-                    } else {
-                        "indisponível".into()
-                    },
-                    "☼",
-                    brightness.present(),
-                    |_| {
-                        let current = Brightness::read().percent();
-                        Brightness::set(if current >= 90 {
-                            25
+                boxed(
+                    control_tile(
+                        "brilho",
+                        if brightness.present() {
+                            format!("{}%", brightness.percent())
                         } else {
-                            current.saturating_add(10)
-                        });
-                    },
-                )),
+                            "indisponível".into()
+                        },
+                        "☼",
+                        brightness.present(),
+                        |_| {
+                            let current = Brightness::read().percent();
+                            Brightness::set(if current >= 90 {
+                                25
+                            } else {
+                                current.saturating_add(10)
+                            });
+                        },
+                    )
+                    .on_scroll(change_brightness),
+                ),
                 boxed(control_tile(
                     "bateria",
                     if battery.present() {
@@ -1181,6 +1187,12 @@ fn change_microphone(scroll: Scroll) {
     let current = i32::from(Audio::read().microphone_volume());
     let step = if scroll.y < 0.0 { 5 } else { -5 };
     Audio::set_microphone_volume((current + step).clamp(0, 100) as u8);
+}
+
+fn change_brightness(scroll: Scroll) {
+    let current = i32::from(Brightness::read().percent());
+    let step = if scroll.y < 0.0 { 5 } else { -5 };
+    Brightness::set((current + step).clamp(1, 100) as u8);
 }
 
 fn uptime_label() -> String {
