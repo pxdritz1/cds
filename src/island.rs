@@ -18,7 +18,6 @@ const PANEL_WIDTH: f32 = 860.0;
 const PANEL_HEIGHT: f32 = 760.0;
 const PANEL_PADDING: f32 = 18.0;
 const GRID_GAP: f32 = 12.0;
-const CONTENT_WIDTH: f32 = PANEL_WIDTH - PANEL_PADDING * 2.0;
 
 pub fn view() -> LayerWindow {
     let state = ShellState::read();
@@ -154,7 +153,8 @@ fn page_shell(title: &str, selected: Overlay, body: Box<dyn Widget>) -> Box<dyn 
     ])
     .width(Parent)
     .height(48.0)
-    .gap(12.0);
+    .gap(12.0)
+    .justify(amane::SpaceBetween);
 
     let navigation = navigation_bar(selected);
 
@@ -638,7 +638,7 @@ fn launcher_page() -> Box<dyn Widget> {
         let mut tiles: Vec<Box<dyn Widget>> = chunk
             .iter()
             .map(|app| {
-                let launch = (*app).clone();
+                let launch = (**app).clone();
                 boxed(
                     Rectangle::new()
                         .width(Parent)
@@ -708,7 +708,7 @@ fn control_center_page(audio: &Audio) -> Box<dyn Widget> {
                 "⌁",
                 !audio.microphone_muted(),
                 |_| Audio::toggle_microphone_mute(),
-            )),
+            ).on_scroll(change_microphone)),
         ]).width(Parent).height(126.0).gap(GRID_GAP)),
         boxed(Row::new(vec![
             boxed(control_tile(
