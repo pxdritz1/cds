@@ -1,5 +1,4 @@
 use amane::Service;
-use chrono::{Local, Timelike};
 
 #[derive(Default)]
 pub struct Clock {
@@ -16,29 +15,36 @@ impl Service for Clock {
     fn listen() {
         loop {
             std::thread::sleep(std::time::Duration::from_secs(1));
-            Self::write().reload();
+
+            let (time, date, hour) = local_now();
+
+            // only the minute is shown, so the rest of the seconds stay quiet
+            let clock = Self::read();
+
+            if clock.time == time && clock.date == date {
+                continue;
+            }
+
+            drop(clock);
+
+            let mut clock = Self::write();
+
+            clock.time = time;
+            clock.date = date;
+            clock.greeting = greeting(hour);
         }
     }
 }
 
 impl Clock {
     fn load() -> Self {
-        let mut clock = Self::default();
-        clock.reload();
-        clock
-    }
+        let (time, date, hour) = local_now();
 
-    fn reload(&mut self) {
-        let now = Local::now();
-        self.time = now.format("%H:%M").to_string();
-        self.date = now.format("%A, %d de %B").to_string();
-
-        let hour = now.hour();
-        self.greeting = match hour {
-            5..=11 => String::from("Bom dia"),
-            12..=17 => String::from("Boa tarde"),
-            _ => String::from("Boa noite"),
-        };
+        Self {
+            time,
+            date,
+            greeting: greeting(hour),
+        }
     }
 
     pub fn time(&self) -> &str {
@@ -52,4 +58,46 @@ impl Clock {
     pub fn greeting(&self) -> &str {
         &self.greeting
     }
+}
+
+fn greeting(hour: u32) -> String {
+    match hour {
+        5..=11 => String::from("Bom dia"),
+        12..=17 => String::from("Boa tarde"),
+        _ => String::from("Boa noite"),
+    }
+}
+
+// the local time comes from date(1), so the shell needs no date crate
+fn local_now() -> (String, String, u32) {
+    let Some(output) = run_date() else {
+        return (String::from("--:--"), String::new(), 0);
+    };
+
+    let mut lines = output.lines();
+
+    let time = lines.next().unwrap_or_default().trim().to_string();
+    let date = lines.next().unwrap_or_default().trim().to_string();
+    let hour = lines
+        .next()
+        .and_then(|hour| hour.trim().parse().ok())
+        .unwrap_or(0);
+
+    (time, date, hour)
+}
+
+fn run_date() -> Option<String> {
+    for program in ["date", "/usr/bin/date"] {
+        let output = std::process::Command::new(program)
+            .arg("+%H:%M%n%A, %d de %B%n%H")
+            .output();
+
+        if let Ok(output) = output {
+            if output.status.success() {
+                return String::from_utf8(output.stdout).ok();
+            }
+        }
+    }
+
+    None
 }

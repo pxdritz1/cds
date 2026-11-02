@@ -7,6 +7,20 @@ pub enum Tab {
     Media,
     Wallpapers,
     Alerts,
+    Apps,
+}
+
+impl Tab {
+    // a stable number for the motion layer, so it can tell tabs apart
+    pub fn index(self) -> u64 {
+        match self {
+            Tab::Overview => 0,
+            Tab::Media => 1,
+            Tab::Wallpapers => 2,
+            Tab::Alerts => 3,
+            Tab::Apps => 4,
+        }
+    }
 }
 
 #[derive(Default)]
@@ -67,6 +81,12 @@ impl Ui {
 
         Self::write().hover = hover;
     }
+
+    // redraws the windows that show the ui, for input handlers that
+    // keep their state outside a service, like the motion layer
+    pub fn refresh() {
+        let _ = Self::write();
+    }
 }
 
 pub fn command(arguments: &[String]) -> String {
@@ -89,10 +109,11 @@ fn parse_tab(name: Option<&String>) -> Tab {
         Some("media") => Tab::Media,
         Some("wallpapers") => Tab::Wallpapers,
         Some("alerts") => Tab::Alerts,
+        Some("apps") => Tab::Apps,
         _ => Tab::Overview,
     }
 }
 
 fn usage() -> String {
-    String::from("usage: island toggle | close | open [overview|media|wallpapers|alerts]")
+    String::from("usage: island toggle | close | open [overview|media|wallpapers|alerts|apps]")
 }

@@ -137,6 +137,25 @@ pub fn fade(color: Color, alpha: u8) -> Color {
     Color::rgba(color.red(), color.green(), color.blue(), alpha)
 }
 
+// a color laid over another, like the state layers material uses on hover
+pub fn mix(base: Color, over: Color, amount: f32) -> Color {
+    let amount = amount.clamp(0.0, 1.0);
+
+    let channel = |a: u8, b: u8| {
+        let a = f32::from(a);
+        let b = f32::from(b);
+
+        (a + (b - a) * amount).round() as u8
+    };
+
+    Color::rgba(
+        channel(base.red(), over.red()),
+        channel(base.green(), over.green()),
+        channel(base.blue(), over.blue()),
+        channel(base.alpha(), over.alpha()),
+    )
+}
+
 pub fn command(arguments: &[String]) -> String {
     let [action, value, options @ ..] = arguments else {
         return usage();
