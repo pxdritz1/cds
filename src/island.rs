@@ -1067,7 +1067,7 @@ fn compact(notifications: &Notifications) -> Box<dyn Widget> {
             .height(Parent)
             .radius(26.0)
             .fill(theme::SURFACE_CONTAINER)
-            .on_click(toggle_dash)
+            .on_click(island_clicked)
             .child(
                 Row::new(children![
                     Rectangle::new()
