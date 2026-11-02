@@ -1081,7 +1081,9 @@ fn compact(notifications: &Notifications) -> Box<dyn Widget> {
                         Text::new("chloe's shell")
                             .size(12.0)
                             .color(theme::ON_SURFACE),
-                        Text::new(status).size(10.0).color(theme::ON_SURFACE_VARIANT),
+                        Text::new(status)
+                            .size(10.0)
+                            .color(theme::ON_SURFACE_VARIANT),
                     ])
                     .gap(1.0),
                     Text::new(if network.connected() { "⌁" } else { "×" })
