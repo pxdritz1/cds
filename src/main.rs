@@ -6,7 +6,7 @@ use amane::App;
 
 fn main() {
     App::new()
-        .font("SF Pro")
+        .font("Google Sans Flex")
         .window(shell::dismiss::view)
         .window(island::reveal)
         .window(island::view)
