@@ -132,8 +132,13 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
             .height(Parent),
     );
 
+    /*
+     * the dash takes the keyboard outright: a keybind opens it without a
+     * click, and on demand focus would leave escape with the window that
+     * had it before, so the dash would never see the key.
+     */
     let keyboard = if ui.dash() {
-        Keyboard::OnDemand
+        Keyboard::Exclusive
     } else {
         Keyboard::None
     };

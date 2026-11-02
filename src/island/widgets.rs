@@ -21,6 +21,19 @@ pub const BATTERY: &str = "\u{e1a4}";
 pub const MUSIC: &str = "\u{e405}";
 pub const WALLPAPER: &str = "\u{e1bc}";
 pub const APPS: &str = "\u{e5c3}";
+pub const SEARCH: &str = "\u{e8b6}";
+pub const PASTE: &str = "\u{e14f}";
+pub const COPY: &str = "\u{e14d}";
+pub const DELETE: &str = "\u{e872}";
+pub const POWER: &str = "\u{e8ac}";
+pub const LOCK: &str = "\u{e88d}";
+pub const LOGOUT: &str = "\u{e9ba}";
+pub const RESTART: &str = "\u{f053}";
+pub const DARK_MODE: &str = "\u{e51c}";
+pub const LIGHT_MODE: &str = "\u{e518}";
+pub const HISTORY: &str = "\u{e889}";
+pub const FORWARD: &str = "\u{e5c8}";
+pub const CHECK: &str = "\u{e5ca}";
 
 const PROGRESS: Duration = Duration::from_millis(180);
 

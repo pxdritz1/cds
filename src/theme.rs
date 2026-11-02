@@ -186,16 +186,33 @@ pub fn apply(source: &str, value: &str, scheme: &str, dark: bool) -> String {
 
     let mode = if dark { "dark" } else { "light" };
 
+    /*
+     * wallpapers often hold several equally good source colors, and without
+     * a preference matugen stops to ask on a terminal that is not there.
+     * the user's config is merged in below, so every other app template
+     * matugen knows about is refreshed in the same run as the shell.
+     */
+    let prefer = if source == "image" {
+        " --prefer saturation"
+    } else {
+        ""
+    };
+
     amane::spawn(&format!(
-        "matugen {source} '{value}' -c '{}' -t {scheme} -m {mode} -q",
+        "matugen {source} '{value}' -c '{}' -t {scheme} -m {mode} -q{prefer} --continue-on-error",
         config.display()
     ));
 
     String::from("ok")
 }
 
+/*
+ * matugen only reads one config, so the shell's template is added to a
+ * copy of the user's. that keeps alacritty, niri, spicetify and the rest
+ * updating together with the shell colors.
+ */
 fn write_matugen_config() -> Option<PathBuf> {
-    let folder = config_home().join("chloe-dynamic-shell/matugen");
+    let folder = cache_home().join("chloe-dynamic-shell/matugen");
     fs::create_dir_all(&folder).ok()?;
 
     let template = folder.join("colors.tpl");
@@ -203,15 +220,52 @@ fn write_matugen_config() -> Option<PathBuf> {
 
     fs::write(&template, include_str!("../matugen/colors.tpl")).ok()?;
 
-    let text = format!(
-        "[config]\n\n[templates.shell]\ninput_path = \"{}\"\noutput_path = \"{}\"\n",
-        template.display(),
-        colors_path().display()
-    );
+    let mut text = String::new();
+
+    if let Ok(user) = fs::read_to_string(config_home().join("matugen/config.toml")) {
+        text.push_str(&without_shell_section(&user));
+
+        if !text.ends_with('\n') {
+            text.push('\n');
+        }
+    }
+
+    text.push_str(&format!(
+        "\n[templates.cds_shell]\ninput_path = {}\noutput_path = {}\n",
+        toml_string(&template),
+        toml_string(&colors_path())
+    ));
 
     fs::write(&config, text).ok()?;
 
     Some(config)
+}
+
+// drops an older copy of the shell section, so a second one cannot be added
+fn without_shell_section(text: &str) -> String {
+    let mut kept = String::new();
+    let mut skipping = false;
+
+    for line in text.lines() {
+        let header = line.trim_start().starts_with('[');
+
+        if header {
+            skipping = line.trim() == "[templates.cds_shell]"
+                || line.trim() == "[templates.shell]"
+                || line.trim() == "[templates.chloe_dynamic_shell]";
+        }
+
+        if !skipping {
+            kept.push_str(line);
+            kept.push('\n');
+        }
+    }
+
+    kept
+}
+
+fn toml_string(path: &std::path::Path) -> String {
+    format!("\"{}\"", path.display().to_string().replace('\\', "\\\\"))
 }
 
 pub fn colors_path() -> PathBuf {

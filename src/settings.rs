@@ -54,26 +54,43 @@ impl Settings {
         self.dark
     }
 
-    pub fn set_wallpaper(path: &str) {
-        let mut settings = Self::write();
+    pub fn set_wallpaper(path: &str) -> String {
+        if !PathBuf::from(path).is_file() {
+            return format!("failed: no image at {path}");
+        }
 
-        settings.wallpaper = String::from(path);
-        settings.save();
-        settings.generate();
+        // the lock is released before matugen runs, so drawing never waits on it
+        let (wallpaper, scheme, dark) = {
+            let mut settings = Self::write();
+
+            settings.wallpaper = String::from(path);
+            settings.save();
+
+            (
+                settings.wallpaper.clone(),
+                settings.scheme.clone(),
+                settings.dark,
+            )
+        };
+
+        theme::apply("image", &wallpaper, &scheme, dark)
     }
 
     pub fn set_dark(dark: bool) {
-        let mut settings = Self::write();
+        let (wallpaper, scheme) = {
+            let mut settings = Self::write();
 
-        settings.dark = dark;
-        settings.save();
-        settings.generate();
-    }
+            settings.dark = dark;
+            settings.save();
 
-    fn generate(&self) {
-        if !self.wallpaper.is_empty() {
-            theme::apply("image", &self.wallpaper, &self.scheme, self.dark);
+            (settings.wallpaper.clone(), settings.scheme.clone())
+        };
+
+        if wallpaper.is_empty() {
+            return;
         }
+
+        theme::apply("image", &wallpaper, &scheme, dark);
     }
 
     fn file() -> PathBuf {
@@ -146,4 +163,50 @@ impl Settings {
 
         changed
     }
+}
+
+pub fn command(arguments: &[String]) -> String {
+    let [action, rest @ ..] = arguments else {
+        return usage();
+    };
+
+    match action.as_str() {
+        "wallpaper" => match rest.first() {
+            Some(path) => Settings::set_wallpaper(path),
+            None => {
+                let settings = Settings::new();
+                format!("wallpaper={}", settings.wallpaper())
+            },
+        },
+
+        "wallpapers" => {
+            let settings = Settings::new();
+
+            settings.wallpapers().join("\n")
+        }
+
+        "dark" => {
+            let dark = match rest.first().map(String::as_str) {
+                Some("true") | Some("on") => true,
+                Some("false") | Some("off") => false,
+                Some("toggle") => {
+                    let settings = Settings::new();
+                    !settings.dark()
+                },
+                _ => return usage(),
+            };
+
+            Settings::set_dark(dark);
+
+            String::from("ok")
+        }
+
+        _ => usage(),
+    }
+}
+
+fn usage() -> String {
+    String::from(
+        "usage: settings wallpaper [image] | wallpapers | dark [true|false|toggle]",
+    )
 }

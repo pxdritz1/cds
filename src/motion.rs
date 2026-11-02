@@ -15,6 +15,8 @@ const FADE: Duration = Duration::from_millis(220);
 const STATE: Duration = Duration::from_millis(150);
 const WORKSPACE: Duration = Duration::from_millis(260);
 const SELECT: Duration = Duration::from_millis(240);
+const OVERLAY_IN: Duration = Duration::from_millis(220);
+const OVERLAY_OUT: Duration = Duration::from_millis(150);
 
 /*
  * one value moving toward a target. retargeting only happens when the
@@ -77,6 +79,7 @@ thread_local! {
     static HOVERS: RefCell<HashMap<String, (bool, Track<f32>)>> = RefCell::new(HashMap::new());
     static NUMBERS: RefCell<HashMap<String, Track<f32>>> = RefCell::new(HashMap::new());
     static COLORS: RefCell<HashMap<String, Track<Color>>> = RefCell::new(HashMap::new());
+    static PRESENCES: RefCell<HashMap<String, Track<f32>>> = RefCell::new(HashMap::new());
 }
 
 // the island growing or shrinking between its compact, peek and dash sizes
@@ -125,6 +128,23 @@ pub fn fade(key: &str, state: u64) -> f32 {
         };
 
         animation.value()
+    })
+}
+
+// how far an overlay has come in, from 0 when closed to 1 when fully shown
+pub fn presence(key: &str, open: bool) -> f32 {
+    PRESENCES.with(|presences| {
+        let mut presences = presences.borrow_mut();
+        let track = presences
+            .entry(String::from(key))
+            .or_insert_with(|| Track::new(if open { 1.0 } else { 0.0 }, OVERLAY_IN));
+
+        track.to(
+            if open { 1.0 } else { 0.0 },
+            if open { OVERLAY_IN } else { OVERLAY_OUT },
+        );
+
+        track.value()
     })
 }
 

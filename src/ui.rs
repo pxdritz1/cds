@@ -52,16 +52,29 @@ impl Ui {
     }
 
     pub fn toggle() {
-        let mut ui = Self::write();
+        let dash = {
+            let mut ui = Self::write();
 
-        ui.dash = !ui.dash;
+            ui.dash = !ui.dash;
+
+            ui.dash
+        };
+
+        // an overlay and the dash would both want the keyboard
+        if dash {
+            crate::overlay::Overlay::close();
+        }
     }
 
     pub fn open(tab: Tab) {
-        let mut ui = Self::write();
+        {
+            let mut ui = Self::write();
 
-        ui.dash = true;
-        ui.tab = tab;
+            ui.dash = true;
+            ui.tab = tab;
+        }
+
+        crate::overlay::Overlay::close();
     }
 
     pub fn close() {

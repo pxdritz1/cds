@@ -450,7 +450,9 @@ fn thumb(path: &str, selected: bool, scheme: &Scheme) -> Rectangle {
         .clip()
         .fill(Image::cover(path).thumbnail(416, 234))
         .cursor(Pointer)
-        .on_click(move |_| Settings::set_wallpaper(&owned));
+        .on_click(move |_| {
+            Settings::set_wallpaper(&owned);
+        });
 
     if selected {
         thumb.border(3.0, scheme.primary)
