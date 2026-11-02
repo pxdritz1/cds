@@ -9,7 +9,7 @@ use amane::{
     children, shapes,
 };
 
-use crate::shell::state::ShellState;
+use crate::shell::state::{Overlay, ShellState};
 use crate::theme;
 
 pub fn view() -> LayerWindow {
@@ -18,7 +18,7 @@ pub fn view() -> LayerWindow {
     let audio = Audio::read();
     let notifications = Notifications::read();
 
-    let expanded = state.dash_open;
+    let expanded = state.overlay == Some(Overlay::Dashboard);
     let has_media = !media.title().is_empty();
     let height = if expanded { 520.0 } else if has_media { 94.0 } else { 52.0 };
     let width = if expanded { 620.0 } else if has_media { 420.0 } else { 230.0 };
@@ -316,8 +316,12 @@ fn change_volume(scroll: Scroll) {
 }
 
 fn toggle_dash(_: Button) {
-    let dash_open = ShellState::read().dash_open;
-    ShellState::write().dash_open = !dash_open;
+    let mut state = ShellState::write();
+    state.overlay = if state.overlay == Some(Overlay::Dashboard) {
+        None
+    } else {
+        Some(Overlay::Dashboard)
+    };
 }
 
 fn island_clicked(button: Button) {
