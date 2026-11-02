@@ -1,9 +1,10 @@
 use std::path::Path;
+use std::cell::RefCell;
 use std::sync::OnceLock;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use amane::{
-    Apps, Audio, Battery, Bluetooth, Button, Canvas, Cap, Column, Cpu, Image, Key, Keyboard, Layer,
+    Animation, Apps, Audio, Battery, Bluetooth, Button, Canvas, Cap, Column, Cpu, Easing, Image, Key, Keyboard, Layer,
     LayerWindow, Media, Memory, Network, Notifications, Parent, Path as DrawPath, Rectangle, Row,
     Scroll, ScrollArea, Service, Text, Vertical, Widget, Workspaces, children, request_frame,
     shapes,
@@ -20,20 +21,23 @@ pub fn view() -> LayerWindow {
 
     let expanded = state.overlay == Some(Overlay::Dashboard);
     let has_media = !media.title().is_empty();
-    let height = if expanded {
+    let target_height = if expanded {
         540.0
     } else if has_media {
         94.0
     } else {
         56.0
     };
-    let width = if expanded {
+    let target_width = if expanded {
         640.0
     } else if has_media {
         420.0
     } else {
         236.0
     };
+
+    let height = animated_size(&HEIGHT, target_height);
+    let width = animated_size(&WIDTH, target_width);
 
     let content: Box<dyn Widget> = if expanded {
         dash(&media, &audio, &notifications)
@@ -395,3 +399,21 @@ fn local_art(url: &str) -> Option<&str> {
 }
 
 static EPOCH: OnceLock<Instant> = OnceLock::new();
+
+thread_local! {
+    static WIDTH: RefCell<Option<Animation<f32>>> = const { RefCell::new(None) };
+    static HEIGHT: RefCell<Option<Animation<f32>>> = const { RefCell::new(None) };
+}
+
+fn animated_size(animation: &'static std::thread::LocalKey<RefCell<Option<Animation<f32>>>>, target: f32) -> f32 {
+    animation.with_borrow_mut(|current| {
+        let current = current.get_or_insert_with(|| {
+            Animation::new(target)
+                .duration(Duration::from_millis(360))
+                .easing(Easing::Out)
+        });
+
+        current.to(target);
+        current.value()
+    })
+}
