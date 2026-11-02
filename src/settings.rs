@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::fs;
 use std::path::PathBuf;
 use std::time::Duration;
@@ -8,14 +9,29 @@ use crate::theme::{self, config_home, home_directory};
 
 const EXTENSIONS: [&str; 3] = ["png", "jpg", "jpeg"];
 
+pub const SCHEMES: [(&str, &str); 8] = [
+    ("scheme-tonal-spot", "Tonal"),
+    ("scheme-content", "Content"),
+    ("scheme-expressive", "Expressivo"),
+    ("scheme-neutral", "Neutro"),
+    ("scheme-vibrant", "Vibrante"),
+    ("scheme-rainbow", "Rainbow"),
+    ("scheme-fruit-salad", "Frutas"),
+    ("scheme-fidelity", "Fidelidade"),
+];
+
 pub struct Settings {
     wallpaper: String,
     scheme: String,
     dark: bool,
     directory: PathBuf,
-    // where the weather reads its forecast from, "lat,lon", empty is auto
     location: String,
     wallpapers: Vec<String>,
+    flags: BTreeMap<String, bool>,
+}
+
+fn default_flag(name: &str) -> bool {
+    !matches!(name, "dnd")
 }
 
 impl Service for Settings {
@@ -27,6 +43,7 @@ impl Service for Settings {
             directory: home_directory("HOME", "").join("Pictures/Wallpapers"),
             location: String::new(),
             wallpapers: Vec::new(),
+            flags: BTreeMap::new(),
         };
 
         settings.load();
@@ -55,6 +72,44 @@ impl Settings {
 
     pub fn dark(&self) -> bool {
         self.dark
+    }
+
+    pub fn flag(&self, name: &str) -> bool {
+        self.flags
+            .get(name)
+            .copied()
+            .unwrap_or_else(|| default_flag(name))
+    }
+
+    pub fn set_flag(name: &str, value: bool) {
+        let mut settings = Self::write();
+
+        settings.flags.insert(String::from(name), value);
+        settings.save();
+    }
+
+    pub fn toggle_flag(name: &str) {
+        let value = !Self::read().flag(name);
+
+        Self::set_flag(name, value);
+    }
+
+    pub fn refresh() -> String {
+        let (wallpaper, scheme, dark) = {
+            let settings = Self::read();
+
+            (
+                settings.wallpaper.clone(),
+                settings.scheme.clone(),
+                settings.dark,
+            )
+        };
+
+        if wallpaper.is_empty() {
+            return String::from("failed: set a wallpaper first");
+        }
+
+        theme::apply("image", &wallpaper, &scheme, dark)
     }
 
     pub fn scheme_name(&self) -> &str {
@@ -200,7 +255,11 @@ impl Settings {
                 "dark" => self.dark = value != "false",
                 "directory" => self.directory = PathBuf::from(value),
                 "location" => self.location = String::from(value),
-                _ => {}
+                other => {
+                    if let Some(name) = other.strip_prefix("flag.") {
+                        self.flags.insert(String::from(name), value == "true");
+                    }
+                }
             }
         }
     }
@@ -212,7 +271,7 @@ impl Settings {
             let _ = fs::create_dir_all(folder);
         }
 
-        let text = format!(
+        let mut text = format!(
             "wallpaper={}\nscheme={}\ndark={}\ndirectory={}\nlocation={}\n",
             self.wallpaper,
             self.scheme,
@@ -220,6 +279,10 @@ impl Settings {
             self.directory.display(),
             self.location,
         );
+
+        for (name, value) in &self.flags {
+            text.push_str(&format!("flag.{name}={value}\n"));
+        }
 
         let _ = fs::write(file, text);
     }
@@ -250,78 +313,4 @@ impl Settings {
 
         changed
     }
-}
-
-pub fn command(arguments: &[String]) -> String {
-    let [action, rest @ ..] = arguments else {
-        return usage();
-    };
-
-    match action.as_str() {
-        "wallpaper" => match rest.first() {
-            Some(path) => Settings::set_wallpaper(path),
-            None => format!("wallpaper={}", Settings::read().wallpaper()),
-        },
-
-        "wallpapers" => Settings::read().wallpapers().join("\n"),
-
-        "dark" => {
-            let dark = match rest.first().map(String::as_str) {
-                Some("true") | Some("on") => true,
-                Some("false") | Some("off") => false,
-                Some("toggle") => !Settings::read().dark(),
-                _ => return usage(),
-            };
-
-            Settings::set_dark(dark);
-
-            String::from("ok")
-        }
-
-        "scheme" => match rest.first().map(String::as_str) {
-            Some(name) => Settings::set_scheme(name),
-            None => format!("scheme={}", Settings::read().scheme),
-        },
-
-        // moves the wallpaper source directory, the tab rescans right away
-        "directory" => match rest.join(" ").trim() {
-            "" => format!("directory={}", Settings::read().directory_path()),
-            path => Settings::set_directory(path),
-        },
-
-        // the weather coordinates, empty back on auto by ip
-        "location" => match rest.join(" ").trim() {
-            "" => format!("location={}", Settings::read().location()),
-            // the empty words goes back to the ip deciding
-            "auto" | "ip" => Settings::set_location(""),
-            spot => Settings::set_location(spot),
-        },
-
-        // regenerates matugen for the shell and every external app template
-        "refresh" => {
-            let settings = Settings::read();
-
-            let (wallpaper, scheme, dark) = (
-                settings.wallpaper().to_string(),
-                settings.scheme.clone(),
-                settings.dark(),
-            );
-
-            drop(settings);
-
-            if wallpaper.is_empty() {
-                return String::from("failed: set a wallpaper first");
-            }
-
-            theme::apply("image", &wallpaper, &scheme, dark)
-        }
-
-        _ => usage(),
-    }
-}
-
-fn usage() -> String {
-    String::from(
-        "usage: settings wallpaper [image] | wallpapers | dark [true|false|toggle] | scheme [name] | directory [path] | location [lat,lon|auto] | refresh",
-    )
 }

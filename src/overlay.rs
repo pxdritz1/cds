@@ -1,8 +1,9 @@
 use amane::{
-    Button, Center, Full, Key, Keyboard, Layer, LayerWindow, Padding, Parent, Rectangle, Service,
-    Shadow, Widget, Zone, Workspaces,
+    Button, Center, End, Full, Key, Keyboard, Layer, LayerWindow, Padding, Parent, Rectangle,
+    Service, Shadow, Start, Widget, Workspaces, Zone,
 };
 
+use crate::m3::{self, boxed, icon, state_layer};
 use crate::motion;
 use crate::theme::{Scheme, fade, mix};
 use crate::ui::Ui;
@@ -12,24 +13,45 @@ pub enum Panel {
     #[default]
     None,
     Launcher,
+    Spotlight,
+    Apps,
     Clipboard,
     Power,
-    Settings,
+    Control,
+    Config,
 }
 
 impl Panel {
-    fn name(self) -> &'static str {
+    pub fn name(self) -> &'static str {
         match self {
             Panel::None => "none",
             Panel::Launcher => "launcher",
+            Panel::Spotlight => "spotlight",
+            Panel::Apps => "apps",
             Panel::Clipboard => "clipboard",
             Panel::Power => "power",
-            Panel::Settings => "settings",
+            Panel::Control => "control",
+            Panel::Config => "config",
         }
     }
 }
 
-// which full screen surface is open over the desks, at most one at a time
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum Place {
+    Under,
+    Spot,
+    Right,
+    Middle,
+}
+
+#[derive(Clone, Copy)]
+pub struct Frame {
+    pub width: f32,
+    pub height: f32,
+    pub radius: f32,
+    pub place: Place,
+}
+
 #[derive(Default)]
 pub struct Overlay {
     panel: Panel,
@@ -40,7 +62,6 @@ impl Service for Overlay {
         Self::default()
     }
 
-    // input and ipc change it, there is nothing to poll
     fn listen() {}
 }
 
@@ -50,20 +71,14 @@ impl Overlay {
     }
 
     pub fn open(panel: Panel) {
-        // the dash and an overlay would both want the keyboard
-        let dash = Ui::read().dash();
-
-        if dash {
-            Ui::close();
-        }
+        Ui::close();
+        crate::tray::Tray::close();
 
         Self::write().panel = panel;
     }
 
     pub fn close() {
-        let open = Self::read().panel != Panel::None;
-
-        if !open {
+        if Self::read().panel == Panel::None {
             return;
         }
 
@@ -71,9 +86,7 @@ impl Overlay {
     }
 
     pub fn toggle(panel: Panel) {
-        let showing = Self::read().panel == panel;
-
-        if showing {
+        if Self::read().panel == panel {
             Self::close();
 
             return;
@@ -82,7 +95,6 @@ impl Overlay {
         Self::open(panel);
     }
 
-    // only the monitor with the focused workspace shows the overlay
     pub fn on_focused_monitor(monitor: &str) -> bool {
         let workspaces = Workspaces::read();
 
@@ -95,41 +107,40 @@ impl Overlay {
     }
 }
 
-/*
- * the launcher, clipboard and power open like the island itself: a panel
- * drops from the top under the compact bar, over a dimmed backdrop. the
- * panel fades in while settling down, and the caller keeps the window
- * mapped until the presence reaches zero, so closing is as soft as opening.
- */
 pub fn layer(
     name: &'static str,
     namespace: &'static str,
     monitor: &str,
     open: bool,
     scheme: &Scheme,
-    panel_width: f32,
-    panel_height: f32,
+    frame: Frame,
     content: impl Widget + 'static,
     on_key: impl Fn(Key) + 'static,
 ) -> LayerWindow {
+    Ui::watch();
+
     let presence = motion::presence(name, open);
     let focused = Overlay::on_focused_monitor(monitor);
-
     let visible = focused && (open || presence > 0.001);
 
-    let alpha = (presence * 255.0).round() as u8;
+    let dim = match frame.place {
+        Place::Right => 0.16,
+        Place::Under => 0.40,
+        Place::Spot => 0.45,
+        Place::Middle => 0.55,
+    };
 
     let panel = Rectangle::new()
-        .width(panel_width)
-        .height(panel_height)
-        .fill(scheme.surface_container_low)
-        .radius(30.0)
+        .width(frame.width)
+        .height(frame.height)
+        .fill(scheme.surface_container)
+        .radius(frame.radius)
         .clip()
-        .border(1.0, fade(scheme.outline_variant, 90))
+        .border(1.0, fade(scheme.outline_variant, 70))
         .shadow(
             Shadow::drop(scheme.shadow)
-                .opacity(0.45)
-                .blur(32.0)
+                .opacity(0.40)
+                .blur(36.0)
                 .offset(0.0, 14.0),
         )
         .opacity(presence)
@@ -138,49 +149,62 @@ pub fn layer(
         .on_click(|_| {})
         .child(content);
 
+    let padding = match frame.place {
+        Place::Under => Padding {
+            top: 58.0,
+            ..Padding::default()
+        },
+        Place::Spot => Padding {
+            top: 130.0,
+            ..Padding::default()
+        },
+        Place::Right => Padding {
+            top: 58.0,
+            right: 10.0,
+            ..Padding::default()
+        },
+        Place::Middle => Padding::default(),
+    };
+
+    // the singleton alignment values, named, so each place wraps its own
     let root = Rectangle::new()
         .width(Parent)
         .height(Parent)
-        .fill(fade(scheme.scrim, (alpha as f32 * 0.55) as u8))
+        .fill(fade(scheme.scrim, (presence * 255.0 * dim) as u8))
         .on_click(|button| {
             if button == Button::Left {
                 Overlay::close();
             }
         })
-        .padding(Padding {
-            // the bar reserves this much, so the panel drops just under it
-            top: 58.0,
-            right: 0.0,
-            bottom: 0.0,
-            left: 0.0,
-        })
-        .align_child(Center, amane::Start)
-        .child(panel);
+        .padding(padding);
+
+    let root = match frame.place {
+        Place::Under => root.align_child(Center, Start),
+        Place::Spot => root.align_child(Center, Start),
+        Place::Right => root.align_child(End, Start),
+        Place::Middle => root.align_child(Center, Center),
+    };
 
     LayerWindow::new()
         .width(Full)
         .height(Full)
         .layer(Layer::Overlay)
         .space(Zone::Ignore)
-        .keyboard(if open {
-            Keyboard::Exclusive
-        } else {
-            Keyboard::None
-        })
+        .keyboard(if open { Keyboard::Exclusive } else { Keyboard::None })
         .visible(visible)
         .namespace(namespace)
         .on_key(move |key| {
             if key == Key::Escape {
                 Overlay::close();
+
                 return;
             }
 
             on_key(key);
         })
-        .child(root)
+        .child(root.child(panel))
 }
 
-// a search bar shared by the launcher and the clipboard
 pub fn search(
     key: &str,
     input: &'static str,
@@ -194,46 +218,36 @@ pub fn search(
     let state = motion::hover(&format!("{key}:search"));
     let owned = String::from(key);
 
-    let fill = mix(
-        scheme.surface_container_high,
-        scheme.on_surface,
-        0.05 * state,
-    );
+    let fill = state_layer(scheme.surface_container_high, scheme.on_surface, 0.05 * state);
 
-    let text_input = amane::TextInput::new(input)
+    let field = amane::TextInput::new(input)
         .size(16.0)
         .color(scheme.on_surface)
         .placeholder(placeholder)
         .on_change(on_change)
         .on_submit(on_submit);
 
-    let text_input = if open { text_input.focused() } else { text_input };
+    let field = if open { field.focused() } else { field };
 
     Rectangle::new()
         .width(Parent)
         .height(56.0)
         .fill(fill)
-        .radius(28.0)
+        .radius(Full)
         .cursor(amane::Pointer)
-        .on_hover(move |inside| motion::set_hover(owned.clone(), inside))
-        .padding(amane::Padding {
-            top: 0.0,
-            right: 18.0,
-            bottom: 0.0,
-            left: 18.0,
-        })
+        .on_hover(move |inside| motion::set_hover(format!("{owned}:search"), inside))
+        .padding(Padding { top: 0.0, right: 20.0, bottom: 0.0, left: 20.0 })
         .child(
             amane::Row::new(vec![
-                Box::new(crate::island::widgets::icon(glyph, 22.0, scheme.on_surface_variant)),
-                Box::new(text_input),
+                boxed(icon(glyph, 22.0, scheme.on_surface_variant)),
+                boxed(field),
             ])
-            .gap(12.0)
+            .gap(14.0)
             .align(Center)
             .width(Parent),
         )
 }
 
-// the row highlight used by the launcher and the clipboard
 pub fn row_fill(key: &str, selected: bool, scheme: &Scheme) -> (amane::Color, amane::Color) {
     let state = motion::hover(key);
 
@@ -243,13 +257,8 @@ pub fn row_fill(key: &str, selected: bool, scheme: &Scheme) -> (amane::Color, am
         amane::Color::TRANSPARENT
     };
 
-    let fill = motion::color(
-        &format!("{key}:fill"),
-        target,
-        motion::SELECT_DURATION,
-    );
-
-    let fill = mix(fill, scheme.on_surface, 0.06 * state);
+    let fill = motion::color(&format!("{key}:fill"), target, motion::SELECT_DURATION);
+    let fill = state_layer(fill, scheme.on_surface, 0.06 * state);
 
     let color = if selected {
         scheme.on_secondary_container
@@ -260,35 +269,19 @@ pub fn row_fill(key: &str, selected: bool, scheme: &Scheme) -> (amane::Color, am
     (fill, color)
 }
 
-pub fn command(arguments: &[String]) -> String {
-    let [action, rest @ ..] = arguments else {
-        return usage();
-    };
-
-    match action.as_str() {
-        "launcher" => crate::launcher::Launcher::toggle(),
-        "clipboard" => crate::clipboard::Clipboard::toggle(),
-        "power" => crate::power::Power::toggle(),
-        "settings" => crate::settingsview::SettingsView::toggle(),
-
-        "toggle" => match rest.first().map(String::as_str) {
-            Some("launcher") => crate::launcher::Launcher::toggle(),
-            Some("clipboard") => crate::clipboard::Clipboard::toggle(),
-            Some("power") => crate::power::Power::toggle(),
-            Some("settings") => crate::settingsview::SettingsView::toggle(),
-            _ => return usage(),
-        },
-
-        "close" => Overlay::close(),
-
-        "panel" => return String::from(Overlay::read().panel.name()),
-
-        _ => return usage(),
-    }
-
-    String::from("ok")
+pub fn hint_bar(left: &str, right: &str, scheme: &Scheme) -> amane::Row {
+    amane::Row::new(vec![
+        boxed(m3::scale(m3::Type::LabelMedium, left, scheme.on_surface_variant)),
+        boxed(m3::scale(
+            m3::Type::LabelMedium,
+            right,
+            fade(scheme.on_surface_variant, 170),
+        )),
+    ])
+    .width(Parent)
+    .justify(amane::SpaceBetween)
 }
 
-fn usage() -> String {
-    String::from("usage: overlay launcher|clipboard|power|settings | toggle <panel> | close | panel")
+pub fn dimmed(scheme: &Scheme) -> amane::Color {
+    mix(scheme.on_surface_variant, scheme.surface, 0.2)
 }

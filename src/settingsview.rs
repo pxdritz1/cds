@@ -6,6 +6,7 @@ use amane::{
 use crate::island::widgets::{
     DARK_MODE, LIGHT_MODE, OPEN_NEW, SUNNY, TUNE, boxed, card, chip, icon, label, text,
 };
+use crate::m3;
 use crate::overlay::{self, Overlay, Panel};
 use crate::settings::Settings;
 use crate::theme::{Scheme, Theme};
@@ -57,7 +58,7 @@ impl SettingsView {
     }
 
     pub fn toggle() {
-        let showing = Overlay::read().panel() == Panel::Settings;
+        let showing = Overlay::read().panel() == Panel::Config;
 
         if showing {
             Overlay::close();
@@ -66,7 +67,7 @@ impl SettingsView {
         }
 
         Self::reset();
-        Overlay::open(Panel::Settings);
+        Overlay::open(Panel::Config);
     }
 }
 
@@ -123,7 +124,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
     let theme = Theme::read();
     let scheme = theme.scheme();
 
-    let open = Overlay::read().panel() == Panel::Settings;
+    let open = Overlay::read().panel() == Panel::Config;
 
     let settings = Settings::read();
 
@@ -349,8 +350,12 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
         &monitor.name,
         open,
         scheme,
-        WIDTH,
-        HEIGHT,
+        overlay::Frame {
+            width: WIDTH,
+            height: HEIGHT,
+            radius: m3::shape::XL,
+            place: overlay::Place::Under,
+        },
         content,
         |key| {
             if key == Key::Escape {

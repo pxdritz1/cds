@@ -6,6 +6,7 @@ use amane::{
 use crate::island::widgets::{
     CHECK, LOCK, LOGOUT, POWER, RESTART, boxed, icon, label, text,
 };
+use crate::m3;
 use crate::overlay::{self, Overlay, Panel, row_fill};
 use crate::theme::{Scheme, Theme, fade};
 
@@ -230,8 +231,12 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
         &monitor.name,
         open,
         scheme,
-        WIDTH,
-        HEIGHT,
+        overlay::Frame {
+            width: WIDTH,
+            height: HEIGHT,
+            radius: m3::shape::XL,
+            place: overlay::Place::Under,
+        },
         content,
         |key| match key {
             Key::Down | Key::Tab => Power::move_by(1),

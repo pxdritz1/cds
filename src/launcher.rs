@@ -4,6 +4,7 @@ use amane::{
 };
 
 use crate::island::widgets::{APPS, FORWARD, SEARCH, boxed, icon, label, text};
+use crate::m3;
 use crate::overlay::{self, Overlay, Panel, row_fill};
 use crate::theme::{Scheme, Theme, fade, mix};
 
@@ -235,8 +236,12 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
         &monitor.name,
         open,
         scheme,
-        WIDTH,
-        HEIGHT,
+        overlay::Frame {
+            width: WIDTH,
+            height: HEIGHT,
+            radius: m3::shape::XL,
+            place: overlay::Place::Under,
+        },
         content,
         move |key| match key {
             Key::Down | Key::Tab => Launcher::move_by(1, count),

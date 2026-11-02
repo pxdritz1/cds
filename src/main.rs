@@ -1,13 +1,22 @@
+/*
+ * the lancamentos: windows registered per monitor, then one ipc entry
+ * point with short names.
+ */
+mod apps;
 mod art;
 mod clipboard;
 mod clock;
+mod control;
 mod island;
+mod ipc;
+mod m3;
 mod launcher;
 mod motion;
 mod overlay;
 mod power;
 mod settings;
 mod settingsview;
+mod spotlight;
 mod theme;
 mod tray;
 mod ui;
@@ -22,15 +31,21 @@ fn main() {
         .window_per_monitor(wallpaper::view)
         .window_per_monitor(island::reserve)
         .window_per_monitor(island::view)
+        .window_per_monitor(apps::view)
+        .window_per_monitor(spotlight::view)
         .window_per_monitor(launcher::view)
         .window_per_monitor(clipboard::view)
         .window_per_monitor(power::view)
+        .window_per_monitor(control::view)
         .window_per_monitor(settingsview::view)
-        .ipc("theme", theme::command)
-        .ipc("island", ui::command)
-        .ipc("settings", settings::command)
-        .ipc("overlay", overlay::command)
+        .ipc("open", ipc::open)
+        .ipc("closed", ipc::closed)
+        .ipc("dash", ipc::dash)
         .ipc("tray", tray::command)
+        .ipc("settings", ipc::settings)
         .ipc("weather", weather::command)
+        .ipc("theme", theme::command)
+        .ipc("island", ipc::island_legacy)
+        .ipc("overlay", ipc::overlay_legacy)
         .run();
 }

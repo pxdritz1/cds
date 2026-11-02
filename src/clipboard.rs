@@ -10,6 +10,7 @@ use amane::{
 };
 
 use crate::island::widgets::{COPY, PASTE, SEARCH, boxed, chip, icon, icon_button, label, text};
+use crate::m3;
 use crate::overlay::{self, Overlay, Panel, row_fill};
 use crate::theme::{Scheme, Theme, cache_home, fade};
 
@@ -426,8 +427,12 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
         &monitor.name,
         open,
         scheme,
-        WIDTH,
-        HEIGHT,
+        overlay::Frame {
+            width: WIDTH,
+            height: HEIGHT,
+            radius: m3::shape::XL,
+            place: overlay::Place::Under,
+        },
         content,
         move |key| match key {
             Key::Down | Key::Tab => Clipboard::move_by(1, count),

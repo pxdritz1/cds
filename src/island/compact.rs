@@ -77,7 +77,7 @@ pub fn view(monitor: &Monitor, scheme: &Scheme, alpha: f32) -> (Box<dyn Widget>,
         .height(Parent)
         .align_child(Center, Center)
         .child(text(
-            clock.time(),
+            clock.time(true),
             14.0,
             scheme.on_surface,
             amane::Weight::SemiBold,

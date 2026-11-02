@@ -6,6 +6,8 @@ use amane::{
 
 use crate::art::{artwork, media_labels};
 use crate::clock::Clock;
+use crate::m3;
+use crate::overlay::{Overlay, Panel};
 use crate::settings::Settings;
 use crate::theme::Scheme;
 use crate::ui::{Tab, Ui};
@@ -27,15 +29,14 @@ const BODY: f32 = HEIGHT - PADDING * 2.0 - TAB_HEIGHT - 16.0;
 
 pub fn view(scheme: &Scheme, tab: Tab, alpha: f32) -> Rectangle {
     let tabs = [
-        (Tab::Overview, "Overview"),
+        (Tab::Home, "Home"),
         (Tab::Media, "Media"),
-        (Tab::Wallpapers, "Wallpapers"),
-        (Tab::Alerts, "Alertas"),
         (Tab::Weather, "Clima"),
-        (Tab::Settings, "Ajustes"),
+        (Tab::Wallpapers, "Papéis"),
+        (Tab::Alerts, "Alertas"),
     ];
 
-    let header: Vec<Box<dyn Widget>> = tabs
+    let mut header: Vec<Box<dyn Widget>> = tabs
         .iter()
         .map(|&(target, name)| {
             let key = format!("tab:{name}");
@@ -46,13 +47,15 @@ pub fn view(scheme: &Scheme, tab: Tab, alpha: f32) -> Rectangle {
         })
         .collect();
 
+    // the config button sits at the left of the chips, the filler at the right
+    let spacer = Rectangle::new().width(Parent).height(1.0);
+
     let body = match tab {
-        Tab::Overview => overview(scheme),
+        Tab::Home => overview(scheme),
         Tab::Media => media(scheme),
+        Tab::Weather => weather_tab(scheme),
         Tab::Wallpapers => wallpapers(scheme),
         Tab::Alerts => alerts(scheme),
-        Tab::Weather => weather_tab(scheme),
-        Tab::Settings => settings_tab(scheme),
     };
 
     // the body fades whenever the tab changes, after the header is built
@@ -65,7 +68,31 @@ pub fn view(scheme: &Scheme, tab: Tab, alpha: f32) -> Rectangle {
         .opacity(alpha)
         .child(
             Column::new(vec![
-                boxed(Row::new(header).gap(TAB_GAP).align(Center)),
+                boxed(
+                    Row::new({
+                        let mut header = header;
+
+                        header.insert(
+                            0,
+                            boxed(m3::icon_button(
+                                "dash:config",
+                                m3::TUNE,
+                                34.0,
+                                scheme,
+                                || {
+                                    Overlay::open(Panel::Config);
+                                },
+                            )),
+                        );
+
+                        header.push(boxed(spacer));
+
+                        header
+                    })
+                    .gap(TAB_GAP)
+                    .align(Center)
+                    .width(Parent),
+                ),
                 body,
             ])
             .width(Parent)
@@ -227,7 +254,7 @@ fn time_card(scheme: &Scheme) -> Rectangle {
         Column::new(vec![
             boxed(label(clock.greeting(), 14.0, color, amane::Weight::Medium, 1)),
             boxed(text(
-                clock.time(),
+                clock.time(true),
                 54.0,
                 color,
                 amane::Weight::SemiBold,
@@ -834,118 +861,6 @@ fn hour_chip(hour: &Hour, scheme: &Scheme) -> Rectangle {
  * the visual settings tab: dark or light mode and the matugen scheme,
  * regenerating every color the user's config knows about
  */
-fn settings_tab(scheme: &Scheme) -> Box<dyn Widget> {
-    let settings = Settings::read();
-
-    let dark = settings.dark();
-
-    let current = settings.scheme_name().to_string();
-
-    drop(settings);
-
-    const SCHEMES: [(&str, &str); 8] = [
-        ("scheme-tonal-spot", "Tonal"),
-        ("scheme-content", "Content"),
-        ("scheme-expressive", "Expressivo"),
-        ("scheme-neutral", "Neutro"),
-        ("scheme-vibrant", "Vibrante"),
-        ("scheme-rainbow", "Rainbow"),
-        ("scheme-fruit-salad", "Frutas"),
-        ("scheme-fidelity", "Fidelidade"),
-    ];
-
-    let mode_row = Row::new(vec![
-        boxed(chip(
-            "mode-dark",
-            "Escuro",
-            96.0,
-            dark,
-            scheme,
-            || Settings::set_dark(true),
-        )),
-        boxed(chip(
-            "mode-light",
-            "Claro",
-            96.0,
-            !dark,
-            scheme,
-            || Settings::set_dark(false),
-        )),
-        boxed(label(
-            "Troca o matugen de tudo: shell, alacritty, niri, spicetify…",
-            11.0,
-            scheme.on_surface_variant,
-            amane::Weight::Regular,
-            2,
-        )),
-    ])
-    .gap(8.0)
-    .align(Center)
-    .width(Parent);
-
-    let rows: Vec<Box<dyn Widget>> = SCHEMES
-        .chunks(4)
-        .map(|chunk| {
-            let chips: Vec<Box<dyn Widget>> = chunk
-                .iter()
-                .map(|&(value, name)| {
-                    boxed(chip(
-                        &format!("scheme:{value}"),
-                        name,
-                        142.0,
-                        current == value,
-                        scheme,
-                        move || {
-                            Settings::set_scheme(value);
-                        },
-                    ))
-                })
-                .collect();
-
-            boxed(Row::new(chips).gap(6.0))
-        })
-        .collect();
-
-    let scheme_card = card(660.0, scheme.surface_container_high).child(
-        Column::new(vec![
-            boxed(label(
-                "Esquema de cores",
-                14.0,
-                scheme.on_surface,
-                amane::Weight::Medium,
-                1,
-            )),
-            boxed(
-                Column::new(rows)
-                    .gap(6.0)
-                    .width(Parent),
-            ),
-            boxed(text(
-                &format!("Atual: {current}"),
-                11.5,
-                scheme.on_surface_variant,
-                amane::Weight::Medium,
-            )),
-        ])
-        .gap(12.0)
-        .width(Parent)
-        .height(Parent),
-    );
-
-    let mode_card = card(660.0, scheme.surface_container_high).child(mode_row);
-
-    boxed(
-        ScrollArea::new(
-            "settings-tab",
-            Column::new(vec![boxed(mode_card), boxed(scheme_card)])
-                .gap(12.0)
-                .width(660.0),
-        )
-        .width(660.0)
-        .height(BODY),
-    )
-}
-
 // the centered icon and two lines, for lists that have nothing to show yet
 fn empty(glyph: &str, title: &str, body: &str, scheme: &Scheme) -> Rectangle {
     let circle = Rectangle::new()
