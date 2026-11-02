@@ -5,5 +5,8 @@ mod theme;
 use amane::App;
 
 fn main() {
-    App::new().window(island::view).run();
+    App::new()
+        .window(shell::dismiss::view)
+        .window(island::view)
+        .run();
 }
