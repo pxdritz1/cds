@@ -1,0 +1,21 @@
+{
+  "name": "chloes-dynamic-shell",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "ags run ./src/app.tsx",
+    "check": "ags types -d ."
+  },
+  "dependencies": {
+    "ags": "*",
+    "gnim": "*"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.3"
+  },
+  "prettier": {
+    "semi": false,
+    "tabWidth": 2
+  }
+}
