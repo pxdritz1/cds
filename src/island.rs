@@ -316,8 +316,8 @@ fn change_volume(scroll: Scroll) {
 }
 
 fn toggle_dash(_: Button) {
-    let expanded = IslandState::read().expanded;
-    IslandState::write().expanded = !expanded;
+    let dash_open = ShellState::read().dash_open;
+    ShellState::write().dash_open = !dash_open;
 }
 
 fn island_clicked(button: Button) {
