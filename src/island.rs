@@ -3,10 +3,9 @@ use std::sync::OnceLock;
 use std::time::Instant;
 
 use amane::{
-    request_frame, Apps, Audio, Battery, Bluetooth, Button, Canvas, Cap, Column, Cpu, Image,
-    Layer, LayerWindow, Media, Memory, Network, Notifications, Parent, Path as DrawPath,
-    Rectangle, Row, Scroll, ScrollArea, Shape, Text, Vertical, Widget, Workspaces,
-    children, shapes,
+    Apps, Audio, Battery, Bluetooth, Button, Canvas, Cap, Column, Cpu, Image, Layer, LayerWindow,
+    Media, Memory, Network, Notifications, Parent, Path as DrawPath, Rectangle, Row, Scroll,
+    ScrollArea, Shape, Text, Vertical, Widget, Workspaces, children, request_frame, shapes,
 };
 
 use crate::shell::state::{Overlay, ShellState};
@@ -20,8 +19,20 @@ pub fn view() -> LayerWindow {
 
     let expanded = state.overlay == Some(Overlay::Dashboard);
     let has_media = !media.title().is_empty();
-    let height = if expanded { 520.0 } else if has_media { 94.0 } else { 52.0 };
-    let width = if expanded { 620.0 } else if has_media { 420.0 } else { 230.0 };
+    let height = if expanded {
+        520.0
+    } else if has_media {
+        94.0
+    } else {
+        52.0
+    };
+    let width = if expanded {
+        620.0
+    } else if has_media {
+        420.0
+    } else {
+        230.0
+    };
 
     let content: Box<dyn Widget> = if expanded {
         dash(&media, &audio, &notifications)
@@ -114,7 +125,11 @@ fn player(media: &Media) -> Box<dyn Widget> {
             .child(Text::new("♫").size(24.0).color(theme::ON_PRIMARY_CONTAINER))
     };
 
-    let title = if media.title().is_empty() { "sem título" } else { media.title() };
+    let title = if media.title().is_empty() {
+        "sem título"
+    } else {
+        media.title()
+    };
     let artist = if media.artist().is_empty() {
         media.active().map_or("reprodutor", |p| p.identity())
     } else {
@@ -126,7 +141,9 @@ fn player(media: &Media) -> Box<dyn Widget> {
             cover,
             Column::new(children![
                 Text::new(title).size(14.0).color(theme::ON_SURFACE),
-                Text::new(artist).size(12.0).color(theme::ON_SURFACE_VARIANT),
+                Text::new(artist)
+                    .size(12.0)
+                    .color(theme::ON_SURFACE_VARIANT),
                 progress(media, phase),
             ])
             .gap(3.0),
@@ -136,7 +153,11 @@ fn player(media: &Media) -> Box<dyn Widget> {
                 .radius(21.0)
                 .fill(theme::SURFACE_CONTAINER)
                 .on_click(|_| Media::play_pause())
-                .child(Text::new(if media.playing() { "Ⅱ" } else { "▶" }).size(17.0).color(theme::PRIMARY)),
+                .child(
+                    Text::new(if media.playing() { "Ⅱ" } else { "▶" })
+                        .size(17.0)
+                        .color(theme::PRIMARY)
+                ),
             Rectangle::new()
                 .width(28.0)
                 .height(42.0)
@@ -172,7 +193,10 @@ fn progress(media: &Media, phase: f32) -> Canvas {
         .stroke(2.0, theme::OUTLINE)
         .cap(Cap::Round);
 
-    Canvas::new().width(width).height(14.0).shapes(shapes![tail, worm])
+    Canvas::new()
+        .width(width)
+        .height(14.0)
+        .shapes(shapes![tail, worm])
 }
 
 fn dash(media: &Media, audio: &Audio, notifications: &Notifications) -> Box<dyn Widget> {
@@ -181,7 +205,10 @@ fn dash(media: &Media, audio: &Audio, notifications: &Notifications) -> Box<dyn 
     sections.push(section_title("controles"));
     sections.push(system_controls(audio));
     sections.push(section_title("tray"));
-    sections.push(tile("área de notificação", "integração status notifier pendente"));
+    sections.push(tile(
+        "área de notificação",
+        "integração status notifier pendente",
+    ));
     sections.push(section_title("apps"));
     sections.push(app_launcher());
     sections.push(section_title("clipboard"));
@@ -190,7 +217,10 @@ fn dash(media: &Media, audio: &Audio, notifications: &Notifications) -> Box<dyn 
     sections.push(tile("clima", "provedor meteorológico não configurado"));
     sections.push(section_title("mídia"));
     if media.title().is_empty() {
-        sections.push(tile("nenhuma mídia ativa", "abra um player compatível com mpris"));
+        sections.push(tile(
+            "nenhuma mídia ativa",
+            "abra um player compatível com mpris",
+        ));
     } else {
         sections.push(player(media));
     }
@@ -211,15 +241,21 @@ fn dash(media: &Media, audio: &Audio, notifications: &Notifications) -> Box<dyn 
                     .fill(theme::SURFACE_CONTAINER)
                     .padding(10.0)
                     .on_click(move |_| Notifications::click(id))
-                    .child(Column::new(children![
-                        Text::new(label).size(12.0).color(theme::ON_SURFACE),
-                        Text::new(body).size(11.0).color(theme::ON_SURFACE_VARIANT),
-                    ]).gap(2.0)),
+                    .child(
+                        Column::new(children![
+                            Text::new(label).size(12.0).color(theme::ON_SURFACE),
+                            Text::new(body).size(11.0).color(theme::ON_SURFACE_VARIANT),
+                        ])
+                        .gap(2.0),
+                    ),
             ));
         }
     }
 
-    Box::new(ScrollArea::new("island-dash", Column::new(sections).gap(8.0)))
+    Box::new(ScrollArea::new(
+        "island-dash",
+        Column::new(sections).gap(8.0),
+    ))
 }
 
 fn system_controls(audio: &Audio) -> Box<dyn Widget> {
@@ -235,9 +271,21 @@ fn system_controls(audio: &Audio) -> Box<dyn Widget> {
     let status = format!(
         "volume {volume}%{} · rede {} · bluetooth {} · bateria {} · cpu {}% · ram {}%",
         if muted { " (mudo)" } else { "" },
-        if network.connected() { "conectada" } else { "desconectada" },
-        if bluetooth.powered() { "ativo" } else { "inativo" },
-        if battery.present() { format!("{}%", battery.percent()) } else { String::from("—") },
+        if network.connected() {
+            "conectada"
+        } else {
+            "desconectada"
+        },
+        if bluetooth.powered() {
+            "ativo"
+        } else {
+            "inativo"
+        },
+        if battery.present() {
+            format!("{}%", battery.percent())
+        } else {
+            String::from("—")
+        },
         cpu.percent(),
         memory.percent(),
     );
@@ -259,7 +307,10 @@ fn system_controls(audio: &Audio) -> Box<dyn Widget> {
                 .padding(10.0)
                 .child(Text::new(status).size(11.0).color(theme::ON_SURFACE)),
         ),
-        tile("áreas de trabalho", &format!("{workspace_count} espaços detectados")),
+        tile(
+            "áreas de trabalho",
+            &format!("{workspace_count} espaços detectados"),
+        ),
     ];
 
     Box::new(Column::new(controls).gap(6.0))
@@ -284,7 +335,10 @@ fn app_launcher() -> Box<dyn Widget> {
     }
 
     if entries.is_empty() {
-        entries.push(tile("carregando aplicativos", "a lista é atualizada em segundo plano"));
+        entries.push(tile(
+            "carregando aplicativos",
+            "a lista é atualizada em segundo plano",
+        ));
     }
 
     Box::new(Column::new(entries).gap(4.0))
@@ -302,10 +356,15 @@ fn tile(title: &str, detail: &str) -> Box<dyn Widget> {
             .radius(12.0)
             .fill(theme::SURFACE_CONTAINER)
             .padding(8.0)
-            .child(Column::new(children![
-                Text::new(title).size(12.0).color(theme::ON_SURFACE),
-                Text::new(detail).size(10.0).color(theme::ON_SURFACE_VARIANT),
-            ]).gap(1.0)),
+            .child(
+                Column::new(children![
+                    Text::new(title).size(12.0).color(theme::ON_SURFACE),
+                    Text::new(detail)
+                        .size(10.0)
+                        .color(theme::ON_SURFACE_VARIANT),
+                ])
+                .gap(1.0),
+            ),
     )
 }
 
