@@ -924,11 +924,13 @@ fn control_center_page(audio: &Audio) -> Box<dyn Widget> {
 
 fn control_tile(
     title: &str,
-    value: &str,
+    value: impl Into<String>,
     glyph: &str,
     active: bool,
     action: impl Fn(Button) + 'static,
 ) -> Rectangle {
+    let value = value.into();
+
     card(
         Parent,
         Parent,
@@ -949,7 +951,7 @@ fn control_tile(
                 } else {
                     theme::ON_SURFACE_VARIANT
                 }),
-                Text::new(value).size(20.0).color(if active {
+                Text::new(value.as_str()).size(20.0).color(if active {
                     theme::ON_PRIMARY_CONTAINER
                 } else {
                     theme::ON_SURFACE
