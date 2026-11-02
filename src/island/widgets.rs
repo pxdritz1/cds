@@ -101,6 +101,7 @@ pub fn card(width: f32, fill: Color) -> Rectangle {
         .height(Parent)
         .fill(fill)
         .radius(24.0)
+        .clip()
         .padding(16.0)
 }
 
