@@ -1,11 +1,21 @@
 use amane::Service;
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Overlay {
+    Dashboard,
+    Launcher,
+    ControlCenter,
+    Notifications,
+    Clipboard,
+    Power,
+}
+
 pub struct ShellState {
-    pub dash_open: bool,
+    pub overlay: Option<Overlay>,
 }
 
 impl Service for ShellState {
     fn new() -> Self {
-        Self { dash_open: false }
+        Self { overlay: None }
     }
 }
