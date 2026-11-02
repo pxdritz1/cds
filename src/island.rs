@@ -274,19 +274,18 @@ fn system_cards(audio: &Audio) -> Box<dyn Widget> {
     let network_label = if network.connected() { "conectada" } else { "desconectada" };
     let bluetooth_label = if bluetooth.powered() { "ativo" } else { "inativo" };
 
-    let cards: Vec<Box<dyn Widget>> = vec![
-        info_card("som", &format!("{volume}%{}", if audio.muted() { " · mudo" } else { "" }), "◖", true),
-        info_card("wi-fi", network_label, "⌁", false),
-        info_card("bluetooth", bluetooth_label, "ᛒ", false),
-        info_card("bateria", &battery_label, "▰", false),
-        info_card("processador", &format!("{}%", cpu.percent()), "◌", false),
-        info_card("memória", &format!("{}%", memory.percent()), "▤", false),
-        info_card("espaços", &format!("{} ativos", workspaces.list().len()), "▦", false),
-    ];
-
     Box::new(Column::new(vec![
-        Box::new(Row::new(cards[..4].to_vec()).gap(8.0)),
-        Box::new(Row::new(cards[4..].to_vec()).gap(8.0)),
+        Box::new(Row::new(children![
+            info_card("som", &format!("{volume}%{}", if audio.muted() { " · mudo" } else { "" }), "◖", true),
+            info_card("wi-fi", network_label, "⌁", false),
+            info_card("bluetooth", bluetooth_label, "ᛒ", false),
+            info_card("bateria", &battery_label, "▰", false),
+        ]).gap(8.0)),
+        Box::new(Row::new(children![
+            info_card("processador", &format!("{}%", cpu.percent()), "◌", false),
+            info_card("memória", &format!("{}%", memory.percent()), "▤", false),
+            info_card("espaços", &format!("{} ativos", workspaces.list().len()), "▦", false),
+        ]).gap(8.0)),
     ]).gap(8.0))
 }
 
