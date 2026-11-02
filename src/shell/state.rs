@@ -12,10 +12,11 @@ pub enum Overlay {
 
 pub struct ShellState {
     pub overlay: Option<Overlay>,
+    pub revealed: bool,
 }
 
 impl Service for ShellState {
     fn new() -> Self {
-        Self { overlay: None }
+        Self { overlay: None, revealed: false }
     }
 }
