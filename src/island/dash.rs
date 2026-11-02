@@ -193,7 +193,7 @@ fn weather_hero(scheme: &Scheme) -> Rectangle {
     .width(62.0);
 
     let weather_rows = Column::new(vec![
-        Box::new(scale(Type::TitleSmall, name, color)),
+        Box::new(scale_label(Type::TitleSmall, name, color, 2)),
         Box::new(scale(Type::DisplaySmall, temp, color)),
         Box::new(
             Row::new(vec![
@@ -219,7 +219,7 @@ fn weather_hero(scheme: &Scheme) -> Rectangle {
         ),
     ])
     .gap(2.0)
-    .width(Parent)
+    .width(126.0)
     .align(Start);
 
     card(234.0, scheme.secondary_container).child(
