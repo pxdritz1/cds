@@ -1,4 +1,5 @@
 mod island;
+mod shell;
 mod theme;
 
 use amane::App;
