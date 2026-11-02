@@ -34,16 +34,16 @@ pub fn view() -> LayerWindow {
     let target_width = if expanded {
         PANEL_WIDTH
     } else if has_media {
-        420.0
+        388.0
     } else {
-        236.0
+        188.0
     };
     let target_height = if expanded {
         PANEL_HEIGHT
     } else if has_media {
-        94.0
+        82.0
     } else {
-        56.0
+        52.0
     };
 
     let width = animated_size(&WIDTH, target_width);
@@ -1222,8 +1222,11 @@ fn key_pressed(key: Key) {
 }
 
 fn island_clicked(button: Button) {
-    if button == Button::Middle {
-        Media::play_pause();
+    match button {
+        Button::Left => toggle_dash(button),
+        Button::Middle => Media::play_pause(),
+        Button::Right => set_overlay(Overlay::ControlCenter),
+        _ => {}
     }
 }
 
