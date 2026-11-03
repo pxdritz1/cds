@@ -333,32 +333,60 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
 
 fn app_row(app: &DesktopApp, scheme: &Scheme, index: usize, selected: bool) -> Rectangle {
     let key = format!("spot-app:{index}");
-
     let headline = String::from(app.name());
-
     let supporting = String::from(app.description().unwrap_or("Programa"));
-
-    let glyph = m3::APPS; // the icon image comes in the list; the glyph is the fallback
-
     let app = app.clone();
 
     let launch = move |button: Button| {
         if button == Button::Left {
             app.launch();
-
             Overlay::close();
         }
     };
 
-    row(
-        &key,
-        glyph,
-        &headline,
-        &supporting,
-        scheme,
-        selected,
-        launch,
-    )
+    let (fill, color) = row_fill(&key, selected, scheme);
+    let container = if selected {
+        scheme.secondary_container
+    } else {
+        scheme.surface_container_highest
+    };
+    let icon_box = Rectangle::new()
+        .width(38.0)
+        .height(38.0)
+        .fill(container)
+        .radius(m3::shape::MD)
+        .align_child(Center, Center);
+
+    let icon_box = match app.icon_path() {
+        Some(path) => icon_box.child(
+            Rectangle::new()
+                .width(28.0)
+                .height(28.0)
+                .fill(amane::Image::contain(path).thumbnail(56, 56)),
+        ),
+        None => icon_box.child(crate::m3::icon(m3::APPS, 22.0, color)),
+    };
+
+    Rectangle::new()
+        .width(Parent)
+        .height(52.0)
+        .fill(fill)
+        .radius(m3::shape::MD)
+        .cursor(Pointer)
+        .on_click(launch)
+        .child(
+            Row::new(vec![
+                boxed(icon_box),
+                boxed(Column::new(vec![
+                    boxed(scale_label(Type::BodyMedium, headline, color, 1)),
+                    boxed(scale_label(Type::LabelSmall, supporting, fade(color, 190), 1)),
+                ]).gap(1.0).width(Parent)),
+            ])
+            .gap(14.0)
+            .align(Center)
+            .width(Parent)
+            .height(Parent),
+        )
 }
 
 fn action_row(spot: &'static Spot, scheme: &Scheme, index: usize, selected: bool) -> Rectangle {
