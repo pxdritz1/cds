@@ -3,7 +3,7 @@
 ## Barra e ilhas
 
 - [ ] Adicionar abertura do Dash ao passar o mouse sobre a Island, com opção configurável para ativar/desativar o comportamento.
-- [ ] Fechar o Dash ao clicar fora de sua área, respeitando cliques em controles internos e outras janelas do shell.
+- [ ] Garantir que qualquer clique fora do Dash o feche, inclusive fora dos limites atuais da layer central, sem bloquear/interferir com cliques destinados às janelas subjacentes.
 
 - [ ] Reposicionar a tray na ilha direita, imediatamente depois do Wi-Fi no sentido do centro da tela.
 - [ ] Substituir a falsa tray baseada em janelas do Niri por uma StatusNotifierItem (SNI) real via D-Bus, com registro, atualização, ativação e menus de contexto.
@@ -39,7 +39,7 @@
 
 - [x] Ativar a animação contínua das ondas de CPU, RAM e bateria no Dash, mantendo o comprimento da onda vinculado ao valor de uso atualizado.
 - [ ] No card de relógio do Dash, adicionar opção para alternar entre relógio digital e analógico.
-- [ ] Fazer o card de clima do Dash abrir diretamente a aba de clima ao ser clicado.
+- [x] Fazer o card de clima do Dash abrir diretamente a aba de clima ao ser clicado.
 
 ## Notificações
 
