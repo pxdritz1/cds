@@ -96,22 +96,36 @@ impl Service for TrayHost {
 
     fn listen() {
         let bus = Bus::session();
-        let host = format!("org.freedesktop.StatusNotifierHost-{}", process::id());
+        let pid = process::id();
+        let freedesktop_host = format!("org.freedesktop.StatusNotifierHost-{pid}");
+        let kde_host = format!("org.kde.StatusNotifierHost-{pid}");
 
-        if !bus.own(&host) {
+        let owns_freedesktop = bus.own(&freedesktop_host);
+        let owns_kde = bus.own(&kde_host);
+
+        if !owns_freedesktop && !owns_kde {
             return;
         }
 
         // A watcher may start after the shell. Keep checking until it appears.
         loop {
             if let Some((destination, interface)) = watcher_destination(&bus) {
-                bus.call(
-                    destination,
-                    WATCHER_PATH,
-                    interface,
-                    "RegisterStatusNotifierHost",
-                    &[Argument::from(host.clone())],
-                );
+                let host = if destination == "org.kde.StatusNotifierWatcher" {
+                    &kde_host
+                } else {
+                    &freedesktop_host
+                };
+
+                if (host == &kde_host && owns_kde) || (host == &freedesktop_host && owns_freedesktop) {
+                    bus.call(
+                        destination,
+                        WATCHER_PATH,
+                        interface,
+                        "RegisterStatusNotifierHost",
+                        &[Argument::from(host.clone())],
+                    );
+                }
+
                 break;
             }
 
