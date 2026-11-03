@@ -42,7 +42,7 @@ fn main() {
         .window_per_monitor(clipboard::view)
         .window_per_monitor(power::view)
         .window_per_monitor(control::view)
-        .window_per_monitor(settingsview::view)
+        .normal_window("cds-settings", settingsview::window)
         .window_per_monitor(osd::view)
         .lock(lockscreen::view)
         .ipc("open", ipc::open)
