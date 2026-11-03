@@ -3,7 +3,7 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use amane::{
     Arc, Button, Canvas, Cap, Center, Color, Column, Padding, Parent, Path, Pointer,
-    Rectangle, Row, Service, Shape, Size, Stack, Start, Text, Widget,
+    Rectangle, Row, Service, Shape, Shadow, Size, Stack, Start, Text, Widget,
 };
 
 use crate::motion;
@@ -82,6 +82,7 @@ pub const DROP: &str = "\u{e798}";
 pub const SNOWING: &str = "\u{e80f}";
 
 pub mod shape {
+    pub const NONE: f32 = 0.0;
     pub const XS: f32 = 4.0;
     pub const SM: f32 = 8.0;
     pub const MD: f32 = 12.0;
@@ -89,6 +90,7 @@ pub mod shape {
     pub const LG_PLUS: f32 = 20.0;
     pub const XL: f32 = 28.0;
     pub const XL_PLUS: f32 = 32.0;
+    pub const XXL: f32 = 48.0;
 }
 
 #[derive(Clone, Copy)]
@@ -446,6 +448,7 @@ pub fn toggle_icon_button(
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum Kind {
+    Elevated,
     Filled,
     Tonal,
     Outlined,
@@ -461,6 +464,10 @@ pub fn button(
     on_click: impl Fn() + 'static,
 ) -> Rectangle {
     let (fill, color) = match kind {
+        Kind::Elevated => (
+            mix(scheme.surface_container_low, scheme.surface_tint, 0.05),
+            scheme.on_surface,
+        ),
         Kind::Filled => (scheme.primary, scheme.on_primary),
         Kind::Tonal => (scheme.secondary_container, scheme.on_secondary_container),
         Kind::Outlined | Kind::Text => (Color::TRANSPARENT, scheme.primary),
@@ -501,6 +508,13 @@ pub fn button(
 
     if kind == Kind::Outlined {
         button = button.border(1.0, scheme.outline);
+    } else if kind == Kind::Elevated {
+        button = button.shadow(
+            Shadow::drop(scheme.shadow)
+                .opacity(0.16)
+                .blur(2.0)
+                .offset(0.0, 1.0),
+        );
     }
 
     button

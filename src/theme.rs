@@ -61,6 +61,7 @@ scheme! {
     on_background = "#e6e0e9",
     surface = "#141218",
     on_surface = "#e6e0e9",
+    surface_tint = "#cfbdfe",
     surface_dim = "#141218",
     surface_bright = "#36343a",
     surface_variant = "#49454e",
