@@ -37,6 +37,7 @@ pub struct Ui {
     dash: bool,
     tab: Tab,
     hover: bool,
+    hover_opened_dash: bool,
 }
 
 impl Service for Ui {
@@ -70,6 +71,7 @@ impl Ui {
             let mut ui = Self::write();
 
             ui.dash = !ui.dash;
+            ui.hover_opened_dash = false;
 
             ui.dash
         };
@@ -85,6 +87,7 @@ impl Ui {
 
             ui.dash = true;
             ui.tab = tab;
+            ui.hover_opened_dash = false;
         }
 
         crate::overlay::Overlay::close();
@@ -95,7 +98,9 @@ impl Ui {
             return;
         }
 
-        Self::write().dash = false;
+        let mut ui = Self::write();
+        ui.dash = false;
+        ui.hover_opened_dash = false;
     }
 
     pub fn select(tab: Tab) {
@@ -103,11 +108,24 @@ impl Ui {
     }
 
     pub fn set_hover(hover: bool) {
-        if Self::read().hover == hover {
+        let auto_open = hover && crate::settings::Settings::read().flag("hover_dash");
+        let mut ui = Self::write();
+
+        if ui.hover == hover && (!auto_open || ui.dash) {
             return;
         }
 
-        Self::write().hover = hover;
+        ui.hover = hover;
+
+        if auto_open && !ui.dash {
+            ui.dash = true;
+            ui.hover_opened_dash = true;
+            drop(ui);
+            crate::overlay::Overlay::close();
+        } else if !hover && ui.hover_opened_dash {
+            ui.dash = false;
+            ui.hover_opened_dash = false;
+        }
     }
 
     pub fn refresh() {
