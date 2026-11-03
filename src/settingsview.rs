@@ -1,13 +1,12 @@
 use amane::{
-    Center, Column, Key, LayerWindow, Monitor, Padding, Parent, Rectangle, Row, ScrollArea,
-    Service, Start, TextInput, Widget,
+    Center, Column, Key, Padding, Parent, Rectangle, Row, ScrollArea, Service, Start, TextInput,
+    Widget, Window,
 };
 
 use crate::island::widgets::{
     DARK_MODE, LIGHT_MODE, OPEN_NEW, SUNNY, TUNE, boxed, card, chip, icon, label, text,
 };
-use crate::m3;
-use crate::overlay::{self, Overlay, Panel};
+use crate::overlay::{Overlay, Panel};
 use crate::settings::Settings;
 use crate::theme::{Scheme, Theme};
 
@@ -58,16 +57,10 @@ impl SettingsView {
     }
 
     pub fn toggle() {
-        let showing = Overlay::read().panel() == Panel::Config;
-
-        if showing {
-            Overlay::close();
-
-            return;
-        }
-
+        // Amane keeps one instance per name, so repeated requests do not
+        // create duplicate settings windows.
         Self::reset();
-        Overlay::open(Panel::Config);
+        amane::open_window("cds-settings", window);
     }
 }
 
@@ -132,11 +125,9 @@ fn field(
     .width(Parent)
 }
 
-pub fn view(monitor: &Monitor) -> LayerWindow {
+pub fn window() -> Window {
     let theme = Theme::read();
     let scheme = theme.scheme();
-
-    let open = Overlay::read().panel() == Panel::Config;
 
     let settings = Settings::read();
 
@@ -347,25 +338,16 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
             .gap(10.0),
         );
 
-    overlay::layer(
-        "settingsview",
-        "cds-settingsview",
-        &monitor.name,
-        open,
-        scheme,
-        overlay::Frame {
-            width: WIDTH,
-            height: HEIGHT,
-            radius: m3::shape::XL,
-            place: overlay::Place::Under,
-        },
-        content,
-        |key| {
+    Window::new()
+        .title("Chloe Dynamic Shell — Configurações")
+        .size(WIDTH, HEIGHT)
+        .resizable(true)
+        .child(content)
+        .on_key(|key| {
             if key == Key::Escape {
-                Overlay::close();
+                amane::close_window("cds-settings");
             }
-        },
-    )
+        })
 }
 
 // "scheme-tonal-spot" becomes "Tonal", for the chip labels
