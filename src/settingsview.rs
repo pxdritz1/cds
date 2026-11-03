@@ -184,11 +184,18 @@ pub fn window() -> Window {
             Box::new(section(TUNE, "Comportamento", scheme)),
             Box::new(chip(
                 "sv:hover-dash",
-                if hover_dash { "Abrir Dash ao passar o mouse: ligado" } else { "Abrir Dash ao passar o mouse: desligado" },
+                if hover_dash {
+                    "Abrir Dash ao passar o mouse: ligado"
+                } else {
+                    "Abrir Dash ao passar o mouse: desligado"
+                },
                 360.0,
                 hover_dash,
                 scheme,
-                || Settings::toggle_flag("hover_dash"),
+                || {
+                    Settings::toggle_flag("hover_dash");
+                    crate::ui::Ui::refresh();
+                },
             )),
         ])
         .gap(10.0)
