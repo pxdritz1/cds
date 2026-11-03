@@ -24,7 +24,7 @@
 
 ## Configurações
 
-- [ ] Corrigir o botão de configurações do Dash para abrir a janela independente de configurações de forma confiável.
+- [x] Corrigir o botão de configurações do Dash e registrar a janela independente no Amane para que ela possa ser aberta sob demanda.
 
 - [x] Manter o configurador visual como janela independente do Amane (não como widget da Dynamic Island).
 - [ ] Ampliar o configurador para controlar posição e visibilidade dos elementos da barra, além de cores e aparência.
@@ -32,12 +32,12 @@
 
 ## Spotlight
 
-- [ ] Exibir os ícones reais dos aplicativos no Spotlight, usando os ícones GTK/desktop correspondentes em vez de reutilizar apenas o ícone genérico de abertura de aplicativos do GNOME.
+- [x] Exibir no Spotlight os ícones reais dos aplicativos, usando os caminhos de ícone resolvidos pelo tema GTK/desktop; manter fallback Material Symbols quando não houver ícone.
 - [ ] Garantir fallback para ícones de aplicações sem ícone GTK disponível, respeitando tema e escala.
 
 ## Dash
 
-- [ ] Animar de verdade os indicadores ondulados de CPU, RAM e bateria: movimento contínuo e suave, alimentado por valores atualizados, sem ondas estáticas.
+- [x] Ativar a animação contínua das ondas de CPU, RAM e bateria no Dash, mantendo o comprimento da onda vinculado ao valor de uso atualizado.
 - [ ] No card de relógio do Dash, adicionar opção para alternar entre relógio digital e analógico.
 - [ ] Fazer o card de clima do Dash abrir diretamente a aba de clima ao ser clicado.
 
