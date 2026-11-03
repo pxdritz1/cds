@@ -335,6 +335,7 @@ fn app_row(app: &DesktopApp, scheme: &Scheme, index: usize, selected: bool) -> R
     let key = format!("spot-app:{index}");
     let headline = String::from(app.name());
     let supporting = String::from(app.description().unwrap_or("Programa"));
+    let icon_path = app.icon_path().map(|path| path.to_path_buf());
     let app = app.clone();
 
     let launch = move |button: Button| {
@@ -357,7 +358,7 @@ fn app_row(app: &DesktopApp, scheme: &Scheme, index: usize, selected: bool) -> R
         .radius(m3::shape::MD)
         .align_child(Center, Center);
 
-    let icon_box = match app.icon_path() {
+    let icon_box = match icon_path.as_deref() {
         Some(path) => icon_box.child(
             Rectangle::new()
                 .width(28.0)
