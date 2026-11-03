@@ -131,6 +131,7 @@ pub fn window() -> Window {
     let settings = Settings::read();
 
     let dark = settings.dark();
+    let hover_dash = settings.flag("hover_dash");
 
     let current = String::from(settings.scheme_name());
 
@@ -177,6 +178,22 @@ pub fn window() -> Window {
             )
         })
         .collect();
+
+    let behavior = card(WIDTH - PADDING * 2.0, scheme.surface_container_low).child(
+        Column::new(vec![
+            Box::new(section(TUNE, "Comportamento", scheme)),
+            Box::new(chip(
+                "sv:hover-dash",
+                if hover_dash { "Abrir Dash ao passar o mouse: ligado" } else { "Abrir Dash ao passar o mouse: desligado" },
+                360.0,
+                hover_dash,
+                scheme,
+                || Settings::toggle_flag("hover_dash"),
+            )),
+        ])
+        .gap(10.0)
+        .width(Parent),
+    );
 
     let appearance = card(WIDTH - PADDING * 2.0, scheme.surface_container_low).child(
         Column::new(vec![
@@ -321,6 +338,7 @@ pub fn window() -> Window {
                         "settings-panels",
                         Column::new(vec![
                             Box::new(appearance),
+                            Box::new(behavior),
                             Box::new(wallpapers),
                             Box::new(climate),
                         ])
