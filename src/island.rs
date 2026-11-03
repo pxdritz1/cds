@@ -32,6 +32,9 @@ const LEFT_HEIGHT: f32 = 400.0;
 const RIGHT_WIDTH: f32 = 340.0;
 const RIGHT_HEIGHT: f32 = 400.0;
 
+const TRAY_RADIUS: f32 = 26.0;
+const TRAY_PADDING: f32 = 8.0;
+
 // what the center island is showing, which decides its size and how content fades
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum IslandMode {
@@ -115,7 +118,7 @@ pub fn left(monitor: &Monitor) -> LayerWindow {
         )
 }
 
-pub fn right(_: &Monitor) -> LayerWindow {
+pub fn right(monitor: &Monitor) -> LayerWindow {
     let theme = Theme::read();
     let scheme = theme.scheme();
 
@@ -152,7 +155,7 @@ pub fn right(_: &Monitor) -> LayerWindow {
         (status, status_width, BAR_HEIGHT, BAR_HEIGHT / 2.0)
     };
 
-    let (width, height, radius) = motion::follow("right-island", width, height, radius);
+    let (width, height, radius) = motion::follow(&format!("right:{}", monitor.name), width, height, radius);
 
     let island = surface(
         width,
