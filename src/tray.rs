@@ -19,6 +19,7 @@ const ITEM_INTERFACE: &str = "org.freedesktop.StatusNotifierItem";
 pub struct TrayItem {
     service: String,
     path: String,
+    interface: String,
     id: String,
     title: String,
     status: String,
@@ -40,7 +41,7 @@ impl TrayItem {
         let bus = Bus::session();
         let arguments = [Argument::from(0_i32), Argument::from(0_i32)];
 
-        bus.call(&self.service, &self.path, ITEM_INTERFACE, method, &arguments);
+        bus.call(&self.service, &self.path, &self.interface, method, &arguments);
     }
 
     fn display_name(&self) -> &str {
@@ -253,17 +254,19 @@ fn scan_items() -> Option<Vec<TrayItem>> {
 
         let (service, path) = item_address(address);
 
-        let status = item_property(&bus, &service, &path, "Status");
+        let interface = item_interface(&bus, &service, &path);
+
+        let status = item_property(&bus, &service, &path, &interface, "Status");
         if status == "Passive" {
             continue;
         }
 
-        let id = item_property(&bus, &service, &path, "Id");
-        let title = item_property(&bus, &service, &path, "Title");
+        let id = item_property(&bus, &service, &path, &interface, "Id");
+        let title = item_property(&bus, &service, &path, &interface, "Title");
 
-        let normal_icon = item_property(&bus, &service, &path, "IconName");
+        let normal_icon = item_property(&bus, &service, &path, &interface, "IconName");
         let attention_icon = if status == "NeedsAttention" {
-            item_property(&bus, &service, &path, "AttentionIconName")
+            item_property(&bus, &service, &path, &interface, "AttentionIconName")
         } else {
             String::new()
         };
@@ -279,6 +282,7 @@ fn scan_items() -> Option<Vec<TrayItem>> {
         items.push(TrayItem {
             service,
             path,
+            interface,
             id,
             title,
             status,
@@ -302,8 +306,30 @@ fn item_address(address: &str) -> (String, String) {
     }
 }
 
-fn item_property(bus: &Bus, service: &str, path: &str, name: &str) -> String {
-    bus.property(service, path, ITEM_INTERFACE, name)
+fn item_interface(bus: &Bus, service: &str, path: &str) -> String {
+    let modern = bus.property(service, path, ITEM_INTERFACE, "Id");
+
+    if !matches!(modern, Value::Nothing) {
+        return ITEM_INTERFACE.to_string();
+    }
+
+    let kde = bus.property(service, path, "org.kde.StatusNotifierItem", "Id");
+
+    if !matches!(kde, Value::Nothing) {
+        return "org.kde.StatusNotifierItem".to_string();
+    }
+
+    ITEM_INTERFACE.to_string()
+}
+
+fn item_property(
+    bus: &Bus,
+    service: &str,
+    path: &str,
+    interface: &str,
+    name: &str,
+) -> String {
+    bus.property(service, path, interface, name)
         .text()
         .to_string()
 }
