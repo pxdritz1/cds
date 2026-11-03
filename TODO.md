@@ -13,7 +13,8 @@
 - [x] Serializar execuções do Matugen no processo, executar a geração fora da thread de desenho e aplicar timeout de 45 s.
 - [ ] Verificar se o IPC que chama a geração síncrona também precisa ser movido para worker; testar congelamentos reais no compositor.
 - [x] Tornar a geração resiliente a falhas/timeouts e publicar a paleta validada atomicamente, preservando a última paleta válida.
-- [x] Exibir caminhos de wallpaper e diretórios com prefixo `~/` quando estiverem dentro do HOME, mantendo caminhos absolutos internamente e aceitando ambos na entrada.
+- [x] Exibir o diretório de wallpapers com prefixo `~/` e aceitar `~/` ou caminhos absolutos na entrada do diretório e do wallpaper.
+- [ ] Aplicar a mesma apresentação `~/` a todos os lugares que exibem o caminho atual do wallpaper.
 - [x] Criar/garantir o diretório padrão de wallpapers sem sobrescrever diretórios configurados pelo usuário.
 
 ## Configurações
