@@ -47,6 +47,12 @@ impl Service for Settings {
         };
 
         settings.load();
+
+        // Create the default folder only when it is still the configured default.
+        if settings.directory == home_directory("HOME", "").join("Pictures/Wallpapers") {
+            let _ = fs::create_dir_all(&settings.directory);
+        }
+
         settings.scan();
 
         settings
@@ -117,8 +123,8 @@ impl Settings {
     }
 
     // where the wallpaper tab reads its images from
-    pub fn directory_path(&self) -> &str {
-        self.directory.to_str().unwrap_or("")
+    pub fn directory_path(&self) -> String {
+        display_path(&self.directory)
     }
 
     // the weather coordinates, empty when the ip decides where we are
@@ -138,13 +144,15 @@ impl Settings {
 
     // moves the wallpaper source directory, rescanning right away
     pub fn set_directory(path: &str) -> String {
-        if fs::metadata(path).is_err() {
-            return format!("failed: no directory at {path}");
+        let path = expand_home_path(path);
+
+        if !path.is_dir() {
+            return format!("failed: no directory at {}", display_path(&path));
         }
 
         let mut settings = Self::write();
 
-        settings.directory = PathBuf::from(path);
+        settings.directory = path;
         settings.save();
 
         settings.scan();
@@ -175,15 +183,19 @@ impl Settings {
     }
 
     pub fn set_wallpaper(path: &str) -> String {
-        if !PathBuf::from(path).is_file() {
-            return format!("failed: no image at {path}");
+        let path = expand_home_path(path);
+
+        if !path.is_file() {
+            return format!("failed: no image at {}", display_path(&path));
         }
+
+        let path = path.to_string_lossy().into_owned();
 
         // the lock is released before matugen runs, so drawing never waits on it
         let (wallpaper, scheme, dark) = {
             let mut settings = Self::write();
 
-            settings.wallpaper = String::from(path);
+            settings.wallpaper = path.clone();
             settings.save();
 
             (
@@ -198,14 +210,18 @@ impl Settings {
 
     // the views call this so the click never waits on a whole matugen run
     pub fn set_wallpaper_live(path: &str) {
-        if !PathBuf::from(path).is_file() {
+        let path = expand_home_path(path);
+
+        if !path.is_file() {
             return;
         }
+
+        let path = path.to_string_lossy().into_owned();
 
         let (wallpaper, scheme, dark) = {
             let mut settings = Self::write();
 
-            settings.wallpaper = String::from(path);
+            settings.wallpaper = path.clone();
             settings.save();
 
             (
@@ -291,7 +307,7 @@ impl Settings {
                 "wallpaper" => self.wallpaper = String::from(value),
                 "scheme" => self.scheme = String::from(value),
                 "dark" => self.dark = value != "false",
-                "directory" => self.directory = PathBuf::from(value),
+                "directory" => self.directory = expand_home_path(value),
                 "location" => self.location = String::from(value),
                 other => {
                     if let Some(name) = other.strip_prefix("flag.") {
@@ -357,6 +373,27 @@ impl Settings {
  * one place decides whether a matugen run waits. the ipc answers only
  * after the colors exist, while the views spawn it and stay responsive.
  */
+fn expand_home_path(path: &str) -> PathBuf {
+    if path == "~" {
+        return home_directory("HOME", "");
+    }
+    if let Some(rest) = path.strip_prefix("~/") {
+        return home_directory("HOME", "").join(rest);
+    }
+    PathBuf::from(path)
+}
+
+fn display_path(path: &std::path::Path) -> String {
+    let home = home_directory("HOME", "");
+    if let Ok(relative) = path.strip_prefix(&home) {
+        if relative.as_os_str().is_empty() {
+            return String::from("~");
+        }
+        return format!("~/{}", relative.display());
+    }
+    path.to_string_lossy().into_owned()
+}
+
 fn regenerate(wallpaper: &str, scheme: &str, dark: bool, wait: bool) -> String {
     if wallpaper.is_empty() {
         return String::from("failed: set a wallpaper first");
