@@ -5,8 +5,8 @@
 - [ ] Reposicionar a tray na ilha direita, imediatamente depois do Wi-Fi no sentido do centro da tela.
 - [ ] Substituir a falsa tray baseada em janelas do Niri por uma StatusNotifierItem (SNI) real via D-Bus, com registro, atualização, ativação e menus de contexto.
 - [ ] Adicionar window title com ícone do aplicativo à ilha esquerda, imediatamente à direita dos workspace pills.
-- [ ] Adicionar ícone de busca à ilha central, imediatamente à esquerda do relógio, integrado ao Spotlight existente.
-- [ ] Adicionar somente o ícone/indicador de clima à direita da data, sem temperatura ou texto adicional.
+- [x] Adicionar ícone de busca à ilha central, imediatamente à esquerda do relógio, integrado ao Spotlight existente.
+- [x] Adicionar somente o ícone/indicador de clima à direita da data, sem temperatura ou texto adicional.
 
 ## Tema e wallpapers
 
