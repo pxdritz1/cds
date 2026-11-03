@@ -3,7 +3,7 @@
  * input asking for the pam password. enter submits, nothing else moves.
  */
 use amane::{
-    Center, Column, Full, Keyboard, Layer, LayerWindow, Monitor, Padding, Parent, Rectangle, Row,
+    Center, Column, Full, Keyboard, Layer, LayerWindow, Monitor, Padding, Parent, Rectangle,
     Service, Stack, TextInput, Widget,
 };
 
@@ -16,6 +16,13 @@ const PASSWORD: &str = "cds-lockscreen-password";
 pub fn view(monitor: &Monitor) -> LayerWindow {
     let theme = Theme::read();
     let scheme = theme.scheme();
+
+    // The lock view is instantiated once per output; scale its composition
+    // against that output's logical height to avoid clipping on small screens.
+    let ui_scale = (monitor.height as f32 / 900.0).clamp(0.82, 1.12);
+    let badge_size = 150.0 * ui_scale;
+    let field_width = 280.0 * ui_scale;
+    let field_height = 48.0 * ui_scale;
 
     let clock = Clock::read();
 
@@ -31,31 +38,35 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
 
     // the big cookie badge with a lock glyph, the m3 expressive touch
     let badge = Rectangle::new()
-        .width(150.0)
-        .height(150.0)
+        .width(badge_size)
+        .height(badge_size)
         .align_child(Center, Center)
         .child(
             Stack::new(vec![
-                Box::new(m3::cookie(7.0, 150.0, scheme.primary_container)) as Box<dyn Widget>,
-                Box::new(m3::icon(m3::LOCK, 64.0, scheme.on_primary_container)) as Box<dyn Widget>,
+                Box::new(m3::cookie(7.0, badge_size, scheme.primary_container)) as Box<dyn Widget>,
+                Box::new(m3::icon(
+                    m3::LOCK,
+                    64.0 * ui_scale,
+                    scheme.on_primary_container,
+                )) as Box<dyn Widget>,
             ]),
         );
 
     let field = Rectangle::new()
-        .width(280.0)
-        .height(48.0)
+        .width(field_width)
+        .height(field_height)
         .fill(scheme.surface_container_highest)
-        .radius(16.0)
+        .radius(16.0 * ui_scale)
         .padding(Padding {
             top: 0.0,
-            right: 12.0,
+            right: 12.0 * ui_scale,
             bottom: 0.0,
-            left: 12.0,
+            left: 12.0 * ui_scale,
         })
         .align_child(Center, Center)
         .child(
             TextInput::new(PASSWORD)
-                .size(17.0)
+                .size(17.0 * ui_scale)
                 .color(scheme.on_surface)
                 .placeholder("digite a senha…")
                 .password()
@@ -69,8 +80,10 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
 
     let feedback = if failed {
         scale_label(Type::LabelMedium, "senha incorreta", scheme.error, 1)
+            .size(12.0 * ui_scale)
     } else if checking {
         scale_label(Type::LabelMedium, "verificando…", scheme.on_surface_variant, 1)
+            .size(12.0 * ui_scale)
     } else {
         scale_label(
             Type::LabelMedium,
@@ -78,20 +91,25 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
             scheme.on_surface_variant,
             1,
         )
+        .size(12.0 * ui_scale)
     };
 
     let body = Column::new(vec![
         Box::new(badge),
-        Box::new(scale(Type::DisplayMedium, clock.time(true), scheme.on_surface)),
+        Box::new(
+            scale(Type::DisplayMedium, clock.time(true), scheme.on_surface)
+                .size(45.0 * ui_scale),
+        ),
         Box::new(scale(
             Type::TitleSmall,
             format!("{} · {}", clock.date(), user),
             scheme.on_surface_variant,
-        )),
+        )
+        .size(14.0 * ui_scale)),
         Box::new(field),
         Box::new(feedback),
     ])
-    .gap(12.0)
+    .gap(12.0 * ui_scale)
     .width(Parent)
     .align(Center);
 
