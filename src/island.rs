@@ -23,17 +23,14 @@ const MARGIN: i32 = 10;
 const NOTICE_TIME: Duration = Duration::from_secs(5);
 
 // the tray sheet rounds like a card, not like the pill the bar uses
-const TRAY_RADIUS: f32 = 26.0;
-const TRAY_PADDING: f32 = 8.0;
-
 const CENTER_WIDTH: f32 = 760.0;
 const CENTER_HEIGHT: f32 = 480.0;
 
 const LEFT_WIDTH: f32 = 340.0;
 const LEFT_HEIGHT: f32 = 400.0;
 
-const RIGHT_WIDTH: f32 = 300.0;
-const RIGHT_HEIGHT: f32 = BAR_HEIGHT + 24.0;
+const RIGHT_WIDTH: f32 = 340.0;
+const RIGHT_HEIGHT: f32 = 400.0;
 
 // what the center island is showing, which decides its size and how content fades
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -77,8 +74,6 @@ pub fn left(monitor: &Monitor) -> LayerWindow {
     let theme = Theme::read();
     let scheme = theme.scheme();
 
-    let tray_open = Tray::read().open();
-
     let (bar, bar_width) = compact::workspaces(monitor, scheme);
 
     let bar_row = Rectangle::new()
@@ -86,41 +81,11 @@ pub fn left(monitor: &Monitor) -> LayerWindow {
         .height(BAR_HEIGHT)
         .child(Stack::new(vec![bar]).width(Parent).height(Parent));
 
-    let (content, width, height, radius): (Box<dyn Widget>, f32, f32, f32) = if tray_open {
-        let (menu, menu_width, menu_height) = tray::menu(scheme);
-
-        let column = Column::new(vec![Box::new(bar_row), menu])
-            .align(Center)
-            .gap(TRAY_PADDING)
-            .width(Parent)
-            .height(Parent);
-
-        (
-            Box::new(
-                Rectangle::new()
-                    .width(Parent)
-                    .height(Parent)
-                    .padding(Padding {
-                        top: 0.0,
-                        right: TRAY_PADDING,
-                        bottom: TRAY_PADDING,
-                        left: TRAY_PADDING,
-                    })
-                    .child(column),
-            ),
-            f32::max(bar_width, menu_width + TRAY_PADDING * 2.0),
-            BAR_HEIGHT + TRAY_PADDING + menu_height + TRAY_PADDING,
-            TRAY_RADIUS,
-        )
-    } else {
-        (Box::new(bar_row), bar_width, BAR_HEIGHT, BAR_HEIGHT / 2.0)
-    };
-
     let (width, height, radius) =
-        motion::follow(&format!("left:{}", monitor.name), width, height, radius);
+        motion::follow(&format!("left:{}", monitor.name), bar_width, BAR_HEIGHT, BAR_HEIGHT / 2.0);
 
     let island = surface(width, height, radius, compact::base_fill(scheme), scheme)
-        .child(Stack::new(vec![content]).width(Parent).height(Parent));
+        .child(Stack::new(vec![bar_row]).width(Parent).height(Parent));
 
     LayerWindow::new()
         .width(LEFT_WIDTH)
@@ -154,13 +119,45 @@ pub fn right(_: &Monitor) -> LayerWindow {
     let theme = Theme::read();
     let scheme = theme.scheme();
 
-    let (content, width) = compact::status(scheme);
-    let width = motion::number("status-width", width, motion::SELECT_DURATION);
+    let tray_open = Tray::read().open();
+    let (status, status_width) = compact::status(scheme);
+
+    let (content, width, height, radius): (Box<dyn Widget>, f32, f32, f32) = if tray_open {
+        let (menu, menu_width, menu_height) = tray::menu(scheme);
+
+        let column = Column::new(vec![Box::new(status), menu])
+            .align(End)
+            .gap(TRAY_PADDING)
+            .width(Parent)
+            .height(Parent);
+
+        (
+            Box::new(
+                Rectangle::new()
+                    .width(Parent)
+                    .height(Parent)
+                    .padding(Padding {
+                        top: 0.0,
+                        right: TRAY_PADDING,
+                        bottom: TRAY_PADDING,
+                        left: TRAY_PADDING,
+                    })
+                    .child(column),
+            ),
+            f32::max(status_width, menu_width + TRAY_PADDING * 2.0),
+            BAR_HEIGHT + TRAY_PADDING + menu_height + TRAY_PADDING,
+            TRAY_RADIUS,
+        )
+    } else {
+        (status, status_width, BAR_HEIGHT, BAR_HEIGHT / 2.0)
+    };
+
+    let (width, height, radius) = motion::follow("right-island", width, height, radius);
 
     let island = surface(
         width,
-        BAR_HEIGHT,
-        BAR_HEIGHT / 2.0,
+        height,
+        radius,
         compact::status_fill(scheme),
         scheme,
     )
@@ -190,7 +187,7 @@ pub fn right(_: &Monitor) -> LayerWindow {
             x: (RIGHT_WIDTH - width).max(0.0) as i32,
             y: 0,
             width: width.ceil() as i32,
-            height: BAR_HEIGHT as i32,
+            height: height.ceil() as i32,
         }])
         .child(
             Rectangle::new()
