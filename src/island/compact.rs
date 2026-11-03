@@ -42,8 +42,8 @@ pub fn view(monitor: &Monitor, scheme: &Scheme, alpha: f32) -> (Box<dyn Widget>,
     }
 
     /*
-     * the tray chevron takes the wifi icon's place: a little arrow that
-     * opens the menu of pinned apps under the bar
+     * The compact island keeps its essential controls visible. Wi-Fi and
+     * audio open the control center; the chevron opens the window tray.
      */
     let mut status: Vec<Box<dyn Widget>> = vec![boxed(
         tray_button("tray-chevron", scheme, Tray::toggle),

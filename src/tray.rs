@@ -42,14 +42,22 @@ impl Service for Tray {
 
     // niri is asked here, off the draw thread, so the shell never waits
     fn update(&mut self) -> bool {
-        let windows = scanned_windows();
+        // A transient niri IPC failure must not erase the last known tray.
+        let Some(windows) = scanned_windows() else {
+            return false;
+        };
 
         let same = self.windows.len() == windows.len()
             && self
                 .windows
                 .iter()
                 .zip(windows.iter())
-                .all(|(a, b)| a.id == b.id && a.focused == b.focused);
+                .all(|(a, b)| {
+                    a.id == b.id
+                        && a.app_id == b.app_id
+                        && a.title == b.title
+                        && a.focused == b.focused
+                });
 
         if same {
             return false;
@@ -256,17 +264,14 @@ fn niri(command: &str) {
 }
 
 // takes the window objects out of niri's plain json answer
-fn scanned_windows() -> Vec<WindowEntry> {
+fn scanned_windows() -> Option<Vec<WindowEntry>> {
     let output = Command::new("niri")
         .args(["msg", "--json", "windows"])
-        .output();
-
-    let Ok(output) = output else {
-        return Vec::new();
-    };
+        .output()
+        .ok()?;
 
     if !output.status.success() {
-        return Vec::new();
+        return None;
     }
 
     let text = String::from_utf8_lossy(&output.stdout);
@@ -282,7 +287,7 @@ fn scanned_windows() -> Vec<WindowEntry> {
     // focused first, then alphabetical
     windows.sort_by(|a, b| b.focused.cmp(&a.focused).then(a.app_id.cmp(&b.app_id)));
 
-    windows
+    Some(windows)
 }
 
 // scans {..} objects out of a json text, aware of quoted strings
