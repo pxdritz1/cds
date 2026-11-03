@@ -1,13 +1,13 @@
 use std::time::Duration;
 
-use amane::{Color, Parent, Rectangle, Service, Stack, Text, Widget};
+use amane::{
+    Canvas, Color, Parent, Path, Rectangle, Service, Shape, Stack, Text, Widget,
+};
 
 use crate::motion;
 use crate::theme::{mix, Scheme, Theme};
 
 // material symbols rounded codepoints
-pub const WIFI: &str = "\u{e63e}";
-pub const WIFI_OFF: &str = "\u{e648}";
 pub const BELL: &str = "\u{e7f4}";
 pub const BRIGHTNESS: &str = "\u{e3ab}";
 pub const CLOSE: &str = "\u{e5cd}";
@@ -21,6 +21,35 @@ pub const BATTERY: &str = "\u{e1a4}";
 pub const MUSIC: &str = "\u{e405}";
 pub const WALLPAPER: &str = "\u{e1bc}";
 pub const APPS: &str = "\u{e5c3}";
+pub const SEARCH: &str = "\u{e8b6}";
+pub const PASTE: &str = "\u{e14f}";
+pub const COPY: &str = "\u{e14d}";
+pub const DELETE: &str = "\u{e872}";
+pub const POWER: &str = "\u{e8ac}";
+pub const LOCK: &str = "\u{e88d}";
+pub const LOGOUT: &str = "\u{e9ba}";
+pub const RESTART: &str = "\u{f053}";
+pub const FORWARD: &str = "\u{e5c8}";
+pub const CHECK: &str = "\u{e5ca}";
+
+// tray and menus
+pub const EXPAND_MORE: &str = "\u{e5cf}";
+pub const TUNE: &str = "\u{e429}";
+pub const OPEN_NEW: &str = "\u{e89e}";
+
+// appearance
+pub const DARK_MODE: &str = "\u{e51c}";
+pub const LIGHT_MODE: &str = "\u{e518}";
+
+// weather
+pub const SUNNY: &str = "\u{e81a}";
+pub const FOGGY: &str = "\u{e818}";
+pub const RAINY: &str = "\u{f176}";
+pub const STORM: &str = "\u{ebdb}";
+pub const CLOUDY: &str = "\u{f15c}";
+pub const AIR: &str = "\u{efd8}";
+pub const DROP: &str = "\u{e798}";
+pub const SNOWING: &str = "\u{e80f}";
 
 const PROGRESS: Duration = Duration::from_millis(180);
 
@@ -72,7 +101,50 @@ pub fn card(width: f32, fill: Color) -> Rectangle {
         .height(Parent)
         .fill(fill)
         .radius(24.0)
+        .clip()
         .padding(16.0)
+}
+
+/*
+ * the material 3 expressive cookie shape: a circle whose edge scallops
+ * `lobes` bumps around it, drawn as a closed path sampled in polar
+ * coordinates. depth is how deep the notches between the bumps cut.
+ */
+pub fn cookie(lobes: f32, size: f32, fill: Color) -> Canvas {
+    const STEPS: usize = 96;
+
+    let radius = size / 2.0;
+
+    // notches take about a twelfth of the radius, so bumps read but stay soft
+    let depth = radius * 0.09;
+
+    let sample = |angle: f32| {
+        let wave = (lobes * angle).cos();
+
+        radius - depth + depth * wave
+    };
+
+    let mut path = Path::new();
+
+    for step in 0..=STEPS {
+        let angle = std::f32::consts::TAU * step as f32 / STEPS as f32;
+
+        let (sin, cos) = angle.sin_cos();
+
+        let x = radius + radius * 0.0 + sample(angle) * cos;
+        let y = radius + sample(angle) * sin;
+
+        if step == 0 {
+            path = path.move_to(x, y);
+        } else {
+            path = path.line_to(x, y);
+        }
+    }
+
+    Canvas::new()
+        .width(size)
+        .height(size)
+        .shapes(vec![Box::new(path.fill(fill))])
 }
 
 // a material filter chip, animating its container and label between states

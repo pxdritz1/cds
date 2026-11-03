@@ -34,17 +34,17 @@ pub fn media_labels(media: &amane::Media) -> (String, String) {
     let title = if !title.is_empty() {
         String::from(title)
     } else if active {
-        String::from("Unknown title")
+        String::from("Título desconhecido")
     } else {
-        String::from("Nothing playing")
+        String::from("Nada tocando")
     };
 
     let artist = if !artist.is_empty() {
         String::from(artist)
     } else if active {
-        String::from("Unknown artist")
+        String::from("Artista desconhecido")
     } else {
-        String::from("Open a player to start")
+        String::from("Abra um player pra começar")
     };
 
     (title, artist)

@@ -1,103 +1,124 @@
+use std::process::Command;
+use std::thread;
+use std::time::Duration;
+
 use amane::Service;
 
-#[derive(Default)]
+#[derive(Default, PartialEq)]
 pub struct Clock {
-    time: String,
+    time24: String,
+    time12: String,
     date: String,
+    short_date: String,
     greeting: String,
+    year: i32,
+    month: u32,
+    day: u32,
+    weekday: u32,
 }
 
 impl Service for Clock {
     fn new() -> Self {
-        Self::load()
+        read().unwrap_or_default()
     }
 
     fn listen() {
         loop {
-            std::thread::sleep(std::time::Duration::from_secs(1));
+            thread::sleep(Duration::from_secs(1));
 
-            let (time, date, hour) = local_now();
+            let Some(fresh) = read() else {
+                continue;
+            };
 
-            // only the minute is shown, so the rest of the seconds stay quiet
-            let clock = Self::read();
-
-            if clock.time == time && clock.date == date {
+            if *Self::read() == fresh {
                 continue;
             }
 
-            drop(clock);
-
-            let mut clock = Self::write();
-
-            clock.time = time;
-            clock.date = date;
-            clock.greeting = greeting(hour);
+            *Self::write() = fresh;
         }
     }
 }
 
 impl Clock {
-    fn load() -> Self {
-        let (time, date, hour) = local_now();
-
-        Self {
-            time,
-            date,
-            greeting: greeting(hour),
+    pub fn time(&self, clock24: bool) -> &str {
+        if self.time24.is_empty() {
+            return "--:--";
         }
-    }
 
-    pub fn time(&self) -> &str {
-        &self.time
+        if clock24 { &self.time24 } else { &self.time12 }
     }
 
     pub fn date(&self) -> &str {
         &self.date
     }
 
+    pub fn short_date(&self) -> &str {
+        &self.short_date
+    }
+
     pub fn greeting(&self) -> &str {
         &self.greeting
     }
+
+    pub fn year(&self) -> i32 {
+        self.year
+    }
+
+    pub fn month(&self) -> u32 {
+        self.month
+    }
+
+    pub fn day(&self) -> u32 {
+        self.day
+    }
+
+    pub fn weekday(&self) -> u32 {
+        self.weekday
+    }
 }
 
-fn greeting(hour: u32) -> String {
+fn greeting(hour: u32) -> &'static str {
     match hour {
-        5..=11 => String::from("Bom dia"),
-        12..=17 => String::from("Boa tarde"),
-        _ => String::from("Boa noite"),
+        5..=11 => "Bom dia",
+        12..=17 => "Boa tarde",
+        _ => "Boa noite",
     }
 }
 
-// the local time comes from date(1), so the shell needs no date crate
-fn local_now() -> (String, String, u32) {
-    let Some(output) = run_date() else {
-        return (String::from("--:--"), String::new(), 0);
-    };
+fn read() -> Option<Clock> {
+    let output = ["date", "/usr/bin/date"].iter().find_map(|program| {
+        Command::new(program)
+            .arg("+%H:%M%n%I:%M %p%n%A, %d de %B%n%a, %d %b%n%H%n%Y %m %d %w")
+            .output()
+            .ok()
+            .filter(|output| output.status.success())
+    })?;
 
-    let mut lines = output.lines();
+    let text = String::from_utf8(output.stdout).ok()?;
+    let mut lines = text.lines().map(str::trim);
 
-    let time = lines.next().unwrap_or_default().trim().to_string();
-    let date = lines.next().unwrap_or_default().trim().to_string();
-    let hour = lines
-        .next()
-        .and_then(|hour| hour.trim().parse().ok())
-        .unwrap_or(0);
+    let time24 = lines.next()?.to_string();
+    let time12 = lines.next()?.to_string();
+    let date = lines.next()?.to_string();
+    let short_date = lines.next()?.to_string();
+    let hour: u32 = lines.next()?.parse().ok()?;
 
-    (time, date, hour)
-}
+    let mut numbers = lines.next()?.split_whitespace();
 
-fn run_date() -> Option<String> {
-    for program in ["date", "/usr/bin/date"] {
-        let output = std::process::Command::new(program)
-            .arg("+%H:%M%n%A, %d de %B%n%H")
-            .output();
+    let year = numbers.next()?.parse().ok()?;
+    let month = numbers.next()?.parse().ok()?;
+    let day = numbers.next()?.parse().ok()?;
+    let weekday = numbers.next()?.parse().ok()?;
 
-        if let Ok(output) = output {
-            if output.status.success() {
-                return String::from_utf8(output.stdout).ok();
-            }
-        }
-    }
-
-    None
+    Some(Clock {
+        time24,
+        time12,
+        date,
+        short_date,
+        greeting: greeting(hour).to_string(),
+        year,
+        month,
+        day,
+        weekday,
+    })
 }

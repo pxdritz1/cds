@@ -3,22 +3,31 @@ use amane::Service;
 #[derive(Clone, Copy, PartialEq, Eq, Default)]
 pub enum Tab {
     #[default]
-    Overview,
+    Home,
     Media,
+    Weather,
     Wallpapers,
     Alerts,
-    Apps,
 }
 
 impl Tab {
-    // a stable number for the motion layer, so it can tell tabs apart
     pub fn index(self) -> u64 {
         match self {
-            Tab::Overview => 0,
+            Tab::Home => 0,
             Tab::Media => 1,
-            Tab::Wallpapers => 2,
-            Tab::Alerts => 3,
-            Tab::Apps => 4,
+            Tab::Weather => 2,
+            Tab::Wallpapers => 3,
+            Tab::Alerts => 4,
+        }
+    }
+
+    pub fn parse(name: Option<&str>) -> Tab {
+        match name {
+            Some("media") => Tab::Media,
+            Some("weather") | Some("clima") => Tab::Weather,
+            Some("wallpapers") | Some("papeis") => Tab::Wallpapers,
+            Some("alerts") | Some("alertas") | Some("notifications") => Tab::Alerts,
+            _ => Tab::Home,
         }
     }
 }
@@ -28,6 +37,7 @@ pub struct Ui {
     dash: bool,
     tab: Tab,
     hover: bool,
+    month: i32,
 }
 
 impl Service for Ui {
@@ -51,27 +61,62 @@ impl Ui {
         self.hover
     }
 
-    pub fn toggle() {
-        let mut ui = Self::write();
+    pub fn month(&self) -> i32 {
+        self.month
+    }
 
-        ui.dash = !ui.dash;
+    pub fn watch() {
+        // a read is enough to mark the service as used by this window
+        drop(Self::read());
+    }
+
+    pub fn toggle() {
+        let dash = {
+            let mut ui = Self::write();
+
+            ui.dash = !ui.dash;
+            ui.month = 0;
+
+            ui.dash
+        };
+
+        if dash {
+            crate::overlay::Overlay::close();
+        }
     }
 
     pub fn open(tab: Tab) {
-        let mut ui = Self::write();
+        {
+            let mut ui = Self::write();
 
-        ui.dash = true;
-        ui.tab = tab;
+            ui.dash = true;
+            ui.tab = tab;
+            ui.month = 0;
+        }
+
+        crate::overlay::Overlay::close();
     }
 
     pub fn close() {
-        let mut ui = Self::write();
+        if !Self::read().dash {
+            return;
+        }
 
-        ui.dash = false;
+        Self::write().dash = false;
     }
 
     pub fn select(tab: Tab) {
         Self::write().tab = tab;
+    }
+
+    pub fn shift_month(delta: i32) {
+        let mut ui = Self::write();
+
+        ui.month += delta;
+    }
+
+    pub fn reset_month() {
+        Self::write().month = 0;
     }
 
     pub fn set_hover(hover: bool) {
@@ -82,38 +127,7 @@ impl Ui {
         Self::write().hover = hover;
     }
 
-    // redraws the windows that show the ui, for input handlers that
-    // keep their state outside a service, like the motion layer
     pub fn refresh() {
         let _ = Self::write();
     }
-}
-
-pub fn command(arguments: &[String]) -> String {
-    let [action, rest @ ..] = arguments else {
-        return usage();
-    };
-
-    match action.as_str() {
-        "toggle" => Ui::toggle(),
-        "close" => Ui::close(),
-        "open" => Ui::open(parse_tab(rest.first())),
-        _ => return usage(),
-    }
-
-    String::from("ok")
-}
-
-fn parse_tab(name: Option<&String>) -> Tab {
-    match name.map(String::as_str) {
-        Some("media") => Tab::Media,
-        Some("wallpapers") => Tab::Wallpapers,
-        Some("alerts") => Tab::Alerts,
-        Some("apps") => Tab::Apps,
-        _ => Tab::Overview,
-    }
-}
-
-fn usage() -> String {
-    String::from("usage: island toggle | close | open [overview|media|wallpapers|alerts|apps]")
 }

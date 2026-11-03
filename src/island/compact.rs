@@ -1,13 +1,14 @@
 use amane::{
-    Battery, Center, Monitor, Network, Padding, Parent, Rectangle, Row, Service, SpaceBetween,
-    Widget, Workspace, Workspaces,
+    Button, Battery, Color, Center, Monitor, Padding, Parent, Rectangle, Row, Service,
+    SpaceBetween, Widget, Workspace, Workspaces,
 };
 
 use crate::clock::Clock;
 use crate::motion;
-use crate::theme::Scheme;
+use crate::theme::{Scheme, mix};
+use crate::tray::Tray;
 
-use super::widgets::{BATTERY, WIFI, WIFI_OFF, boxed, icon, text};
+use super::widgets::{BATTERY, EXPAND_MORE, boxed, icon, text};
 
 const DOT: f32 = 8.0;
 const FOCUSED: f32 = 22.0;
@@ -20,7 +21,6 @@ pub fn view(monitor: &Monitor, scheme: &Scheme, alpha: f32) -> (Box<dyn Widget>,
     let workspaces = Workspaces::read();
     let clock = Clock::read();
     let battery = Battery::read();
-    let network = Network::read();
 
     let mut dots: Vec<Box<dyn Widget>> = Vec::new();
     let mut dots_width = 0.0;
@@ -41,10 +41,14 @@ pub fn view(monitor: &Monitor, scheme: &Scheme, alpha: f32) -> (Box<dyn Widget>,
         dots.push(boxed(dot(workspace, width, scheme)));
     }
 
-    let wifi = if network.connected() { WIFI } else { WIFI_OFF };
-
-    let mut status: Vec<Box<dyn Widget>> = vec![boxed(icon(wifi, 18.0, scheme.on_surface_variant))];
-    let mut status_width = 20.0;
+    /*
+     * the tray chevron takes the wifi icon's place: a little arrow that
+     * opens the menu of pinned apps under the bar
+     */
+    let mut status: Vec<Box<dyn Widget>> = vec![boxed(
+        tray_button("tray-chevron", scheme, Tray::toggle),
+    )];
+    let mut status_width = 30.0;
 
     if battery.present() {
         let percent = battery.percent();
@@ -57,8 +61,8 @@ pub fn view(monitor: &Monitor, scheme: &Scheme, alpha: f32) -> (Box<dyn Widget>,
             scheme.on_surface_variant
         };
 
-        status.push(boxed(icon(BATTERY, 18.0, color)));
-        status.push(boxed(text(
+        status.insert(0, boxed(icon(BATTERY, 18.0, color)));
+        status.insert(1, boxed(text(
             format!("{percent}%"),
             11.5,
             color,
@@ -73,7 +77,7 @@ pub fn view(monitor: &Monitor, scheme: &Scheme, alpha: f32) -> (Box<dyn Widget>,
         .height(Parent)
         .align_child(Center, Center)
         .child(text(
-            clock.time(),
+            clock.time(true),
             14.0,
             scheme.on_surface,
             amane::Weight::SemiBold,
@@ -120,6 +124,55 @@ fn dot_width(workspace: &Workspace) -> f32 {
         target,
         motion::WORKSPACE_DURATION,
     )
+}
+
+/*
+ * the chevron that opens the tray: a round button with a hover state
+ * layer, spinning half a turn while the tray is open
+ */
+fn tray_button(
+    key: &'static str,
+    scheme: &Scheme,
+    on_click: impl Fn() + 'static,
+) -> Rectangle {
+    let (state, open) = {
+        let tray = Tray::read();
+
+        (motion::hover(key), tray.open())
+    };
+
+    let fill = mix(
+        Color::TRANSPARENT,
+        scheme.on_surface_variant,
+        0.12 * state,
+    );
+
+    let owned = String::from(key);
+
+    let degrees = motion::number(key, if open { 180.0 } else { 0.0 }, motion::SELECT_DURATION);
+
+    Rectangle::new()
+        .width(30.0)
+        .height(30.0)
+        .fill(fill)
+        .radius(15.0)
+        .cursor(amane::Pointer)
+        .on_hover(move |inside| motion::set_hover(owned.clone(), inside))
+        .on_click(move |button| {
+            if button == Button::Left {
+                on_click()
+            }
+        })
+        .align_child(Center, Center)
+        .child(
+            Rectangle::new()
+                .width(24.0)
+                .height(24.0)
+                .fill(Color::TRANSPARENT)
+                .rotate(degrees)
+                .align_child(Center, Center)
+                .child(icon(EXPAND_MORE, 20.0, scheme.on_surface_variant)),
+        )
 }
 
 fn dot(workspace: &Workspace, width: f32, scheme: &Scheme) -> Rectangle {
