@@ -4,7 +4,7 @@
  * add up to the content area, so nothing overflows or drifts.
  */
 use amane::{
-    Audio, Battery, Brightness, Center, Column, Cpu, Image, Media, Memory, Notifications, Parent,
+    Audio, Battery, Brightness, Button, Center, Column, Cpu, Image, Media, Memory, Notifications, Parent,
     Pointer, Rectangle, Row, ScrollArea, Service, SpaceBetween, Start, Widget,
 };
 
@@ -81,7 +81,7 @@ fn rail(scheme: &Scheme, tab: Tab) -> Column {
             48.0,
             scheme.primary_container,
             scheme.on_primary_container,
-            || Overlay::open(Panel::Config),
+            crate::settingsview::toggle,
         ))])
         .width(Parent)
         .justify(Center),
@@ -190,7 +190,14 @@ fn weather_card(scheme: &Scheme) -> Rectangle {
     .align(Center)
     .width(Parent);
 
-    card(WEATHER, ROW_A, scheme.tertiary_container).child(
+    card(WEATHER, ROW_A, scheme.tertiary_container)
+        .cursor(Pointer)
+        .on_click(|button| {
+            if button == Button::Left {
+                Ui::select(Tab::Weather);
+            }
+        })
+        .child(
         Column::new(vec![
             boxed(head),
             boxed(scale(Type::DisplaySmall, temp, color)),
