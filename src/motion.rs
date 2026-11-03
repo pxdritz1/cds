@@ -5,18 +5,18 @@ use std::time::Duration;
 use amane::{Animation, Blend, Color, Easing};
 
 /*
- * material 3 motion: things enter quickly and settle softly, so the
- * decelerate curve is the default. durations stay short enough that
- * the shell still feels immediate.
+ * Material 3 Expressive motion: things enter quickly and settle softly,
+ * using the decelerate curve by default. Durations follow Material 3
+ * Expressive specifications for smooth, natural animations.
  */
-const EXPAND: Duration = Duration::from_millis(420);
-const COLLAPSE: Duration = Duration::from_millis(280);
-const FADE: Duration = Duration::from_millis(220);
+const EXPAND: Duration = Duration::from_millis(400);
+const COLLAPSE: Duration = Duration::from_millis(300);
+const FADE: Duration = Duration::from_millis(200);
 const STATE: Duration = Duration::from_millis(150);
-const WORKSPACE: Duration = Duration::from_millis(260);
-const SELECT: Duration = Duration::from_millis(240);
-const OVERLAY_IN: Duration = Duration::from_millis(220);
-const OVERLAY_OUT: Duration = Duration::from_millis(150);
+const WORKSPACE: Duration = Duration::from_millis(250);
+const SELECT: Duration = Duration::from_millis(200);
+const OVERLAY_IN: Duration = Duration::from_millis(300);
+const OVERLAY_OUT: Duration = Duration::from_millis(200);
 
 /*
  * one value moving toward a target. retargeting only happens when the

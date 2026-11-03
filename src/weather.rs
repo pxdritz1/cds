@@ -198,10 +198,7 @@ fn current_hour(times: &[&str]) -> usize {
 
 // this hour and minute as minutes of the day, from the date command
 fn date_minute() -> u32 {
-    let output = Command::new("date")
-        .args(["+%H:%M"])
-        .output()
-        .ok();
+    let output = Command::new("date").args(["+%H:%M"]).output().ok();
 
     let stamp = output
         .and_then(|output| String::from_utf8(output.stdout).ok())
@@ -354,9 +351,10 @@ fn location_url() -> String {
         if let (Some(latitude), Some(longitude)) =
             (json_field(&text, "lat"), json_field(&text, "lon"))
         {
-            if let (Ok(latitude), Ok(longitude)) =
-                (latitude.trim().parse::<f32>(), longitude.trim().parse::<f32>())
-            {
+            if let (Ok(latitude), Ok(longitude)) = (
+                latitude.trim().parse::<f32>(),
+                longitude.trim().parse::<f32>(),
+            ) {
                 return coordinates_url(latitude, longitude);
             }
         }
@@ -369,7 +367,10 @@ fn location_url() -> String {
 fn fetch() -> Option<String> {
     let location = location_url();
 
-    let output = Command::new("curl").args(["-m", "8", "-s", &location]).output().ok()?;
+    let output = Command::new("curl")
+        .args(["-m", "8", "-s", &location])
+        .output()
+        .ok()?;
 
     if !output.status.success() {
         return None;

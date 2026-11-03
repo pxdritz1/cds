@@ -75,7 +75,13 @@ impl SettingsView {
 fn section(glyph: &'static str, name: &str, scheme: &Scheme) -> Row {
     Row::new(vec![
         Box::new(icon(glyph, 20.0, scheme.primary)),
-        Box::new(label(name, 15.0, scheme.on_surface, amane::Weight::SemiBold, 1)),
+        Box::new(label(
+            name,
+            15.0,
+            scheme.on_surface,
+            amane::Weight::SemiBold,
+            1,
+        )),
     ])
     .gap(10.0)
     .align(Center)
@@ -99,7 +105,13 @@ fn field(
         .width(Parent);
 
     Column::new(vec![
-        Box::new(label(name, 12.0, scheme.on_surface_variant, amane::Weight::Medium, 1)),
+        Box::new(label(
+            name,
+            12.0,
+            scheme.on_surface_variant,
+            amane::Weight::Medium,
+            1,
+        )),
         Box::new(
             Rectangle::new()
                 .width(Parent)
@@ -165,7 +177,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
                                 current == *name,
                                 scheme,
                                 move || {
-                                    Settings::set_scheme(name);
+                                    Settings::set_scheme_live(name);
                                 },
                             ))
                         })
@@ -181,22 +193,12 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
             Box::new(section(TUNE, "Aparência", scheme)),
             Box::new(
                 Row::new(vec![
-                    boxed(chip(
-                        "sv:dark",
-                        "Escuro",
-                        118.0,
-                        dark,
-                        scheme,
-                        move || Settings::set_dark(true),
-                    )),
-                    boxed(chip(
-                        "sv:light",
-                        "Claro",
-                        118.0,
-                        !dark,
-                        scheme,
-                        move || Settings::set_dark(false),
-                    )),
+                    boxed(chip("sv:dark", "Escuro", 118.0, dark, scheme, move || {
+                        Settings::set_dark_live(true)
+                    })),
+                    boxed(chip("sv:light", "Claro", 118.0, !dark, scheme, move || {
+                        Settings::set_dark_live(false)
+                    })),
                     boxed(
                         Rectangle::new()
                             .width(Parent)
@@ -212,9 +214,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
                 .gap(8.0)
                 .width(Parent),
             ),
-            Box::new(
-                Column::new(scheme_rows).gap(8.0).width(Parent),
-            ),
+            Box::new(Column::new(scheme_rows).gap(8.0).width(Parent)),
         ])
         .gap(12.0)
         .width(Parent),
@@ -245,7 +245,10 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
                 },
             )),
             Box::new(text(
-                &format!("{} imagens encontradas", Settings::read().wallpapers().len()),
+                &format!(
+                    "{} imagens encontradas",
+                    Settings::read().wallpapers().len()
+                ),
                 11.5,
                 scheme.on_surface_variant,
                 amane::Weight::Regular,
@@ -303,7 +306,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
                 drop(settings);
 
                 if !wallpaper.is_empty() {
-                    crate::theme::apply("image", &wallpaper, &scheme_name, dark);
+                    crate::theme::apply_async("image", &wallpaper, &scheme_name, dark);
                 }
             },
         )),

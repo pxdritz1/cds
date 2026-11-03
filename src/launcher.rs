@@ -1,6 +1,6 @@
 use amane::{
-    Apps, Center, Column, DesktopApp, Image, Key, LayerWindow, Monitor, Padding, Parent,
-    Pointer, Rectangle, Row, ScrollArea, Service, SpaceBetween, TextInput, Widget,
+    Apps, Center, Column, DesktopApp, Image, Key, LayerWindow, Monitor, Padding, Parent, Pointer,
+    Rectangle, Row, ScrollArea, Service, SpaceBetween, TextInput, Widget,
 };
 
 use crate::island::widgets::{APPS, FORWARD, SEARCH, boxed, icon, label, text};
@@ -177,12 +177,9 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
         boxed(empty(scheme))
     } else {
         boxed(
-            ScrollArea::new(
-                "launcher-results",
-                Column::new(rows).gap(4.0).width(Parent),
-            )
-            .width(Parent)
-            .height(RESULTS),
+            ScrollArea::new("launcher-results", Column::new(rows).gap(4.0).width(Parent))
+                .width(Parent)
+                .height(RESULTS),
         )
     };
 
@@ -277,13 +274,7 @@ fn result_row(scheme: &Scheme, app: &DesktopApp, index: usize, selected: bool) -
     };
 
     let info = Column::new(vec![
-        boxed(label(
-            app.name(),
-            13.5,
-            color,
-            amane::Weight::Medium,
-            1,
-        )),
+        boxed(label(app.name(), 13.5, color, amane::Weight::Medium, 1)),
         boxed(label(
             app.description().unwrap_or("Application"),
             11.0,
@@ -302,11 +293,7 @@ fn result_row(scheme: &Scheme, app: &DesktopApp, index: usize, selected: bool) -
     let mut children: Vec<Box<dyn Widget>> = vec![icon_box, boxed(info)];
 
     if selected {
-        children.push(boxed(icon(
-            FORWARD,
-            18.0,
-            scheme.on_secondary_container,
-        )));
+        children.push(boxed(icon(FORWARD, 18.0, scheme.on_secondary_container)));
     }
 
     let owned = key.clone();

@@ -5,8 +5,8 @@ use std::thread;
 use std::time::Duration;
 
 use amane::{
-    Center, Column, Key, LayerWindow, Monitor, Padding, Parent, Pointer, Rectangle, Row, ScrollArea,
-    Service, SpaceBetween, TextInput, Widget,
+    Center, Column, Key, LayerWindow, Monitor, Padding, Parent, Pointer, Rectangle, Row,
+    ScrollArea, Service, SpaceBetween, TextInput, Widget,
 };
 
 use crate::island::widgets::{COPY, PASTE, SEARCH, boxed, chip, icon, icon_button, label, text};
@@ -188,9 +188,7 @@ impl Clipboard {
         self.history
             .iter()
             .enumerate()
-            .filter(|(_, entry)| {
-                needle.is_empty() || entry.text.to_lowercase().contains(&needle)
-            })
+            .filter(|(_, entry)| needle.is_empty() || entry.text.to_lowercase().contains(&needle))
             .map(|(index, _)| index)
             .collect()
     }
@@ -370,9 +368,12 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
         boxed(empty(scheme))
     } else {
         boxed(
-            ScrollArea::new("clipboard-results", Column::new(rows).gap(4.0).width(Parent))
-                .width(Parent)
-                .height(LIST),
+            ScrollArea::new(
+                "clipboard-results",
+                Column::new(rows).gap(4.0).width(Parent),
+            )
+            .width(Parent)
+            .height(LIST),
         )
     };
 
@@ -410,15 +411,10 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
             left: PADDING,
         })
         .child(
-            Column::new(vec![
-                boxed(header),
-                boxed(search),
-                list,
-                boxed(footer),
-            ])
-            .width(Parent)
-            .height(Parent)
-            .gap(12.0),
+            Column::new(vec![boxed(header), boxed(search), list, boxed(footer)])
+                .width(Parent)
+                .height(Parent)
+                .gap(12.0),
         );
 
     overlay::layer(
@@ -456,13 +452,7 @@ fn entry_row(scheme: &Scheme, text: &str, position: usize, selected: bool) -> Re
         .child(icon(PASTE, 19.0, scheme.on_primary_container));
 
     let info = Column::new(vec![
-        boxed(label(
-            preview(text),
-            13.0,
-            color,
-            amane::Weight::Medium,
-            1,
-        )),
+        boxed(label(preview(text), 13.0, color, amane::Weight::Medium, 1)),
         boxed(label(
             meta(text),
             11.0,

@@ -4,12 +4,12 @@
  * type, arrows, enter.
  */
 use amane::{
-    Center, Service,
-    Apps, Button, Column, DesktopApp, Key, LayerWindow, Monitor, Padding, Parent, Pointer,
-    Rectangle, Row, TextInput, Widget,
+    Apps, Button, Center, Column, DesktopApp, Key, LayerWindow, Monitor, Padding, Parent, Pointer,
+    Rectangle, Row, Service, TextInput, Widget,
 };
 
-use crate::m3::{self, boxed, leading_icon, scale_label, Type};use crate::motion;
+use crate::m3::{self, Type, boxed, leading_icon, scale_label};
+use crate::motion;
 use crate::overlay::{self, Overlay, Panel, row_fill};
 use crate::settings::Settings;
 use crate::theme::{Scheme, Theme, fade};
@@ -185,7 +185,7 @@ fn run_action(action: &str) {
         "light" => {
             let dark = Settings::read().dark();
 
-            Settings::set_dark(!dark);
+            Settings::set_dark_live(!dark);
         }
         _ => {}
     }
@@ -205,7 +205,7 @@ fn spot_light_wallpapers(wallpapers: Vec<String>) {
 
     let index = (seconds % wallpapers.len() as u64) as usize;
 
-    Settings::set_wallpaper(&wallpapers[index]);
+    Settings::set_wallpaper_live(&wallpapers[index]);
 }
 
 pub fn view(monitor: &Monitor) -> LayerWindow {
@@ -350,7 +350,15 @@ fn app_row(app: &DesktopApp, scheme: &Scheme, index: usize, selected: bool) -> R
         }
     };
 
-    row(&key, glyph, &headline, &supporting, scheme, selected, launch)
+    row(
+        &key,
+        glyph,
+        &headline,
+        &supporting,
+        scheme,
+        selected,
+        launch,
+    )
 }
 
 fn action_row(spot: &'static Spot, scheme: &Scheme, index: usize, selected: bool) -> Rectangle {
@@ -368,7 +376,15 @@ fn action_row(spot: &'static Spot, scheme: &Scheme, index: usize, selected: bool
         }
     };
 
-    row(&key, spot.glyph, &headline, &supporting, scheme, selected, run)
+    row(
+        &key,
+        spot.glyph,
+        &headline,
+        &supporting,
+        scheme,
+        selected,
+        run,
+    )
 }
 
 /*

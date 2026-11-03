@@ -38,6 +38,7 @@ pub struct Ui {
     tab: Tab,
     hover: bool,
     month: i32,
+    panel: bool,
 }
 
 impl Service for Ui {
@@ -61,6 +62,10 @@ impl Ui {
         self.hover
     }
 
+    pub fn panel(&self) -> bool {
+        self.panel
+    }
+
     pub fn month(&self) -> i32 {
         self.month
     }
@@ -76,6 +81,7 @@ impl Ui {
 
             ui.dash = !ui.dash;
             ui.month = 0;
+            ui.panel = false;
 
             ui.dash
         };
@@ -92,6 +98,7 @@ impl Ui {
             ui.dash = true;
             ui.tab = tab;
             ui.month = 0;
+            ui.panel = false;
         }
 
         crate::overlay::Overlay::close();
@@ -103,6 +110,26 @@ impl Ui {
         }
 
         Self::write().dash = false;
+    }
+
+    // the quick controls island that drops under the bar
+    pub fn toggle_panel() {
+        let mut ui = Self::write();
+
+        ui.panel = !ui.panel;
+        ui.dash = false;
+    }
+
+    pub fn close_panel() {
+        if !Self::read().panel {
+            return;
+        }
+
+        Self::write().panel = false;
+    }
+
+    pub fn open_panel() {
+        Self::write().panel = true;
     }
 
     pub fn select(tab: Tab) {

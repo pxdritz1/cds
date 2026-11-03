@@ -1,7 +1,7 @@
+use amane::{Color, Service, watch_file};
 use std::env;
 use std::fs;
 use std::path::PathBuf;
-use amane::{Color, Service, watch_file};
 
 pub struct Typography {
     pub body: String,
@@ -25,9 +25,18 @@ macro_rules! scheme {
 
         impl Scheme {
             fn baseline() -> Self {
-                Self {
+                let mut scheme = Self {
                     $($role: Color::from($default),)*
+                };
+
+                // the settings file decides the fallback before matugen runs
+                if configured_dark() {
+                    for (role, hex) in DARK_ROLES {
+                        scheme.assign(role, Color::from(*hex));
+                    }
                 }
+
+                scheme
             }
 
             fn assign(&mut self, role: &str, color: Color) {
@@ -41,43 +50,114 @@ macro_rules! scheme {
 }
 
 scheme! {
-    primary = "#cfbdfe",
-    on_primary = "#36275d",
-    primary_container = "#4d3d75",
-    on_primary_container = "#e9ddff",
-    secondary = "#cbc2db",
-    on_secondary = "#332d41",
-    secondary_container = "#4a4458",
-    on_secondary_container = "#e8def8",
-    tertiary = "#efb8c8",
-    on_tertiary = "#4a2532",
-    tertiary_container = "#633b48",
-    on_tertiary_container = "#ffd9e3",
-    error = "#ffb4ab",
-    on_error = "#690005",
-    error_container = "#93000a",
-    on_error_container = "#ffdad6",
-    background = "#141218",
-    on_background = "#e6e0e9",
-    surface = "#141218",
-    on_surface = "#e6e0e9",
-    surface_tint = "#cfbdfe",
-    surface_dim = "#141218",
-    surface_bright = "#36343a",
-    surface_variant = "#49454e",
-    on_surface_variant = "#cac4cf",
-    surface_container_lowest = "#0f0d13",
-    surface_container_low = "#1d1b20",
-    surface_container = "#211f24",
-    surface_container_high = "#2b292f",
-    surface_container_highest = "#36343a",
-    outline = "#948f99",
-    outline_variant = "#49454e",
-    inverse_surface = "#e6e0e9",
-    inverse_on_surface = "#322f35",
-    inverse_primary = "#65558f",
+    // Primary colors - Material 3 Expressive
+    primary = "#6750a4",
+    on_primary = "#ffffff",
+    primary_container = "#eaddff",
+    on_primary_container = "#21005d",
+
+    // Secondary colors
+    secondary = "#625b71",
+    on_secondary = "#ffffff",
+    secondary_container = "#e8def8",
+    on_secondary_container = "#1e192b",
+
+    // Tertiary colors
+    tertiary = "#7d5260",
+    on_tertiary = "#ffffff",
+    tertiary_container = "#ffd8e4",
+    on_tertiary_container = "#31111d",
+
+    // Error colors
+    error = "#ba1a1a",
+    on_error = "#ffffff",
+    error_container = "#ffdad6",
+    on_error_container = "#410002",
+
+    // Background and surface colors
+    background = "#fdf8ff",
+    on_background = "#1c1b1f",
+    surface = "#fdf8ff",
+    on_surface = "#1c1b1f",
+    surface_tint = "#6750a4",
+    surface_dim = "#e7dff8",
+    surface_bright = "#fdf8ff",
+    surface_variant = "#e7dff8",
+    on_surface_variant = "#49454f",
+    surface_container_lowest = "#fdf8ff",
+    surface_container_low = "#f7f2fb",
+    surface_container = "#f0ecf7",
+    surface_container_high = "#e7dff8",
+    surface_container_highest = "#e0d8f3",
+
+    // Outline colors
+    outline = "#79747e",
+    outline_variant = "#79747e",
+
+    // Inverse colors
+    inverse_surface = "#313033",
+    inverse_on_surface = "#f4edf7",
+    inverse_primary = "#d0bcff",
+
+    // Effect colors
     scrim = "#000000",
     shadow = "#000000",
+}
+
+/*
+ * material 3 roles that matugen does not emit, kept here so a dark
+ * session without a generated palette still starts on dark surfaces
+ */
+const DARK_ROLES: &[(&str, &str)] = &[
+    ("primary", "#cfbdfe"),
+    ("on_primary", "#36275d"),
+    ("primary_container", "#4d3d75"),
+    ("on_primary_container", "#e9ddff"),
+    ("secondary", "#cbc2db"),
+    ("on_secondary", "#332d41"),
+    ("secondary_container", "#4a4458"),
+    ("on_secondary_container", "#e8def8"),
+    ("tertiary", "#efb8c8"),
+    ("on_tertiary", "#4a2532"),
+    ("tertiary_container", "#633b48"),
+    ("on_tertiary_container", "#ffd9e3"),
+    ("error", "#ffb4ab"),
+    ("on_error", "#690005"),
+    ("error_container", "#93000a"),
+    ("on_error_container", "#ffdad6"),
+    ("background", "#141218"),
+    ("on_background", "#e6e0e9"),
+    ("surface", "#141218"),
+    ("on_surface", "#e6e0e9"),
+    ("surface_tint", "#cfbdfe"),
+    ("surface_dim", "#141218"),
+    ("surface_bright", "#36343a"),
+    ("surface_variant", "#49454e"),
+    ("on_surface_variant", "#cac4cf"),
+    ("surface_container_lowest", "#0f0d13"),
+    ("surface_container_low", "#1d1b20"),
+    ("surface_container", "#211f24"),
+    ("surface_container_high", "#2b292f"),
+    ("surface_container_highest", "#36343a"),
+    ("outline", "#948f99"),
+    ("outline_variant", "#49454e"),
+    ("inverse_surface", "#e6e0e9"),
+    ("inverse_on_surface", "#322f35"),
+    ("inverse_primary", "#65558f"),
+];
+
+fn configured_dark() -> bool {
+    let path = config_home().join("chloe-dynamic-shell/settings.conf");
+
+    fs::read_to_string(path)
+        .ok()
+        .and_then(|text| {
+            text.lines().find_map(|line| {
+                line.strip_prefix("dark=")
+                    .map(|value| value.trim() == "true")
+            })
+        })
+        .unwrap_or(true)
 }
 
 impl Scheme {
@@ -92,6 +172,10 @@ impl Scheme {
                 scheme.assign(role.trim(), Color::from(hex.trim()));
             }
         }
+
+        // matugen leaves these two out, so they follow the generated surface
+        scheme.surface_dim = mix(scheme.surface, Color::BLACK, 0.05);
+        scheme.surface_bright = mix(scheme.surface, Color::WHITE, 0.08);
 
         scheme
     }
@@ -173,7 +257,9 @@ pub fn command(arguments: &[String]) -> String {
 }
 
 fn usage() -> String {
-    String::from("usage: theme set <image> [scheme] [dark|light] | theme color <hex> [scheme] [dark|light]")
+    String::from(
+        "usage: theme set <image> [scheme] [dark|light] | theme color <hex> [scheme] [dark|light]",
+    )
 }
 
 pub fn apply(source: &str, value: &str, scheme: &str, dark: bool) -> String {
@@ -199,12 +285,51 @@ pub fn apply(source: &str, value: &str, scheme: &str, dark: bool) -> String {
         ""
     };
 
+    let command = format!(
+        "matugen {source} '{value}' -c '{}' -t {scheme} -m {mode} -q{prefer} --continue-on-error",
+        config.display()
+    );
+
+    // waiting here means "ok" only goes out after the colors really exist;
+    // ipc calls run on their own thread, so the interface never stalls
+    let done = amane::output(&format!("{command} >/dev/null 2>&1 && printf cds-done"));
+
+    if done.trim() != "cds-done" {
+        return String::from("failed: matugen could not generate the colors");
+    }
+
+    match fs::read_to_string(colors_path()) {
+        Ok(text) if text.contains("primary=") => String::from("ok"),
+        _ => String::from("failed: matugen finished without writing the colors"),
+    }
+}
+
+/*
+ * the views change themes from the click handlers, where waiting for a
+ * whole matugen run would freeze the bar; they spawn it and let the file
+ * watcher refresh the scheme when it lands
+ */
+pub fn apply_async(source: &str, value: &str, scheme: &str, dark: bool) {
+    if value.contains('\'') {
+        return;
+    }
+
+    let Some(config) = write_matugen_config() else {
+        return;
+    };
+
+    let mode = if dark { "dark" } else { "light" };
+
+    let prefer = if source == "image" {
+        " --prefer saturation"
+    } else {
+        ""
+    };
+
     amane::spawn(&format!(
         "matugen {source} '{value}' -c '{}' -t {scheme} -m {mode} -q{prefer} --continue-on-error",
         config.display()
     ));
-
-    String::from("ok")
 }
 
 /*

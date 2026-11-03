@@ -161,9 +161,7 @@ impl Settings {
                 return "failed: use latitude,longitude like -20.44,-54.65".into();
             };
 
-            if latitude.trim().parse::<f32>().is_err()
-                || longitude.trim().parse::<f32>().is_err()
-            {
+            if latitude.trim().parse::<f32>().is_err() || longitude.trim().parse::<f32>().is_err() {
                 return "failed: latitude and longitude are numbers".into();
             }
         }
@@ -195,10 +193,32 @@ impl Settings {
             )
         };
 
-        theme::apply("image", &wallpaper, &scheme, dark)
+        regenerate(&wallpaper, &scheme, dark, true)
     }
 
-    pub fn set_dark(dark: bool) {
+    // the views call this so the click never waits on a whole matugen run
+    pub fn set_wallpaper_live(path: &str) {
+        if !PathBuf::from(path).is_file() {
+            return;
+        }
+
+        let (wallpaper, scheme, dark) = {
+            let mut settings = Self::write();
+
+            settings.wallpaper = String::from(path);
+            settings.save();
+
+            (
+                settings.wallpaper.clone(),
+                settings.scheme.clone(),
+                settings.dark,
+            )
+        };
+
+        regenerate(&wallpaper, &scheme, dark, false);
+    }
+
+    pub fn set_dark(dark: bool) -> String {
         let (wallpaper, scheme) = {
             let mut settings = Self::write();
 
@@ -208,11 +228,20 @@ impl Settings {
             (settings.wallpaper.clone(), settings.scheme.clone())
         };
 
-        if wallpaper.is_empty() {
-            return;
-        }
+        regenerate(&wallpaper, &scheme, dark, true)
+    }
 
-        theme::apply("image", &wallpaper, &scheme, dark);
+    pub fn set_dark_live(dark: bool) {
+        let (wallpaper, scheme) = {
+            let mut settings = Self::write();
+
+            settings.dark = dark;
+            settings.save();
+
+            (settings.wallpaper.clone(), settings.scheme.clone())
+        };
+
+        regenerate(&wallpaper, &scheme, dark, false);
     }
 
     // changes the matugen scheme and regenerates everything with it
@@ -226,11 +255,20 @@ impl Settings {
             (settings.wallpaper.clone(), settings.dark)
         };
 
-        if wallpaper.is_empty() {
-            return String::from("failed: set a wallpaper first");
-        }
+        regenerate(&wallpaper, scheme, dark, true)
+    }
 
-        theme::apply("image", &wallpaper, scheme, dark)
+    pub fn set_scheme_live(scheme: &str) {
+        let (wallpaper, dark) = {
+            let mut settings = Self::write();
+
+            settings.scheme = String::from(scheme);
+            settings.save();
+
+            (settings.wallpaper.clone(), settings.dark)
+        };
+
+        regenerate(&wallpaper, scheme, dark, false);
     }
 
     fn file() -> PathBuf {
@@ -312,5 +350,23 @@ impl Settings {
         self.wallpapers = found;
 
         changed
+    }
+}
+
+/*
+ * one place decides whether a matugen run waits. the ipc answers only
+ * after the colors exist, while the views spawn it and stay responsive.
+ */
+fn regenerate(wallpaper: &str, scheme: &str, dark: bool, wait: bool) -> String {
+    if wallpaper.is_empty() {
+        return String::from("failed: set a wallpaper first");
+    }
+
+    if wait {
+        theme::apply("image", wallpaper, scheme, dark)
+    } else {
+        theme::apply_async("image", wallpaper, scheme, dark);
+
+        String::from("ok")
     }
 }

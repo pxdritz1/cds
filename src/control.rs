@@ -5,11 +5,11 @@
  * notifications with a clear all.
  */
 use amane::{
-    Battery, Bluetooth, Center, Column, Key, LayerWindow, Monitor, Padding, Parent, Rectangle,
-    Row, ScrollArea, Service, Widget,
+    Battery, Bluetooth, Center, Column, Key, LayerWindow, Monitor, Padding, Parent, Rectangle, Row,
+    ScrollArea, Service, Widget,
 };
 
-use crate::m3::{self, boxed, icon, round_button, scale, scale_label, slider, tile, Tile, Type};
+use crate::m3::{self, Tile, Type, boxed, icon, round_button, scale, scale_label, slider, tile};
 use crate::overlay::{self, Frame, Overlay, Panel, Place};
 use crate::settings::Settings;
 use crate::theme::{Scheme, Theme, fade};
@@ -131,13 +131,17 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
             Tile {
                 key: "ctl:dark",
                 glyph: if dark { m3::LIGHT_MODE } else { m3::DARK_MODE },
-                title: if dark { "Vou pro claro" } else { "Vou pro escuro" },
+                title: if dark {
+                    "Vou pro claro"
+                } else {
+                    "Vou pro escuro"
+                },
                 subtitle: "tema do sistema",
                 active: !dark,
             },
             HALF,
             scheme,
-            move || Settings::set_dark(!dark),
+            move || Settings::set_dark_live(!dark),
             None,
         )),
     ])
@@ -193,11 +197,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
     drop(battery);
 
     let battery_line = Row::new(vec![
-        boxed(icon(
-            m3::BATTERY,
-            18.0,
-            scheme.primary,
-        )),
+        boxed(icon(m3::BATTERY, 18.0, scheme.primary)),
         boxed(scale_label(
             Type::LabelMedium,
             if present {
@@ -235,9 +235,12 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
         ))
     } else {
         boxed(
-            ScrollArea::new("ctl-notices", Column::new(notice_rows).gap(4.0).width(Parent))
-                .width(Parent)
-                .height(150.0),
+            ScrollArea::new(
+                "ctl-notices",
+                Column::new(notice_rows).gap(4.0).width(Parent),
+            )
+            .width(Parent)
+            .height(150.0),
         )
     };
 
@@ -356,7 +359,12 @@ fn notice_row(notification: &amane::Notification, scheme: &Scheme) -> amane::Col
     let body = String::from(notification.body());
 
     Column::new(vec![
-        Box::new(scale_label(Type::LabelMedium, summary, scheme.on_surface, 1)),
+        Box::new(scale_label(
+            Type::LabelMedium,
+            summary,
+            scheme.on_surface,
+            1,
+        )),
         Box::new(scale_label(
             Type::LabelSmall,
             body,

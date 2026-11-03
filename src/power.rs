@@ -3,9 +3,7 @@ use amane::{
     Service, SpaceBetween, Widget,
 };
 
-use crate::island::widgets::{
-    CHECK, LOCK, LOGOUT, POWER, RESTART, boxed, icon, label, text,
-};
+use crate::island::widgets::{CHECK, LOCK, LOGOUT, POWER, RESTART, boxed, icon, label, text};
 use crate::m3;
 use crate::overlay::{self, Overlay, Panel, row_fill};
 use crate::theme::{Scheme, Theme, fade};
@@ -212,12 +210,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
         .child(
             Column::new(vec![
                 boxed(header),
-                boxed(
-                    Column::new(rows)
-                        .gap(4.0)
-                        .width(Parent)
-                        .height(Parent),
-                ),
+                boxed(Column::new(rows).gap(4.0).width(Parent).height(Parent)),
                 boxed(footer),
             ])
             .width(Parent)

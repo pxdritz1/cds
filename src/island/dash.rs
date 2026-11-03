@@ -1,13 +1,11 @@
 use amane::{
-    Audio, Battery, Brightness, Center, Column, Cpu, End, Image, Media, Memory,
-    Notifications, Parent, Pointer, Rectangle, Row, ScrollArea, Service, SpaceBetween, Stack,
-    Start,
-    Widget,
+    Audio, Battery, Brightness, Center, Column, Cpu, Image, Media, Memory, Notifications, Parent,
+    Pointer, Rectangle, Row, ScrollArea, Service, SpaceBetween, Stack, Start, Widget,
 };
 
 use crate::art::{artwork, media_labels};
 use crate::clock::Clock;
-use crate::m3::{self, scale, scale_label, Type};
+use crate::m3::{self, Type, scale, scale_label};
 use crate::overlay::{Overlay, Panel};
 use crate::settings::Settings;
 use crate::theme::{Scheme, fade};
@@ -15,8 +13,8 @@ use crate::ui::{Tab, Ui};
 use crate::weather::{Hour, Weather};
 
 use super::widgets::{
-    BELL, BRIGHTNESS, CLOSE, DROP, MUTED, NEXT, PAUSE, PLAY, PREVIOUS, VOLUME, WALLPAPER,
-    AIR, boxed, card, chip, icon, icon_button, label, progress, round_button, slider, text,
+    AIR, BELL, BRIGHTNESS, CLOSE, DROP, MUTED, NEXT, PAUSE, PLAY, PREVIOUS, VOLUME, WALLPAPER,
+    boxed, card, chip, icon, icon_button, label, progress, round_button, text,
 };
 
 pub const WIDTH: f32 = 700.0;
@@ -37,7 +35,7 @@ pub fn view(scheme: &Scheme, tab: Tab, alpha: f32) -> Rectangle {
         (Tab::Alerts, "Alertas"),
     ];
 
-    let mut header: Vec<Box<dyn Widget>> = tabs
+    let header: Vec<Box<dyn Widget>> = tabs
         .iter()
         .map(|&(target, name)| {
             let key = format!("tab:{name}");
@@ -102,6 +100,7 @@ pub fn view(scheme: &Scheme, tab: Tab, alpha: f32) -> Rectangle {
 }
 
 fn overview(scheme: &Scheme) -> Box<dyn Widget> {
+    // the columns add up to the 660 body width, so the grid never overflows
     Box::new(
         Column::new(vec![
             Box::new(
@@ -138,16 +137,11 @@ fn hero_card(scheme: &Scheme) -> Rectangle {
     let clock = Clock::read();
     let color = scheme.on_primary_container;
 
-    card(216.0, scheme.primary_container).child(
+    card(220.0, scheme.primary_container).child(
         Column::new(vec![
             Box::new(scale(Type::LabelLarge, clock.greeting(), color)),
             Box::new(scale(Type::DisplayMedium, clock.time(true), color)),
-            Box::new(scale_label(
-                Type::BodySmall,
-                clock.date(),
-                color,
-                1,
-            )),
+            Box::new(scale_label(Type::BodySmall, clock.date(), color, 1)),
         ])
         .gap(4.0)
         .width(Parent)
@@ -222,15 +216,12 @@ fn weather_hero(scheme: &Scheme) -> Rectangle {
     .width(Parent)
     .align(Start);
 
-    card(234.0, scheme.secondary_container).child(
-        Row::new(vec![
-            Box::new(badge),
-            Box::new(weather_rows),
-        ])
-        .gap(14.0)
-        .width(Parent)
-        .height(Parent)
-        .align(Center),
+    card(240.0, scheme.secondary_container).child(
+        Row::new(vec![Box::new(badge), Box::new(weather_rows)])
+            .gap(14.0)
+            .width(Parent)
+            .height(Parent)
+            .align(Center),
     )
 }
 
@@ -255,22 +246,32 @@ fn media_mini(scheme: &Scheme) -> Rectangle {
         Media::play_pause,
     );
 
-    card(150.0, scheme.surface_container_high).child(Column::new(vec![
-        Box::new(Row::new(vec![Box::new(artwork)]).width(Parent).justify(Center)),
-        Box::new(scale_label(Type::TitleSmall, &title, scheme.on_surface, 1)),
-        Box::new(scale_label(
-            Type::LabelSmall,
-            &artist,
-            scheme.on_surface_variant,
-            1,
-        )),
-        Box::new(Row::new(vec![Box::new(controls)]).width(Parent).justify(Center)),
-    ])
-    .gap(2.0)
-    .width(Parent)
-    .height(Parent)
-    .align(Center)
-    .justify(Center))
+    card(176.0, scheme.surface_container_high).child(
+        Column::new(vec![
+            Box::new(
+                Row::new(vec![Box::new(artwork)])
+                    .width(Parent)
+                    .justify(Center),
+            ),
+            Box::new(scale_label(Type::TitleSmall, &title, scheme.on_surface, 1)),
+            Box::new(scale_label(
+                Type::LabelSmall,
+                &artist,
+                scheme.on_surface_variant,
+                1,
+            )),
+            Box::new(
+                Row::new(vec![Box::new(controls)])
+                    .width(Parent)
+                    .justify(Center),
+            ),
+        ])
+        .gap(2.0)
+        .width(Parent)
+        .height(Parent)
+        .align(Center)
+        .justify(Center),
+    )
 }
 
 /*
@@ -306,19 +307,17 @@ fn controls_card(scheme: &Scheme) -> Rectangle {
         drop(brightness);
 
         Column::new(vec![
-            Box::new(
-                m3::slider(
-                    "home:volume-r",
-                    volume_glyph,
-                    volume,
-                    264.0,
-                    scheme,
-                    move |fraction| Audio::set_volume((fraction * 100.0).round() as u8),
-                ),
-            ),
+            Box::new(m3::slider(
+                "home:volume-r",
+                volume_glyph,
+                volume,
+                264.0,
+                scheme,
+                move |fraction| Audio::set_volume((fraction * 100.0).round() as u8),
+            )),
             Box::new(brightness_slider),
         ])
-        .gap(10.0)
+        .gap(4.0)
         .width(Parent)
         .height(Parent)
         .align(Center)
@@ -326,23 +325,21 @@ fn controls_card(scheme: &Scheme) -> Rectangle {
     } else {
         drop(brightness);
 
-        Column::new(vec![Box::new(
-            m3::slider(
-                "home:volume-r",
-                volume_glyph,
-                volume,
-                264.0,
-                scheme,
-                move |fraction| Audio::set_volume((fraction * 100.0).round() as u8),
-            ),
-        )])
+        Column::new(vec![Box::new(m3::slider(
+            "home:volume-r",
+            volume_glyph,
+            volume,
+            264.0,
+            scheme,
+            move |fraction| Audio::set_volume((fraction * 100.0).round() as u8),
+        ))])
         .width(Parent)
         .height(Parent)
         .align(Center)
         .justify(Center)
     };
 
-    card(380.0, scheme.surface_container_high).child(body)
+    card(352.0, scheme.surface_container_high).child(body)
 }
 
 /*
@@ -356,10 +353,15 @@ fn meters_card(scheme: &Scheme) -> Rectangle {
             if Battery::read().present() {
                 boxed(meter_row("BAT", Battery::read().percent(), scheme))
             } else {
-                boxed(scale_label(Type::LabelSmall, "sem bateria", scheme.on_surface_variant, 1))
+                boxed(scale_label(
+                    Type::LabelSmall,
+                    "sem bateria",
+                    scheme.on_surface_variant,
+                    1,
+                ))
             },
         ])
-        .gap(12.0)
+        .gap(2.0)
         .width(Parent)
         .height(Parent)
         .align(Center)
@@ -377,23 +379,26 @@ fn meter_row(name: &str, percent: u8, scheme: &Scheme) -> Column {
                     scheme.on_surface_variant,
                     1,
                 )),
-                Box::new(scale_label(Type::LabelSmall, format!("{percent}%"), scheme.on_surface, 1)),
+                Box::new(scale_label(
+                    Type::LabelSmall,
+                    format!("{percent}%"),
+                    scheme.on_surface,
+                    1,
+                )),
             ])
             .width(Parent)
             .justify(amane::SpaceBetween)
             .align(Center),
         ),
-        Box::new(
-            m3::wavy(
-                f32::from(percent.min(100)) / 100.0,
-                264.0,
-                false,
-                scheme.tertiary,
-                scheme.surface_container_highest,
-            ),
-        ),
+        Box::new(m3::wavy(
+            f32::from(percent.min(100)) / 100.0,
+            264.0,
+            false,
+            scheme.tertiary,
+            scheme.surface_container_highest,
+        )),
     ])
-    .gap(4.0)
+    .gap(0.0)
     .width(Parent)
 }
 
@@ -499,12 +504,22 @@ fn wallpapers(scheme: &Scheme) -> Box<dyn Widget> {
     let settings = Settings::read();
 
     let modes = Row::new(vec![
-        boxed(chip("mode:dark", "Dark", 88.0, settings.dark(), scheme, || {
-            Settings::set_dark(true)
-        })),
-        boxed(chip("mode:light", "Light", 88.0, !settings.dark(), scheme, || {
-            Settings::set_dark(false)
-        })),
+        boxed(chip(
+            "mode:dark",
+            "Dark",
+            88.0,
+            settings.dark(),
+            scheme,
+            || Settings::set_dark_live(true),
+        )),
+        boxed(chip(
+            "mode:light",
+            "Light",
+            88.0,
+            !settings.dark(),
+            scheme,
+            || Settings::set_dark_live(false),
+        )),
     ])
     .gap(TAB_GAP);
 
@@ -558,7 +573,7 @@ fn thumb(path: &str, selected: bool, scheme: &Scheme) -> Rectangle {
         .fill(Image::cover(path).thumbnail(416, 234))
         .cursor(Pointer)
         .on_click(move |_| {
-            Settings::set_wallpaper(&owned);
+            Settings::set_wallpaper_live(&owned);
         });
 
     if selected {
@@ -720,22 +735,16 @@ fn weather_tab(scheme: &Scheme) -> Box<dyn Widget> {
         .width(76.0)
         .height(76.0)
         .align_child(Center, Center)
-        .child(
-            Stack::new(vec![
-                Box::new(super::widgets::cookie(7.0, 76.0, scheme.primary_container)) as Box<dyn Widget>,
-                Box::new(icon(glyph, 34.0, scheme.on_primary_container)) as Box<dyn Widget>,
-            ]),
-        );
+        .child(Stack::new(vec![
+            Box::new(super::widgets::cookie(7.0, 76.0, scheme.primary_container))
+                as Box<dyn Widget>,
+            Box::new(icon(glyph, 34.0, scheme.on_primary_container)) as Box<dyn Widget>,
+        ]));
 
     let detail = |glyph: &'static str, value: &str| {
         Row::new(vec![
             Box::new(icon(glyph, 14.0, color)) as Box<dyn Widget>,
-            Box::new(text(
-                value,
-                13.0,
-                color,
-                amane::Weight::Medium,
-            )) as Box<dyn Widget>,
+            Box::new(text(value, 13.0, color, amane::Weight::Medium)) as Box<dyn Widget>,
         ])
         .gap(5.0)
         .align(Center)
@@ -758,14 +767,11 @@ fn weather_tab(scheme: &Scheme) -> Box<dyn Widget> {
     .width(Parent);
 
     let current = card(660.0, scheme.secondary_container).child(
-        Row::new(vec![
-            Box::new(badge),
-            Box::new(reading),
-        ])
-        .gap(24.0)
-        .width(Parent)
-        .height(Parent)
-        .align(Center),
+        Row::new(vec![Box::new(badge), Box::new(reading)])
+            .gap(24.0)
+            .width(Parent)
+            .height(Parent)
+            .align(Center),
     );
 
     // the hourly strip, one cookie-ish chip per hour from the forecast

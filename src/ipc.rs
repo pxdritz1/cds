@@ -82,9 +82,7 @@ pub fn root(arguments: &[String]) -> String {
  */
 fn show(arguments: &[String]) -> String {
     let Some(name) = arguments.first() else {
-        return String::from(
-            "usage: open launcher|apps|spotlight|clipboard|power|control|config",
-        );
+        return String::from("usage: open launcher|apps|spotlight|clipboard|power|control|config");
     };
 
     let panel = match name.as_str() {
@@ -174,9 +172,7 @@ fn settings_verb(arguments: &[String]) -> String {
                 _ => return String::from("usage: settings dark [true|false|toggle]"),
             };
 
-            Settings::set_dark(dark);
-
-            String::from("ok")
+            Settings::set_dark(dark)
         }
 
         "scheme" => {
@@ -188,15 +184,16 @@ fn settings_verb(arguments: &[String]) -> String {
                 );
             };
 
-            let matches = SCHEMES
-                .iter()
-                .any(|(scheme, _)| *scheme == *name)
+            let matches = SCHEMES.iter().any(|(scheme, _)| *scheme == *name)
                 || SCHEMES
                     .iter()
                     .any(|(_, pretty)| pretty.to_lowercase() == name.to_lowercase());
 
             if !matches {
-                return format!("failed: schemes are {prettyList}", prettyList = schemePretty());
+                return format!(
+                    "failed: schemes are {prettyList}",
+                    prettyList = schemePretty()
+                );
             }
 
             // accept the pretty name from the panel by translating it

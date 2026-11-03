@@ -16,10 +16,10 @@ use crate::theme::{Theme, fade};
 use crate::tray::{self, Tray};
 use crate::ui::Ui;
 
-const WINDOW_WIDTH: f32 = 760.0;
-const WINDOW_HEIGHT: f32 = 480.0;
-const MARGIN: i32 = 10;
-const RESERVED: f32 = 44.0;
+// the quick controls island, rounded like a card
+const ISLAND_EXPANDED_RADIUS: f32 = 28.0;
+
+const RESERVED: f32 = 52.0;
 const COMPACT_HEIGHT: f32 = 40.0;
 // the tray sheet rounds like a card, not like the pill the bar uses
 const TRAY_RADIUS: f32 = 26.0;
@@ -27,12 +27,18 @@ const NOTICE_TIME: Duration = Duration::from_secs(5);
 
 // what the island is showing, which decides its size and how content fades
 #[derive(Clone, Copy, PartialEq, Eq)]
-enum Mode {
-    Compact = 0,
-    Media = 1,
-    Notice = 2,
-    Dash = 3,
+enum IslandMode {
+    Compact = 0,  // the bar: workspaces, clock, status and tray
+    Expanded = 1, // the quick controls under the status island
+    Active = 2,   // the bar with the tray menu open
+    Media = 3,    // the hover peek for the current player
+    Notice = 4,   // a notification arriving
+    Dash = 5,     // the full dash
 }
+
+const WINDOW_WIDTH: f32 = 760.0;
+const WINDOW_HEIGHT: f32 = 480.0;
+const MARGIN: i32 = 10;
 
 pub fn reserve(_: &Monitor) -> LayerWindow {
     LayerWindow::new()
@@ -67,18 +73,20 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
     };
 
     let mode = if ui.dash() {
-        Mode::Dash
+        IslandMode::Dash
+    } else if ui.panel() {
+        IslandMode::Expanded
     } else if tray_open {
-        Mode::Compact
+        IslandMode::Active
     } else if notice.is_some() {
-        Mode::Notice
+        IslandMode::Notice
     } else if ui.hover() && has_media {
-        Mode::Media
+        IslandMode::Media
     } else {
-        Mode::Compact
+        IslandMode::Compact
     };
 
-    if mode == Mode::Notice {
+    if mode == IslandMode::Notice {
         request_frame();
     }
 
@@ -86,14 +94,14 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
     let alpha = motion::fade("island", mode as u64);
 
     let (content, width, height, radius): (Box<dyn Widget>, f32, f32, f32) = match mode {
-        Mode::Dash => (
+        IslandMode::Dash => (
             Box::new(dash::view(scheme, ui.tab(), alpha)),
             dash::WIDTH,
             dash::HEIGHT,
             dash::RADIUS,
         ),
 
-        Mode::Notice => {
+        IslandMode::Notice => {
             let notification = notice.expect("the notice mode only starts with a notice");
 
             (
@@ -104,14 +112,14 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
             )
         }
 
-        Mode::Media => (
+        IslandMode::Media => (
             peek::media(scheme, alpha),
             peek::MEDIA_WIDTH,
             peek::MEDIA_HEIGHT,
             peek::MEDIA_HEIGHT / 2.0,
         ),
 
-        Mode::Compact if tray_open => {
+        IslandMode::Active => {
             let (bar, bar_width) = compact::view(monitor, scheme, alpha);
 
             let (menu, menu_width, menu_height) = tray::menu(scheme);
@@ -129,11 +137,18 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
             )
         }
 
-        Mode::Compact => {
+        IslandMode::Compact => {
             let (content, width) = compact::view(monitor, scheme, alpha);
 
             (content, width, COMPACT_HEIGHT, COMPACT_HEIGHT / 2.0)
         }
+
+        IslandMode::Expanded => (
+            peek::quick_controls(scheme, alpha),
+            peek::QUICK_WIDTH,
+            peek::QUICK_HEIGHT,
+            ISLAND_EXPANDED_RADIUS,
+        ),
     };
 
     let (width, height, radius) = motion::follow(&monitor.name, width, height, radius);
@@ -153,8 +168,8 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
         .border(1.0, fade(scheme.outline_variant, 80))
         .on_hover(Ui::set_hover);
 
-    // clicking the island itself: close the dash, settle the tray or toggle it
-    if ui.dash() {
+    // clicking the island itself: close the panel, settle the tray or toggle it
+    if ui.dash() || ui.panel() {
         // keeps a click inside the surface from reaching the backdrop below
         island = island.on_click(|_| {});
     } else if tray_open {
@@ -163,11 +178,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
         island = island.on_click(|_| Ui::toggle());
     }
 
-    let island = island.child(
-        Stack::new(vec![content])
-            .width(Parent)
-            .height(Parent),
-    );
+    let island = island.child(Stack::new(vec![content]).width(Parent).height(Parent));
 
     /*
      * the dash takes the keyboard outright: a keybind opens it without a
@@ -176,18 +187,22 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
      */
     let keyboard = if ui.dash() {
         Keyboard::Exclusive
+    } else if ui.panel() {
+        Keyboard::OnDemand
     } else {
         Keyboard::None
     };
 
     // the dash takes the whole window so a click outside the island closes it
-    let (region_x, region_width) = if ui.dash() {
+    let overlay_open = ui.dash() || ui.panel();
+
+    let (region_x, region_width) = if overlay_open {
         (0.0, WINDOW_WIDTH)
     } else {
         (((WINDOW_WIDTH - width) / 2.0).max(0.0), width)
     };
 
-    let region_height = if ui.dash() { WINDOW_HEIGHT } else { height };
+    let region_height = if overlay_open { WINDOW_HEIGHT } else { height };
 
     LayerWindow::new()
         .width(WINDOW_WIDTH)
@@ -210,6 +225,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
         .on_key(|key| {
             if key == Key::Escape {
                 Ui::close();
+                Ui::close_panel();
                 Tray::close();
             }
         })
@@ -221,6 +237,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
                 .on_click(|button| {
                     if button == Button::Left {
                         Ui::close();
+                        Ui::close_panel();
                         Tray::close();
                     }
                 })

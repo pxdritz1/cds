@@ -3,12 +3,11 @@
  * tile; a click spawns the program and the panel steps down.
  */
 use amane::{
-    Service,
     Apps, Button, Center, Column, DesktopApp, Image, Key, LayerWindow, Monitor, Padding, Parent,
-    Pointer, Rectangle, Row, ScrollArea, Widget,
+    Pointer, Rectangle, Row, ScrollArea, Service, Widget,
 };
 
-use crate::m3::{self, badge_shape, boxed, scale, scale_label, state_layer, Type};
+use crate::m3::{self, Type, badge_shape, boxed, scale, scale_label, state_layer};
 use crate::motion;
 use crate::overlay::{self, Overlay, Panel};
 use crate::theme::{Scheme, Theme};
@@ -62,11 +61,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
 
     let header = Row::new(vec![
         boxed(scale(Type::HeadlineSmall, "Aplicativos", scheme.on_surface)),
-        boxed(
-            Rectangle::new()
-                .width(Parent)
-                .height(1.0),
-        ),
+        boxed(Rectangle::new().width(Parent).height(1.0)),
         boxed(m3::icon_button(
             "apps:spotlight",
             m3::SEARCH,
@@ -110,14 +105,10 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
             left: PADDING,
         })
         .child(
-            Column::new(vec![
-                Box::new(header),
-                grid,
-                Box::new(footer),
-            ])
-            .width(Parent)
-            .height(Parent)
-            .gap(14.0),
+            Column::new(vec![Box::new(header), grid, Box::new(footer)])
+                .width(Parent)
+                .height(Parent)
+                .gap(14.0),
         );
 
     overlay::layer(

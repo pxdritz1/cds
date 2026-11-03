@@ -48,16 +48,9 @@ impl Service for Tray {
         };
 
         let same = self.windows.len() == windows.len()
-            && self
-                .windows
-                .iter()
-                .zip(windows.iter())
-                .all(|(a, b)| {
-                    a.id == b.id
-                        && a.app_id == b.app_id
-                        && a.title == b.title
-                        && a.focused == b.focused
-                });
+            && self.windows.iter().zip(windows.iter()).all(|(a, b)| {
+                a.id == b.id && a.app_id == b.app_id && a.title == b.title && a.focused == b.focused
+            });
 
         if same {
             return false;
@@ -253,10 +246,7 @@ fn usage() -> String {
 
 // runs one niri command, on a side thread, so ipc answers right away
 fn niri(command: &str) {
-    let parts: Vec<String> = command
-        .split_whitespace()
-        .map(String::from)
-        .collect();
+    let parts: Vec<String> = command.split_whitespace().map(String::from).collect();
 
     thread::spawn(move || {
         let _ = Command::new("niri").arg("msg").args(parts).output();
@@ -578,9 +568,13 @@ fn context_menu(
     let title = String::from(window.title.clone());
 
     let rows: Vec<Box<dyn Widget>> = vec![
-        Box::new(context_row(scheme, "abrir", "Abrir janela", OPEN_NEW, move || {
-            Tray::focus(id)
-        })),
+        Box::new(context_row(
+            scheme,
+            "abrir",
+            "Abrir janela",
+            OPEN_NEW,
+            move || Tray::focus(id),
+        )),
         Box::new(context_row(scheme, "fechar", "Fechar", CLOSE, move || {
             Tray::close_window(id)
         })),

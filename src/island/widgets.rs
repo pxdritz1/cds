@@ -1,11 +1,9 @@
 use std::time::Duration;
 
-use amane::{
-    Canvas, Color, Parent, Path, Rectangle, Service, Shape, Stack, Text, Widget,
-};
+use amane::{Canvas, Color, Parent, Path, Rectangle, Service, Shape, Stack, Text, Widget};
 
 use crate::motion;
-use crate::theme::{mix, Scheme, Theme};
+use crate::theme::{Scheme, Theme, mix};
 
 // material symbols rounded codepoints
 pub const BELL: &str = "\u{e7f4}";
@@ -68,12 +66,7 @@ pub fn icon(glyph: &str, size: f32, color: Color) -> Text {
         .tight()
 }
 
-pub fn text(
-    content: impl Into<String>,
-    size: f32,
-    color: Color,
-    weight: amane::Weight,
-) -> Text {
+pub fn text(content: impl Into<String>, size: f32, color: Color, weight: amane::Weight) -> Text {
     let theme = Theme::read();
     let typography = theme.typography();
 
@@ -164,11 +157,7 @@ pub fn chip(
         Color::TRANSPARENT
     };
 
-    let fill = motion::color(
-        &format!("chip-fill:{key}"),
-        target,
-        motion::SELECT_DURATION,
-    );
+    let fill = motion::color(&format!("chip-fill:{key}"), target, motion::SELECT_DURATION);
 
     let fill = mix(fill, scheme.on_surface, 0.08 * state);
     let color = motion::color(
@@ -206,7 +195,11 @@ pub fn slider(
     let state = motion::hover(key);
     let percent = motion::number(&format!("slider:{key}"), percent.clamp(0.0, 1.0), PROGRESS);
 
-    let track = mix(scheme.surface_container_highest, scheme.primary, 0.25 * state);
+    let track = mix(
+        scheme.surface_container_highest,
+        scheme.primary,
+        0.25 * state,
+    );
     let thumb = 16.0 + 4.0 * state;
     let center = (width * percent).clamp(thumb / 2.0, width - thumb / 2.0);
 
@@ -254,7 +247,11 @@ pub fn slider(
 
 // a read-only progress bar, for playback position and other values
 pub fn progress(key: &str, percent: f32, width: f32, scheme: &Scheme) -> Stack {
-    let percent = motion::number(&format!("progress:{key}"), percent.clamp(0.0, 1.0), PROGRESS);
+    let percent = motion::number(
+        &format!("progress:{key}"),
+        percent.clamp(0.0, 1.0),
+        PROGRESS,
+    );
 
     Stack::new(vec![
         boxed(
