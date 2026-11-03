@@ -3,7 +3,7 @@
 ## Barra e ilhas
 
 - [x] Adicionar abertura do Dash ao passar o mouse sobre a Island, com opção configurável para ativar/desativar o comportamento.
-- [ ] Garantir que qualquer clique fora do Dash o feche, inclusive fora dos limites atuais da layer central, sem bloquear/interferir com cliques destinados às janelas subjacentes.
+- [x] Garantir que qualquer clique fora do Dash o feche, inclusive fora dos limites atuais da layer central, sem bloquear/interferir com cliques destinados às janelas subjacentes.
 
 - [x] Reposicionar a tray na ilha direita, imediatamente depois do Wi-Fi no sentido do centro da tela.
 - [ ] Substituir a falsa tray baseada em janelas do Niri por uma StatusNotifierItem (SNI) real via D-Bus, com registro, atualização, ativação e menus de contexto.
