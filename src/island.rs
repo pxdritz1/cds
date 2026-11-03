@@ -88,7 +88,7 @@ pub fn left(monitor: &Monitor) -> LayerWindow {
         motion::follow(&format!("left:{}", monitor.name), bar_width, BAR_HEIGHT, BAR_HEIGHT / 2.0);
 
     let island = surface(width, height, radius, compact::base_fill(scheme), scheme)
-        .child(Stack::new(vec![bar_row]).width(Parent).height(Parent));
+        .child(Stack::new(vec![Box::new(bar_row)]).width(Parent).height(Parent));
 
     LayerWindow::new()
         .width(LEFT_WIDTH)
@@ -128,7 +128,7 @@ pub fn right(monitor: &Monitor) -> LayerWindow {
     let (content, width, height, radius): (Box<dyn Widget>, f32, f32, f32) = if tray_open {
         let (menu, menu_width, menu_height) = tray::menu(scheme);
 
-        let column = Column::new(vec![Box::new(status), menu])
+        let column = Column::new(vec![status, menu])
             .align(End)
             .gap(TRAY_PADDING)
             .width(Parent)
