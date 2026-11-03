@@ -10,14 +10,15 @@
 
 ## Tema e wallpapers
 
-- [ ] Investigar e corrigir congelamentos ao trocar wallpaper: serializar execuções do Matugen, evitar concorrência entre processos e impedir I/O bloqueante no caminho de desenho/IPC.
-- [ ] Tornar a geração de cores resiliente a falhas e timeouts; preservar a última paleta válida e publicar o arquivo de cores atomicamente.
-- [ ] Exibir caminhos de wallpaper e diretórios com prefixo `~/` quando estiverem dentro do HOME, mantendo caminhos absolutos internamente e aceitando ambos na entrada.
-- [ ] Criar/garantir os diretórios padrão de wallpapers sem sobrescrever diretórios configurados pelo usuário.
+- [x] Serializar execuções do Matugen no processo, executar a geração fora da thread de desenho e aplicar timeout de 45 s.
+- [ ] Verificar se o IPC que chama a geração síncrona também precisa ser movido para worker; testar congelamentos reais no compositor.
+- [x] Tornar a geração resiliente a falhas/timeouts e publicar a paleta validada atomicamente, preservando a última paleta válida.
+- [x] Exibir caminhos de wallpaper e diretórios com prefixo `~/` quando estiverem dentro do HOME, mantendo caminhos absolutos internamente e aceitando ambos na entrada.
+- [x] Criar/garantir o diretório padrão de wallpapers sem sobrescrever diretórios configurados pelo usuário.
 
 ## Configurações
 
-- [ ] Manter o configurador visual como janela/painel independente (não como widget da Dynamic Island).
+- [x] Manter o configurador visual como janela independente do Amane (não como widget da Dynamic Island).
 - [ ] Ampliar o configurador para controlar posição e visibilidade dos elementos da barra, além de cores e aparência.
 - [ ] Persistir as opções e aplicar alterações sem reiniciar o shell.
 
