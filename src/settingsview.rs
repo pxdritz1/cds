@@ -6,7 +6,6 @@ use amane::{
 use crate::island::widgets::{
     DARK_MODE, LIGHT_MODE, OPEN_NEW, SUNNY, TUNE, boxed, card, chip, icon, label, text,
 };
-use crate::overlay::{Overlay, Panel};
 use crate::settings::Settings;
 use crate::theme::{Scheme, Theme};
 
