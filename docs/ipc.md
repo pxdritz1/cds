@@ -71,23 +71,6 @@ Tudo aqui é o mesmo que o painel de Ajustes (`open config`)
 configura visualmente: aparência, pasta de papéis de parede e lugar
 do clima.
 
-## tray — apps em segundo plano
-
-A tray mostra as janelas que o niri conhece — os apps rodando em
-segundo plano ou parados em outro workspace — com o ícone real do
-.desktop de cada um.
-
-| Comando                            | Efeito                                   |
-|------------------------------------|------------------------------------------|
-| `tray toggle`                      | abre/fecha o menu                        |
-| `tray close`                       | fecha o menu                             |
-| `tray list`                        | lista as janelas ativas (id + título)    |
-| `tray focus <id>`                  | levanta a janela (como o clique na tray) |
-| `tray close-window <id>`           | fecha a janela (como o menu Fechar)      |
-
-Na interface: clique esquerdo levanta a janela, clique direito abre
-o menu com **Abrir** e **Fechar**.
-
 ## theme — cor crua (sem tocar no wallpaper)
 
 | Comando                            | Efeito                                   |
