@@ -1,33 +1,61 @@
-use std::process::Command;
+use std::path::Path;
+use std::process;
 use std::thread;
 use std::time::Duration;
 
 use amane::{
-    Apps, Button, Center, Column, Image, Padding, Parent, Pointer, Rectangle, Row, ScrollArea,
-    Service, SpaceBetween, Stack, Widget,
+    Apps, Argument, Bus, Button, Center, Column, Image, Padding, Parent, Pointer, Rectangle, Row,
+    ScrollArea, Service, SpaceBetween, Stack, Value, Widget,
 };
 
-use crate::island::widgets::{APPS, CLOSE, OPEN_NEW, icon, label};
+use crate::island::widgets::{APPS, icon, label};
 use crate::theme::{Scheme, mix};
 
-/*
- * the tray shows the apps running in the background: every window niri
- * knows about, mostly the ones parked on another workspace.
- * a click lifts the window, a right click asks for its menu.
- */
-#[derive(Clone)]
-pub struct WindowEntry {
-    id: i64,
-    app_id: String,
+const WATCHER_PATH: &str = "/StatusNotifierWatcher";
+const WATCHER_INTERFACE: &str = "org.freedesktop.StatusNotifierWatcher";
+const ITEM_INTERFACE: &str = "org.freedesktop.StatusNotifierItem";
+
+#[derive(Clone, PartialEq)]
+pub struct TrayItem {
+    service: String,
+    path: String,
+    id: String,
     title: String,
-    focused: bool,
+    status: String,
+    icon_path: Option<String>,
+}
+
+impl TrayItem {
+    fn activate(&self) {
+        self.call_item("Activate");
+    }
+
+    fn context_menu(&self) {
+        self.call_item("ContextMenu");
+    }
+
+    fn call_item(&self, method: &str) {
+        // SNI coordinates are hints. Amane's click callback currently exposes
+        // the button but not the global pointer position, so use the origin.
+        let bus = Bus::session();
+        let arguments = [Argument::from(0_i32), Argument::from(0_i32)];
+
+        bus.call(&self.service, &self.path, ITEM_INTERFACE, method, &arguments);
+    }
+
+    fn display_name(&self) -> &str {
+        if self.title.is_empty() {
+            &self.id
+        } else {
+            &self.title
+        }
+    }
 }
 
 #[derive(Default)]
 pub struct Tray {
     open: bool,
-    context: Option<i64>,
-    windows: Vec<WindowEntry>,
+    items: Vec<TrayItem>,
 }
 
 impl Service for Tray {
@@ -35,63 +63,51 @@ impl Service for Tray {
         Self::default()
     }
 
-    // the poll runs on the service thread; fast when nothing changed
     fn interval() -> Duration {
         Duration::from_millis(2500)
     }
 
-    // niri is asked here, off the draw thread, so the shell never waits
     fn update(&mut self) -> bool {
-        // A transient niri IPC failure must not erase the last known tray.
-        let Some(windows) = scanned_windows() else {
+        let Some(items) = scan_items() else {
+            // A missing watcher or a temporary D-Bus failure must not erase
+            // the last valid tray contents.
             return false;
         };
 
-        let same = self.windows.len() == windows.len()
-            && self.windows.iter().zip(windows.iter()).all(|(a, b)| {
-                a.id == b.id && a.app_id == b.app_id && a.title == b.title && a.focused == b.focused
-            });
-
-        if same {
+        if self.items == items {
             return false;
         }
 
-        // a window that left takes its context menu with it
-        if let Some(id) = self.context {
-            if !windows.iter().any(|window| window.id == id) {
-                self.context = None;
+        self.items = items;
+        true
+    }
+
+    fn listen() {
+        let bus = Bus::session();
+        let host = format!("org.freedesktop.StatusNotifierHost-{}", process::id());
+
+        if bus.own(&host) {
+            if let Some(watcher) = watcher_destination(&bus) {
+                bus.call(
+                    watcher,
+                    WATCHER_PATH,
+                    WATCHER_INTERFACE,
+                    "RegisterStatusNotifierHost",
+                    &[Argument::from(host)],
+                );
             }
         }
 
-        self.windows = windows;
+        // Polling is intentional here: it covers item registration, property
+        // changes and watcher restarts without blocking the drawing thread.
+        loop {
+            thread::sleep(Self::interval());
 
-        true
-    }
-}
+            let mut tray = Self::write();
 
-impl WindowEntry {
-    fn from_json(object: &str) -> Option<Self> {
-        let id: i64 = json_field(object, "id")?.parse().ok()?;
-
-        let app_id = json_field(object, "app_id")?.replace('"', "");
-
-        let title = json_field(object, "title")?.replace('"', "");
-
-        let focused = json_field(object, "is_focused")?.contains("true");
-
-        Some(WindowEntry {
-            id,
-            app_id: app_id.trim().to_string(),
-            title: title.trim().to_string(),
-            focused,
-        })
-    }
-
-    fn display_name(&self) -> &str {
-        if self.app_id.is_empty() {
-            "App"
-        } else {
-            &self.app_id
+            if !tray.update() {
+                tray.quiet();
+            }
         }
     }
 }
@@ -101,139 +117,51 @@ impl Tray {
         self.open
     }
 
-    pub fn context(&self) -> Option<i64> {
-        self.context
-    }
-
-    pub fn windows(&self) -> &[WindowEntry] {
-        &self.windows
+    pub fn items(&self) -> &[TrayItem] {
+        &self.items
     }
 
     pub fn toggle() {
         let open = {
             let mut tray = Self::write();
 
-            if tray.open {
-                tray.context = None;
-            }
-
             tray.open = !tray.open;
 
             tray.open
         };
 
-        // the tray and an overlay would both want the pointer
+        // The tray and an overlay would both want the pointer.
         if open {
             crate::overlay::Overlay::close();
         }
     }
 
     pub fn close() {
-        let mut tray = Self::write();
-
-        tray.open = false;
-        tray.context = None;
-    }
-
-    // right click on a row asks for its menu, by window id
-    pub fn open_context(id: i64) {
-        let mut tray = Self::write();
-
-        if tray.open {
-            tray.context = Some(id);
-        }
-    }
-
-    pub fn close_context() {
-        Self::write().context = None;
-    }
-
-    // lifting the app hides the menu and closes the tray
-    pub fn focus(id: i64) {
-        {
-            let mut tray = Self::write();
-
-            tray.open = false;
-            tray.context = None;
-        }
-
-        niri(&format!("action focus-window --id {id}"));
-    }
-
-    // closes the window itself, like a tray icon would
-    pub fn close_window(id: i64) {
-        {
-            let mut tray = Self::write();
-
-            tray.context = None;
-        }
-
-        niri(&format!("action close-window --id {id}"));
-    }
-
-    // the desktop app behind a window app id, for the real icon
-    fn icon_of(app_id: &str) -> Option<String> {
-        let needle = app_id.to_lowercase();
-
-        if needle.is_empty() {
-            return None;
-        }
-
-        let apps = Apps::read();
-
-        let app = apps.list().iter().find(|app| {
-            let name = app.name().to_lowercase();
-
-            // the icon name is usually the app id, like "firefox"
-            let id = app.icon().unwrap_or("").to_lowercase();
-
-            id == needle || name == needle || name.contains(needle.as_str())
-        })?;
-
-        let path = app
-            .icon_path()
-            .map(|path| path.to_string_lossy().into_owned());
-
-        drop(apps);
-
-        path
+        Self::write().open = false;
     }
 }
 
 pub fn command(arguments: &[String]) -> String {
-    let [action, rest @ ..] = arguments else {
+    let [action, ..] = arguments else {
         return usage();
     };
 
     match action.as_str() {
         "toggle" => Tray::toggle(),
-
         "close" => Tray::close(),
-
-        "focus" => match rest.first().and_then(|id| id.parse::<i64>().ok()) {
-            Some(id) => Tray::focus(id),
-            None => return usage(),
-        },
-
-        "close-window" => match rest.first().and_then(|id| id.parse::<i64>().ok()) {
-            Some(id) => Tray::close_window(id),
-            None => return usage(),
-        },
-
         "list" => {
             let rows: Vec<String> = Tray::read()
-                .windows()
+                .items()
                 .iter()
-                .map(|window| format!("{} — {}", window.app_id, window.title))
+                .map(|item| format!("{} [{}]", item.display_name(), item.status))
                 .collect();
 
             return if rows.is_empty() {
-                String::from("nada rodando")
+                String::from("nenhum StatusNotifierItem registrado")
             } else {
                 rows.join("\n")
             };
         }
-
         _ => return usage(),
     }
 
@@ -241,146 +169,162 @@ pub fn command(arguments: &[String]) -> String {
 }
 
 fn usage() -> String {
-    String::from("usage: tray toggle | close | list | focus <id> | close-window <id>")
+    String::from("usage: tray toggle | close | list")
 }
 
-// runs one niri command, on a side thread, so ipc answers right away
-fn niri(command: &str) {
-    let parts: Vec<String> = command.split_whitespace().map(String::from).collect();
+fn watcher_destination(bus: &Bus) -> Option<&'static str> {
+    let freedesktop = bus.property(
+        "org.freedesktop.StatusNotifierWatcher",
+        WATCHER_PATH,
+        WATCHER_INTERFACE,
+        "RegisteredStatusNotifierItems",
+    );
 
-    thread::spawn(move || {
-        let _ = Command::new("niri").arg("msg").args(parts).output();
-    });
+    if !matches!(freedesktop, Value::Nothing) {
+        return Some("org.freedesktop.StatusNotifierWatcher");
+    }
+
+    let kde = bus.property(
+        "org.kde.StatusNotifierWatcher",
+        WATCHER_PATH,
+        WATCHER_INTERFACE,
+        "RegisteredStatusNotifierItems",
+    );
+
+    if !matches!(kde, Value::Nothing) {
+        return Some("org.kde.StatusNotifierWatcher");
+    }
+
+    None
 }
 
-// takes the window objects out of niri's plain json answer
-fn scanned_windows() -> Option<Vec<WindowEntry>> {
-    let output = Command::new("niri")
-        .args(["msg", "--json", "windows"])
-        .output()
-        .ok()?;
+fn scan_items() -> Option<Vec<TrayItem>> {
+    let bus = Bus::session();
+    let watcher = watcher_destination(&bus)?;
 
-    if !output.status.success() {
+    let registered = bus.property(
+        watcher,
+        WATCHER_PATH,
+        WATCHER_INTERFACE,
+        "RegisteredStatusNotifierItems",
+    );
+
+    if matches!(registered, Value::Nothing) {
         return None;
     }
 
-    let text = String::from_utf8_lossy(&output.stdout);
+    let mut items = Vec::new();
 
-    let mut windows: Vec<WindowEntry> = Vec::new();
+    for registered_item in registered.list() {
+        let address = registered_item.text();
 
-    for object in json_objects(&text) {
-        if let Some(window) = WindowEntry::from_json(&object) {
-            windows.push(window);
-        }
-    }
-
-    // focused first, then alphabetical
-    windows.sort_by(|a, b| b.focused.cmp(&a.focused).then(a.app_id.cmp(&b.app_id)));
-
-    Some(windows)
-}
-
-// scans {..} objects out of a json text, aware of quoted strings
-fn json_objects(json: &str) -> Vec<String> {
-    let mut objects: Vec<String> = Vec::new();
-
-    let mut depth: usize = 0;
-
-    let mut in_string = false;
-
-    let mut escaped = false;
-
-    let mut start: Option<usize> = None;
-
-    for (index, letter) in json.char_indices() {
-        if in_string {
-            if escaped {
-                escaped = false;
-            } else if letter == '\\' {
-                escaped = true;
-            } else if letter == '"' {
-                in_string = false;
-            }
-
+        if address.is_empty() {
             continue;
         }
 
-        match letter {
-            '"' => in_string = true,
-            '{' => {
-                if depth == 0 {
-                    start = Some(index);
-                }
+        let (service, path) = item_address(address);
 
-                depth += 1;
-            }
-            '}' => {
-                if depth > 0 {
-                    depth -= 1;
-                }
-
-                if depth == 0 {
-                    if let Some(first) = start.take() {
-                        objects.push(json[first..=index].to_string());
-                    }
-                }
-            }
-            _ => {}
+        let status = item_property(&bus, &service, &path, "Status");
+        if status == "Passive" {
+            continue;
         }
+
+        let id = item_property(&bus, &service, &path, "Id");
+        let title = item_property(&bus, &service, &path, "Title");
+
+        let normal_icon = item_property(&bus, &service, &path, "IconName");
+        let attention_icon = if status == "NeedsAttention" {
+            item_property(&bus, &service, &path, "AttentionIconName")
+        } else {
+            String::new()
+        };
+
+        let icon_name = if attention_icon.is_empty() {
+            normal_icon
+        } else {
+            attention_icon
+        };
+
+        let icon_path = resolve_icon(&icon_name, &id);
+
+        items.push(TrayItem {
+            service,
+            path,
+            id,
+            title,
+            status,
+            icon_path,
+        });
     }
 
-    objects
+    items.sort_by(|a, b| {
+        a.display_name()
+            .to_lowercase()
+            .cmp(&b.display_name().to_lowercase())
+    });
+
+    Some(items)
 }
 
-// reads one plain json value, like "temperature_2m": 27.9,
-fn json_field<'a>(json: &'a str, key: &str) -> Option<&'a str> {
-    let needle = format!("\"{key}\":");
+fn item_address(address: &str) -> (String, String) {
+    match address.split_once('/') {
+        Some((service, path)) => (service.to_string(), format!("/{path}")),
+        None => (address.to_string(), "/StatusNotifierItem".to_string()),
+    }
+}
 
-    let start = json.find(&needle)? + needle.len();
+fn item_property(bus: &Bus, service: &str, path: &str, name: &str) -> String {
+    bus.property(service, path, ITEM_INTERFACE, name)
+        .text()
+        .to_string()
+}
 
-    let rest = &json[start..];
+fn resolve_icon(icon_name: &str, id: &str) -> Option<String> {
+    if icon_name.is_empty() {
+        return None;
+    }
 
-    let end = rest
-        .find(|character| character == ',' || character == '}')
-        .unwrap_or(rest.len());
+    let path = Path::new(icon_name);
 
-    Some(rest[..end].trim())
+    // The protocol allows either a themed icon name or an absolute path.
+    if path.is_absolute() && path.is_file() {
+        return Some(icon_name.to_string());
+    }
+
+    let needle = icon_name.to_lowercase();
+    let app_id = id.to_lowercase();
+
+    let apps = Apps::read();
+
+    let app = apps.list().iter().find(|app| {
+        let name = app.name().to_lowercase();
+        let icon = app.icon().unwrap_or("").to_lowercase();
+
+        icon == needle
+            || name == needle
+            || name == app_id
+            || (!app_id.is_empty() && name.contains(app_id.as_str()))
+    })?;
+
+    app.icon_path()
+        .map(|path| path.to_string_lossy().into_owned())
 }
 
 const ROW_HEIGHT: f32 = 46.0;
-
 const PAD: f32 = 10.0;
-
 const GAP: f32 = 6.0;
-
 const EMPTY_HEIGHT: f32 = 46.0;
-
 const MENU_WIDTH: f32 = 300.0;
-
 const SCROLL_ROWS: f32 = 5.0;
 
 /*
- * the menu under the compact bar while the tray is open: rows of
- * background apps, or the context menu of the row that was right clicked,
- * or a hint when nothing runs.
- * the caller places it inside the island sheet, so the island keeps the
- * fill and the shadow.
+ * SNI items are listed in the expandable tray. Left click activates the
+ * application; right click asks the item to display its own context menu.
  */
 pub fn menu(scheme: &Scheme) -> (Box<dyn Widget>, f32, f32) {
-    let (context, windows) = {
-        let tray = Tray::read();
+    let items = Tray::read().items().to_vec();
 
-        (tray.context(), Vec::from(tray.windows()))
-    };
-
-    let owned: Vec<(&WindowEntry, Option<String>)> = windows
-        .iter()
-        .map(|window| (window, Tray::icon_of(&window.app_id)))
-        .collect();
-
-    let (body, body_height) = if let Some(id) = context {
-        context_menu(scheme, &owned, id)
-    } else if owned.is_empty() {
+    let (body, body_height) = if items.is_empty() {
         (
             Box::new(
                 Rectangle::new()
@@ -388,8 +332,8 @@ pub fn menu(scheme: &Scheme) -> (Box<dyn Widget>, f32, f32) {
                     .height(EMPTY_HEIGHT)
                     .align_child(Center, Center)
                     .child(label(
-                        "Nenhum app em segundo plano",
-                        12.0,
+                        "Nenhum indicador de bandeja registrado",
+                        11.5,
                         scheme.on_surface_variant,
                         amane::Weight::Medium,
                         1,
@@ -399,13 +343,12 @@ pub fn menu(scheme: &Scheme) -> (Box<dyn Widget>, f32, f32) {
         )
     } else {
         let height = SCROLL_ROWS * ROW_HEIGHT + (SCROLL_ROWS - 1.0) * GAP;
-
-        let needs_scroll = owned.len() as f32 > SCROLL_ROWS;
+        let needs_scroll = items.len() as f32 > SCROLL_ROWS;
 
         let rows = Column::new(
-            owned
+            items
                 .iter()
-                .map(|(window, icon_path)| boxed(window_row(scheme, window, icon_path.as_deref())))
+                .map(|item| boxed(item_row(scheme, item)))
                 .collect(),
         )
         .gap(GAP)
@@ -414,7 +357,7 @@ pub fn menu(scheme: &Scheme) -> (Box<dyn Widget>, f32, f32) {
         if needs_scroll {
             (
                 Box::new(
-                    ScrollArea::new("tray-rows", rows)
+                    ScrollArea::new("sni-tray-items", rows)
                         .width(MENU_WIDTH)
                         .height(height),
                 ) as Box<dyn Widget>,
@@ -423,15 +366,11 @@ pub fn menu(scheme: &Scheme) -> (Box<dyn Widget>, f32, f32) {
         } else {
             (
                 Box::new(rows) as Box<dyn Widget>,
-                owned.len() as f32 * ROW_HEIGHT + (owned.len() - 1) as f32 * GAP,
+                items.len() as f32 * ROW_HEIGHT + (items.len() - 1) as f32 * GAP,
             )
         }
     };
 
-    /*
-     * the menu is an inset card against the sheet, so the rows do not
-     * read as if they belong to the bar
-     */
     let height = body_height + PAD;
 
     (
@@ -448,11 +387,6 @@ pub fn menu(scheme: &Scheme) -> (Box<dyn Widget>, f32, f32) {
                     bottom: PAD / 2.0,
                     left: 0.0,
                 })
-                .on_click(|button| {
-                    if button == Button::Left {
-                        Tray::close_context();
-                    }
-                })
                 .align_child(Center, Center)
                 .child(Stack::new(vec![body])),
         ) as Box<dyn Widget>,
@@ -461,17 +395,12 @@ pub fn menu(scheme: &Scheme) -> (Box<dyn Widget>, f32, f32) {
     )
 }
 
-// one background app: its real icon when the desktop knows one
-fn window_row(scheme: &Scheme, window: &WindowEntry, icon_path: Option<&str>) -> Rectangle {
-    let key = format!("tray:{}", window.id);
-
+fn item_row(scheme: &Scheme, item: &TrayItem) -> Rectangle {
+    let key = format!("tray-sni:{}:{}", item.service, item.id);
     let state = crate::motion::hover(&key);
+    let owned = key;
 
-    let owned = key.clone();
-
-    let id = window.id;
-
-    let glyph_box: Box<dyn Widget> = match icon_path {
+    let icon_widget: Box<dyn Widget> = match item.icon_path.as_deref() {
         Some(path) if Image::loaded(path) => Box::new(
             Rectangle::new()
                 .width(26.0)
@@ -483,9 +412,9 @@ fn window_row(scheme: &Scheme, window: &WindowEntry, icon_path: Option<&str>) ->
         _ => Box::new(icon(APPS, 24.0, scheme.on_surface)),
     };
 
-    let name = String::from(window.display_name());
-
-    let title = String::from(window.title.clone());
+    let item = item.clone();
+    let title = item.display_name().to_string();
+    let status = item.status.clone();
 
     Rectangle::new()
         .width(MENU_WIDTH - GAP)
@@ -505,24 +434,30 @@ fn window_row(scheme: &Scheme, window: &WindowEntry, icon_path: Option<&str>) ->
         })
         .on_hover(move |inside| crate::motion::set_hover(owned.clone(), inside))
         .on_click(move |button| match button {
-            Button::Left => Tray::focus(id),
-            Button::Right => Tray::open_context(id),
+            Button::Left => {
+                Tray::close();
+                item.activate();
+            }
+            Button::Right => {
+                Tray::close();
+                item.context_menu();
+            }
             _ => {}
         })
         .child(
             Row::new(vec![
-                Box::new(Stack::new(vec![glyph_box])),
+                Box::new(Stack::new(vec![icon_widget])),
                 Box::new(
                     Column::new(vec![
                         Box::new(label(
-                            name,
+                            title,
                             12.5,
                             scheme.on_surface,
                             amane::Weight::Medium,
                             1,
                         )),
                         Box::new(label(
-                            title,
+                            status,
                             11.0,
                             scheme.on_surface_variant,
                             amane::Weight::Regular,
@@ -531,123 +466,6 @@ fn window_row(scheme: &Scheme, window: &WindowEntry, icon_path: Option<&str>) ->
                     ])
                     .gap(1.0),
                 ),
-            ])
-            .gap(10.0)
-            .align(Center)
-            .width(Parent),
-        )
-}
-
-// the context menu of one window: lift it, or close it
-fn context_menu(
-    scheme: &Scheme,
-    windows: &[(&WindowEntry, Option<String>)],
-    id: i64,
-) -> (Box<dyn Widget>, f32) {
-    let Some((window, _)) = windows.iter().find(|(window, _)| window.id == id) else {
-        Tray::close_context();
-
-        return (
-            Box::new(
-                Rectangle::new()
-                    .width(MENU_WIDTH)
-                    .height(EMPTY_HEIGHT)
-                    .align_child(Center, Center)
-                    .child(label(
-                        "Janela não encontrada",
-                        12.0,
-                        scheme.on_surface_variant,
-                        amane::Weight::Medium,
-                        1,
-                    )),
-            ) as Box<dyn Widget>,
-            EMPTY_HEIGHT,
-        );
-    };
-
-    let title = String::from(window.title.clone());
-
-    let rows: Vec<Box<dyn Widget>> = vec![
-        Box::new(context_row(
-            scheme,
-            "abrir",
-            "Abrir janela",
-            OPEN_NEW,
-            move || Tray::focus(id),
-        )),
-        Box::new(context_row(scheme, "fechar", "Fechar", CLOSE, move || {
-            Tray::close_window(id)
-        })),
-    ];
-
-    (
-        Box::new(
-            Column::new(vec![
-                Box::new(
-                    Row::new(vec![boxed(label(
-                        title,
-                        11.5,
-                        scheme.on_surface_variant,
-                        amane::Weight::Medium,
-                        1,
-                    ))])
-                    .width(MENU_WIDTH - GAP)
-                    .justify(SpaceBetween),
-                ),
-                Box::new(Column::new(rows).gap(4.0).width(MENU_WIDTH - GAP)),
-            ])
-            .gap(4.0),
-        ) as Box<dyn Widget>,
-        ROW_HEIGHT * 2.0 + 4.0 + 24.0,
-    )
-}
-
-// an entry of the context menu
-fn context_row(
-    scheme: &Scheme,
-    key: &'static str,
-    label_text: &'static str,
-    glyph: &'static str,
-    on_click: impl Fn() + 'static,
-) -> Rectangle {
-    let hover_key = format!("tray-context:{key}");
-
-    let state = crate::motion::hover(&hover_key);
-
-    let owned = hover_key;
-
-    Rectangle::new()
-        .width(MENU_WIDTH - GAP)
-        .height(ROW_HEIGHT)
-        .fill(mix(
-            scheme.surface_container_highest,
-            scheme.on_surface,
-            0.08 * state,
-        ))
-        .radius(12.0)
-        .cursor(Pointer)
-        .padding(Padding {
-            top: 0.0,
-            right: 6.0,
-            bottom: 0.0,
-            left: 14.0,
-        })
-        .on_hover(move |inside| crate::motion::set_hover(owned.clone(), inside))
-        .on_click(move |button| {
-            if button == Button::Left {
-                on_click();
-            }
-        })
-        .child(
-            Row::new(vec![
-                Box::new(icon(glyph, 18.0, scheme.on_surface_variant)),
-                Box::new(label(
-                    label_text,
-                    12.5,
-                    scheme.on_surface,
-                    amane::Weight::Medium,
-                    1,
-                )),
             ])
             .gap(10.0)
             .align(Center)
