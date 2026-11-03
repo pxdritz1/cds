@@ -426,7 +426,7 @@ fn meter(name: &str, percent: u8, width: f32, scheme: &Scheme) -> Column {
         boxed(wavy(
             f32::from(percent.min(100)) / 100.0,
             width,
-            false,
+            true,
             scheme.tertiary,
             scheme.surface_container_highest,
         )),
