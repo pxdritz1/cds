@@ -2,7 +2,7 @@
 
 ## Barra e ilhas
 
-- [ ] Adicionar abertura do Dash ao passar o mouse sobre a Island, com opção configurável para ativar/desativar o comportamento.
+- [x] Adicionar abertura do Dash ao passar o mouse sobre a Island, com opção configurável para ativar/desativar o comportamento.
 - [ ] Garantir que qualquer clique fora do Dash o feche, inclusive fora dos limites atuais da layer central, sem bloquear/interferir com cliques destinados às janelas subjacentes.
 
 - [ ] Reposicionar a tray na ilha direita, imediatamente depois do Wi-Fi no sentido do centro da tela.
