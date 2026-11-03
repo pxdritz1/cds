@@ -37,8 +37,6 @@ pub struct Ui {
     dash: bool,
     tab: Tab,
     hover: bool,
-    month: i32,
-    panel: bool,
 }
 
 impl Service for Ui {
@@ -62,14 +60,6 @@ impl Ui {
         self.hover
     }
 
-    pub fn panel(&self) -> bool {
-        self.panel
-    }
-
-    pub fn month(&self) -> i32 {
-        self.month
-    }
-
     pub fn watch() {
         // a read is enough to mark the service as used by this window
         drop(Self::read());
@@ -80,8 +70,6 @@ impl Ui {
             let mut ui = Self::write();
 
             ui.dash = !ui.dash;
-            ui.month = 0;
-            ui.panel = false;
 
             ui.dash
         };
@@ -97,8 +85,6 @@ impl Ui {
 
             ui.dash = true;
             ui.tab = tab;
-            ui.month = 0;
-            ui.panel = false;
         }
 
         crate::overlay::Overlay::close();
@@ -112,38 +98,8 @@ impl Ui {
         Self::write().dash = false;
     }
 
-    // the quick controls island that drops under the bar
-    pub fn toggle_panel() {
-        let mut ui = Self::write();
-
-        ui.panel = !ui.panel;
-        ui.dash = false;
-    }
-
-    pub fn close_panel() {
-        if !Self::read().panel {
-            return;
-        }
-
-        Self::write().panel = false;
-    }
-
-    pub fn open_panel() {
-        Self::write().panel = true;
-    }
-
     pub fn select(tab: Tab) {
         Self::write().tab = tab;
-    }
-
-    pub fn shift_month(delta: i32) {
-        let mut ui = Self::write();
-
-        ui.month += delta;
-    }
-
-    pub fn reset_month() {
-        Self::write().month = 0;
     }
 
     pub fn set_hover(hover: bool) {
