@@ -32,6 +32,7 @@ fn main() {
     App::new()
         .font("Google Sans Flex")
         .window_per_monitor(wallpaper::view)
+        .normal_window("cds-settings", settingsview::window)
         .window_per_monitor(island::reserve)
         .window_per_monitor(island::left)
         .window_per_monitor(island::view)
