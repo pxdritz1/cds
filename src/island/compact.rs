@@ -15,6 +15,7 @@ use crate::motion;
 use crate::overlay::{Overlay, Panel};
 use crate::theme::{Scheme, fade, mix};
 use crate::tray::Tray;
+use crate::weather::Weather;
 
 use super::widgets::{EXPAND_MORE, boxed, icon, text};
 
@@ -25,7 +26,7 @@ const SIDE: f32 = 14.0;
 const ICON: f32 = 18.0;
 const ITEM_GAP: f32 = 10.0;
 const TRAY_BUTTON: f32 = 28.0;
-const CLOCK_WIDTH: f32 = 172.0;
+const CLOCK_WIDTH: f32 = 226.0;
 
 pub fn clock(scheme: &Scheme, alpha: f32) -> (Box<dyn Widget>, f32) {
     let clock = Clock::read();
@@ -37,10 +38,27 @@ pub fn clock(scheme: &Scheme, alpha: f32) -> (Box<dyn Widget>, f32) {
         scheme.on_surface_variant,
     );
 
+    let search = Rectangle::new()
+        .width(ICON + 4.0)
+        .height(ICON + 4.0)
+        .cursor(Pointer)
+        .on_click(|button| {
+            if button == Button::Left {
+                crate::spotlight::Spotlight::toggle();
+            }
+        })
+        .align_child(Center, Center)
+        .child(icon(crate::m3::SEARCH, ICON, scheme.on_surface_variant));
+
+    let weather = Weather::read();
+    let weather_icon = icon(weather.glyph(), ICON, scheme.on_surface_variant);
+
     let row = Row::new(vec![
+        boxed(search),
         boxed(time),
         boxed(icon("·", 10.0, fade(scheme.on_surface_variant, 140))),
         boxed(date),
+        boxed(weather_icon),
     ])
     .gap(6.0)
     .align(Center)
