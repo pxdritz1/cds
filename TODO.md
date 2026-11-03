@@ -41,6 +41,11 @@
 - [ ] No card de relógio do Dash, adicionar opção para alternar entre relógio digital e analógico.
 - [x] Fazer o card de clima do Dash abrir diretamente a aba de clima ao ser clicado.
 
+## Utilitários
+
+- [ ] Adicionar um color picker integrado ao shell, com seleção de cor e cópia do valor hexadecimal para a área de transferência.
+- [ ] Adicionar um seletor de emojis usando o conjunto visual Google Noto Color Emoji/Google Emoji, com busca e cópia do emoji selecionado para a área de transferência.
+
 ## Notificações
 
 - [ ] Exibir no preview da notificação o ícone real do aplicativo de origem, com fallback Material 3.
