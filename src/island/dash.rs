@@ -15,7 +15,6 @@ use crate::m3::{
     self, Item, Kind, Type, badge_shape, boxed, button, icon, icon_button, leading_icon, list_item,
     rail_item, round_button, scale, scale_label, slider, wavy,
 };
-use crate::overlay::{Overlay, Panel};
 use crate::settings::Settings;
 use crate::theme::{Scheme, fade};
 use crate::ui::{Tab, Ui};
@@ -81,7 +80,7 @@ fn rail(scheme: &Scheme, tab: Tab) -> Column {
             48.0,
             scheme.primary_container,
             scheme.on_primary_container,
-            crate::settingsview::toggle,
+            crate::settingsview::SettingsView::toggle,
         ))])
         .width(Parent)
         .justify(Center),
