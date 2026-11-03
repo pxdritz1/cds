@@ -38,10 +38,18 @@ impl TrayItem {
     fn call_item(&self, method: &str) {
         // SNI coordinates are hints. Amane's click callback currently exposes
         // the button but not the global pointer position, so use the origin.
-        let bus = Bus::session();
-        let arguments = [Argument::from(0_i32), Argument::from(0_i32)];
+        // D-Bus calls can wait for another process; never block the draw thread.
+        let service = self.service.clone();
+        let path = self.path.clone();
+        let interface = self.interface.clone();
+        let method = method.to_string();
 
-        bus.call(&self.service, &self.path, &self.interface, method, &arguments);
+        thread::spawn(move || {
+            let bus = Bus::session();
+            let arguments = [Argument::from(0_i32), Argument::from(0_i32)];
+
+            bus.call(&service, &path, &interface, &method, &arguments);
+        });
     }
 
     fn display_name(&self) -> &str {
