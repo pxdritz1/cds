@@ -2,6 +2,10 @@ use amane::{Color, Service, watch_file};
 use std::env;
 use std::fs;
 use std::path::PathBuf;
+use std::process::{Command, Stdio};
+use std::sync::{Mutex, OnceLock};
+use std::thread;
+use std::time::{Duration, Instant};
 
 pub struct Typography {
     pub body: String,
@@ -267,41 +271,7 @@ pub fn apply(source: &str, value: &str, scheme: &str, dark: bool) -> String {
         return String::from("failed: the value cannot contain quotes");
     }
 
-    let Some(config) = write_matugen_config() else {
-        return String::from("failed: could not write the matugen config");
-    };
-
-    let mode = if dark { "dark" } else { "light" };
-
-    /*
-     * wallpapers often hold several equally good source colors, and without
-     * a preference matugen stops to ask on a terminal that is not there.
-     * the user's config is merged in below, so every other app template
-     * matugen knows about is refreshed in the same run as the shell.
-     */
-    let prefer = if source == "image" {
-        " --prefer saturation"
-    } else {
-        ""
-    };
-
-    let command = format!(
-        "matugen {source} '{value}' -c '{}' -t {scheme} -m {mode} -q{prefer} --continue-on-error",
-        config.display()
-    );
-
-    // waiting here means "ok" only goes out after the colors really exist;
-    // ipc calls run on their own thread, so the interface never stalls
-    let done = amane::output(&format!("{command} >/dev/null 2>&1 && printf cds-done"));
-
-    if done.trim() != "cds-done" {
-        return String::from("failed: matugen could not generate the colors");
-    }
-
-    match fs::read_to_string(colors_path()) {
-        Ok(text) if text.contains("primary=") => String::from("ok"),
-        _ => String::from("failed: matugen finished without writing the colors"),
-    }
+    run_matugen(source, value, scheme, dark)
 }
 
 /*
@@ -310,26 +280,86 @@ pub fn apply(source: &str, value: &str, scheme: &str, dark: bool) -> String {
  * watcher refresh the scheme when it lands
  */
 pub fn apply_async(source: &str, value: &str, scheme: &str, dark: bool) {
-    if value.contains('\'') {
-        return;
+    let source = source.to_owned();
+    let value = value.to_owned();
+    let scheme = scheme.to_owned();
+
+    // Keep process execution and filesystem work off the drawing/IPC thread.
+    thread::spawn(move || {
+        let _ = run_matugen(&source, &value, &scheme, dark);
+    });
+}
+
+static MATUGEN_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+
+fn run_matugen(source: &str, value: &str, scheme: &str, dark: bool) -> String {
+    if value.contains('\'') || value.contains('\n') {
+        return String::from("failed: invalid matugen input");
     }
 
-    let Some(config) = write_matugen_config() else {
-        return;
+    let lock = MATUGEN_LOCK.get_or_init(|| Mutex::new(()));
+    let _guard = match lock.lock() {
+        Ok(guard) => guard,
+        Err(poisoned) => poisoned.into_inner(),
+    };
+
+    let staged = colors_path().with_extension("colors.tmp");
+    let Some(config) = write_matugen_config(&staged) else {
+        return String::from("failed: could not write the matugen config");
     };
 
     let mode = if dark { "dark" } else { "light" };
+    let mut command = Command::new("matugen");
+    command.args([source, value, "-c"])
+        .arg(&config)
+        .args(["-t", scheme, "-m", mode, "-q"]);
+    if source == "image" {
+        command.args(["--prefer", "saturation"]);
+    }
+    command.arg("--continue-on-error")
+        .stdout(Stdio::null())
+        .stderr(Stdio::null());
 
-    let prefer = if source == "image" {
-        " --prefer saturation"
-    } else {
-        ""
+    let mut child = match command.spawn() {
+        Ok(child) => child,
+        Err(_) => return String::from("failed: could not start matugen"),
     };
 
-    amane::spawn(&format!(
-        "matugen {source} '{value}' -c '{}' -t {scheme} -m {mode} -q{prefer} --continue-on-error",
-        config.display()
-    ));
+    let started = Instant::now();
+    let status = loop {
+        match child.try_wait() {
+            Ok(Some(status)) => break Some(status),
+            Ok(None) if started.elapsed() < Duration::from_secs(45) => {
+                thread::sleep(Duration::from_millis(100));
+            }
+            _ => {
+                let _ = child.kill();
+                let _ = child.wait();
+                let _ = fs::remove_file(&staged);
+                return String::from("failed: matugen timed out or could not be checked");
+            }
+        }
+    };
+
+    if !status.is_some_and(|status| status.success()) {
+        let _ = fs::remove_file(&staged);
+        return String::from("failed: matugen could not generate the colors");
+    }
+
+    match fs::read_to_string(&staged) {
+        Ok(text) if text.contains("primary=") => {}
+        _ => {
+            let _ = fs::remove_file(&staged);
+            return String::from("failed: matugen finished without a valid palette");
+        }
+    }
+
+    if fs::rename(&staged, colors_path()).is_err() {
+        let _ = fs::remove_file(&staged);
+        return String::from("failed: could not publish the new color palette");
+    }
+
+    String::from("ok")
 }
 
 /*
@@ -337,7 +367,7 @@ pub fn apply_async(source: &str, value: &str, scheme: &str, dark: bool) {
  * copy of the user's. that keeps alacritty, niri, spicetify and the rest
  * updating together with the shell colors.
  */
-fn write_matugen_config() -> Option<PathBuf> {
+fn write_matugen_config(output: &std::path::Path) -> Option<PathBuf> {
     let folder = cache_home().join("chloe-dynamic-shell/matugen");
     fs::create_dir_all(&folder).ok()?;
 
@@ -359,10 +389,12 @@ fn write_matugen_config() -> Option<PathBuf> {
     text.push_str(&format!(
         "\n[templates.cds_shell]\ninput_path = {}\noutput_path = {}\n",
         toml_string(&template),
-        toml_string(&colors_path())
+        toml_string(output)
     ));
 
-    fs::write(&config, text).ok()?;
+    let temporary = config.with_extension("toml.tmp");
+    fs::write(&temporary, text).ok()?;
+    fs::rename(&temporary, &config).ok()?;
 
     Some(config)
 }
