@@ -25,7 +25,6 @@ const DOT_GAP: f32 = 7.0;
 const SIDE: f32 = 14.0;
 const ICON: f32 = 18.0;
 const ITEM_GAP: f32 = 10.0;
-const TRAY_BUTTON: f32 = 28.0;
 const CLOCK_WIDTH: f32 = 226.0;
 
 pub fn clock(scheme: &Scheme, alpha: f32) -> (Box<dyn Widget>, f32) {
@@ -101,14 +100,13 @@ pub fn workspaces(monitor: &Monitor, scheme: &Scheme) -> (Box<dyn Widget>, f32) 
     drop(workspaces);
 
     let mut children: Vec<Box<dyn Widget>> = Vec::new();
-    let mut width = SIDE * 2.0 - 6.0 + TRAY_BUTTON;
+    let mut width = SIDE * 2.0 - 6.0;
 
     if !dots.is_empty() {
         children.push(boxed(Row::new(dots).gap(DOT_GAP).align(Center)));
         width += dots_width + ITEM_GAP;
     }
 
-    children.push(boxed(tray_button(scheme)));
 
     let row = Row::new(children)
         .gap(ITEM_GAP)
@@ -138,6 +136,9 @@ pub fn status(scheme: &Scheme) -> (Box<dyn Widget>, f32) {
         if network.connected() { color } else { dim },
     )));
     width += ICON;
+
+    items.push(boxed(tray_button(scheme)));
+    width += ITEM_GAP + 28.0;
 
     if bluetooth.available() {
         let connected = bluetooth.devices().iter().any(|device| device.connected());
@@ -244,10 +245,10 @@ fn tray_button(scheme: &Scheme) -> Rectangle {
     );
 
     Rectangle::new()
-        .width(TRAY_BUTTON)
-        .height(TRAY_BUTTON)
+        .width(28.0)
+        .height(28.0)
         .fill(fill)
-        .radius(TRAY_BUTTON / 2.0)
+        .radius(14.0)
         .cursor(Pointer)
         .on_hover(|inside| motion::set_hover("tray-chevron", inside))
         .on_click(|button| {
