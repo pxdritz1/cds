@@ -5,7 +5,7 @@
 - [x] Adicionar abertura do Dash ao passar o mouse sobre a Island, com opção configurável para ativar/desativar o comportamento.
 - [ ] Garantir que qualquer clique fora do Dash o feche, inclusive fora dos limites atuais da layer central, sem bloquear/interferir com cliques destinados às janelas subjacentes.
 
-- [ ] Reposicionar a tray na ilha direita, imediatamente depois do Wi-Fi no sentido do centro da tela.
+- [x] Reposicionar a tray na ilha direita, imediatamente depois do Wi-Fi no sentido do centro da tela.
 - [ ] Substituir a falsa tray baseada em janelas do Niri por uma StatusNotifierItem (SNI) real via D-Bus, com registro, atualização, ativação e menus de contexto.
 - [ ] Adicionar window title com ícone do aplicativo à ilha esquerda, imediatamente à direita dos workspace pills.
 - [x] Adicionar ícone de busca à ilha central, imediatamente à esquerda do relógio, integrado ao Spotlight existente.
