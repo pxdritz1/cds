@@ -5,7 +5,7 @@ use std::time::Duration;
 
 use amane::{
     Apps, Argument, Bus, Button, Center, Column, Image, Padding, Parent, Pointer, Rectangle, Row,
-    ScrollArea, Service, SpaceBetween, Stack, Value, Widget,
+    ScrollArea, Service, Stack, Value, Widget,
 };
 
 use crate::island::widgets::{APPS, icon, label};
@@ -60,6 +60,10 @@ pub struct Tray {
 
 impl Service for Tray {
     fn new() -> Self {
+        // Starting this tiny service registers the shell as an SNI host on
+        // its own service thread; no D-Bus call is made by the drawing thread.
+        let _host = TrayHost::read();
+
         Self::default()
     }
 
@@ -81,33 +85,37 @@ impl Service for Tray {
         self.items = items;
         true
     }
+}
+
+struct TrayHost;
+
+impl Service for TrayHost {
+    fn new() -> Self {
+        Self
+    }
 
     fn listen() {
         let bus = Bus::session();
         let host = format!("org.freedesktop.StatusNotifierHost-{}", process::id());
 
-        if bus.own(&host) {
-            if let Some(watcher) = watcher_destination(&bus) {
-                bus.call(
-                    watcher,
-                    WATCHER_PATH,
-                    WATCHER_INTERFACE,
-                    "RegisterStatusNotifierHost",
-                    &[Argument::from(host)],
-                );
-            }
+        if !bus.own(&host) {
+            return;
         }
 
-        // Polling is intentional here: it covers item registration, property
-        // changes and watcher restarts without blocking the drawing thread.
+        // A watcher may start after the shell. Keep checking until it appears.
         loop {
-            thread::sleep(Self::interval());
-
-            let mut tray = Self::write();
-
-            if !tray.update() {
-                tray.quiet();
+            if let Some((destination, interface)) = watcher_destination(&bus) {
+                bus.call(
+                    destination,
+                    WATCHER_PATH,
+                    interface,
+                    "RegisterStatusNotifierHost",
+                    &[Argument::from(host.clone())],
+                );
+                break;
             }
+
+            thread::sleep(Duration::from_secs(2));
         }
     }
 }
@@ -172,7 +180,7 @@ fn usage() -> String {
     String::from("usage: tray toggle | close | list")
 }
 
-fn watcher_destination(bus: &Bus) -> Option<&'static str> {
+fn watcher_destination(bus: &Bus) -> Option<(&'static str, &'static str)> {
     let freedesktop = bus.property(
         "org.freedesktop.StatusNotifierWatcher",
         WATCHER_PATH,
@@ -181,18 +189,25 @@ fn watcher_destination(bus: &Bus) -> Option<&'static str> {
     );
 
     if !matches!(freedesktop, Value::Nothing) {
-        return Some("org.freedesktop.StatusNotifierWatcher");
+        return Some((
+            "org.freedesktop.StatusNotifierWatcher",
+            "org.freedesktop.StatusNotifierWatcher",
+        ));
     }
 
+    // KDE's long-standing implementation uses its own interface name.
     let kde = bus.property(
         "org.kde.StatusNotifierWatcher",
         WATCHER_PATH,
-        WATCHER_INTERFACE,
+        "org.kde.StatusNotifierWatcher",
         "RegisteredStatusNotifierItems",
     );
 
     if !matches!(kde, Value::Nothing) {
-        return Some("org.kde.StatusNotifierWatcher");
+        return Some((
+            "org.kde.StatusNotifierWatcher",
+            "org.kde.StatusNotifierWatcher",
+        ));
     }
 
     None
@@ -200,12 +215,12 @@ fn watcher_destination(bus: &Bus) -> Option<&'static str> {
 
 fn scan_items() -> Option<Vec<TrayItem>> {
     let bus = Bus::session();
-    let watcher = watcher_destination(&bus)?;
+    let (watcher, interface) = watcher_destination(&bus)?;
 
     let registered = bus.property(
         watcher,
         WATCHER_PATH,
-        WATCHER_INTERFACE,
+        interface,
         "RegisteredStatusNotifierItems",
     );
 
