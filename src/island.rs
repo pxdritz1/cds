@@ -258,7 +258,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
         IslandMode::Compact
     };
 
-    if mode == IslandMode::Notice {
+    if matches!(mode, IslandMode::NoticeCompact | IslandMode::Notice) {
         request_frame();
     }
 
