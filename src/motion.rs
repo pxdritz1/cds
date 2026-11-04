@@ -1,8 +1,38 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
-use std::time::Duration;
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::OnceLock;
+use std::time::{Duration, Instant};
 
 use amane::{Animation, Blend, Color, Easing};
+
+static FRAME_EPOCH: OnceLock<Instant> = OnceLock::new();
+static LAST_FRAME_MS: AtomicU64 = AtomicU64::new(0);
+
+/// Coalesce animation redraw requests across the shell.
+pub fn request_frame_at_most(fps: u64) {
+    let interval = (1000 / fps.clamp(1, 60)).max(1);
+    let now = FRAME_EPOCH
+        .get_or_init(Instant::now)
+        .elapsed()
+        .as_millis() as u64;
+
+    loop {
+        let previous = LAST_FRAME_MS.load(Ordering::Relaxed);
+
+        if previous != 0 && now.saturating_sub(previous) < interval {
+            return;
+        }
+
+        if LAST_FRAME_MS
+            .compare_exchange(previous, now.max(1), Ordering::Relaxed, Ordering::Relaxed)
+            .is_ok()
+        {
+            amane::request_frame();
+            return;
+        }
+    }
+}
 
 /*
  * Material 3 Expressive motion: things enter quickly and settle softly,
