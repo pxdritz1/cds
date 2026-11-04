@@ -316,7 +316,7 @@ fn toggles(scheme: &Scheme) -> Column {
         let network = Network::read();
 
         let subtitle = if !network.wifi_enabled() {
-            String::from("Desligado")
+            String::from(crate::lang::text("Desligado", "Off"))
         } else if network.connecting() {
             String::from(crate::lang::text("Conectando…", "Connecting…"))
         } else if network.connected() {
@@ -326,7 +326,7 @@ fn toggles(scheme: &Scheme) -> Column {
                 String::from(network.ssid())
             }
         } else {
-            String::from("Sem rede")
+            String::from(crate::lang::text("Sem rede", "No network"))
         };
 
         (network.wifi_enabled(), subtitle, glyphs::wifi(&network))
@@ -342,11 +342,11 @@ fn toggles(scheme: &Scheme) -> Column {
             .map(|device| String::from(device.name()));
 
         let subtitle = if !bluetooth.available() {
-            String::from("Sem adaptador")
+            String::from(crate::lang::text("Sem adaptador", "No adapter"))
         } else if !bluetooth.powered() {
-            String::from("Desligado")
+            String::from(crate::lang::text("Desligado", "Off"))
         } else {
-            connected.clone().unwrap_or_else(|| String::from("Ligado"))
+            connected.clone().unwrap_or_else(|| String::from(crate::lang::text("Ligado", "On")))
         };
 
         (
@@ -408,7 +408,7 @@ fn toggles(scheme: &Scheme) -> Column {
             key: "ctl:sound",
             glyph: glyphs::volume(output_volume, output_muted),
             title: crate::lang::text("Som", "Sound"),
-            subtitle: &if output_muted { String::from("Silenciado") } else { format!("{output_volume}%") },
+            subtitle: &if output_muted { String::from(crate::lang::text("Silenciado", "Muted")) } else { format!("{output_volume}%") },
             active: !output_muted,
         },
         HALF,
@@ -428,7 +428,7 @@ fn toggles(scheme: &Scheme) -> Column {
             glyph: glyphs::microphone(mic_muted),
             title: crate::lang::text("Microfone", "Microphone"),
             subtitle: &if mic_muted {
-                String::from("Desligado")
+                String::from(crate::lang::text("Desligado", "Off"))
             } else {
                 format!("{mic_volume}%")
             },
@@ -1174,7 +1174,7 @@ fn device_row(device: &Device, scheme: &Scheme) -> Rectangle {
     let supporting = match (device.connected, device.paired, device.battery) {
         (true, _, Some(level)) => format!("Conectado · {level}%"),
         (true, _, None) => String::from(crate::lang::text("Conectado", "Connected")),
-        (false, true, _) => String::from("Pareado"),
+        (false, true, _) => String::from(crate::lang::text("Pareado", "Paired")),
         _ => String::from(crate::lang::text("Disponível", "Available")),
     };
 
