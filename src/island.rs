@@ -359,7 +359,9 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
 
     // The media sheet is click-only: hovering it never reveals the dash.
     if mode == IslandMode::Media {
-        Ui::set_hover(false);
+        if ui.hover() {
+            Ui::set_hover(false);
+        }
     } else {
         island = island.on_hover(Ui::set_hover);
     }
