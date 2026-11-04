@@ -113,10 +113,9 @@ pub fn media(scheme: &Scheme, alpha: f32) -> Box<dyn Widget> {
             scheme.on_surface_variant,
             1,
         )),
-        boxed(m3::wavy(
+        boxed(m3::progress_line(
             fraction,
             154.0,
-            playing,
             scheme.primary,
             scheme.surface_container_highest,
         )),
