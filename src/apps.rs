@@ -76,25 +76,6 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
     .align(Center)
     .width(Parent);
 
-    let footer = Row::new(vec![
-        boxed(scale_label(
-            Type::LabelMedium,
-            format!("{count} programas"),
-            scheme.on_surface_variant,
-            1,
-        )),
-        boxed(scale_label(
-            Type::LabelMedium,
-            "Esc fecha",
-            scheme.on_surface_variant,
-            1,
-        )),
-    ])
-    .width(Parent)
-    .justify(amane::SpaceBetween);
-
-    let _ = footer;
-
     let content = Rectangle::new()
         .width(Parent)
         .height(Parent)
@@ -105,7 +86,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
             left: PADDING,
         })
         .child(
-            Column::new(vec![Box::new(header), grid, Box::new(footer)])
+            Column::new(vec![Box::new(header), grid])
                 .width(Parent)
                 .height(Parent)
                 .gap(14.0),
