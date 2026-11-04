@@ -318,10 +318,10 @@ fn toggles(scheme: &Scheme) -> Column {
         let subtitle = if !network.wifi_enabled() {
             String::from("Desligado")
         } else if network.connecting() {
-            String::from("Conectando…")
+            String::from(crate::lang::text("Conectando…", "Connecting…"))
         } else if network.connected() {
             if network.ssid().is_empty() {
-                String::from("Conectado")
+                String::from(crate::lang::text("Conectado", "Connected"))
             } else {
                 String::from(network.ssid())
             }
@@ -407,7 +407,7 @@ fn toggles(scheme: &Scheme) -> Column {
         Tile {
             key: "ctl:sound",
             glyph: glyphs::volume(output_volume, output_muted),
-            title: "Som",
+            title: crate::lang::text("Som", "Sound"),
             subtitle: &if output_muted { String::from("Silenciado") } else { format!("{output_volume}%") },
             active: !output_muted,
         },
@@ -426,7 +426,7 @@ fn toggles(scheme: &Scheme) -> Column {
         Tile {
             key: "ctl:mic",
             glyph: glyphs::microphone(mic_muted),
-            title: "Microfone",
+            title: crate::lang::text("Microfone", "Microphone"),
             subtitle: &if mic_muted {
                 String::from("Desligado")
             } else {
@@ -449,8 +449,8 @@ fn toggles(scheme: &Scheme) -> Column {
         Tile {
             key: "ctl:dnd",
             glyph: if dnd { m3::BELL_OFF } else { m3::BELL },
-            title: "Não perturbe",
-            subtitle: if dnd { "Ligado" } else { "Desligado" },
+            title: crate::lang::text("Não perturbe", "Do not disturb"),
+            subtitle: if dnd { crate::lang::text("Ligado", "On") } else { crate::lang::text("Desligado", "Off") },
             active: dnd,
         },
         HALF,
@@ -463,8 +463,8 @@ fn toggles(scheme: &Scheme) -> Column {
         Tile {
             key: "ctl:dark",
             glyph: if dark { m3::DARK_MODE } else { m3::LIGHT_MODE },
-            title: "Tema",
-            subtitle: if dark { "Escuro" } else { "Claro" },
+            title: crate::lang::text("Tema", "Theme"),
+            subtitle: if dark { crate::lang::text("Escuro", "Dark") } else { crate::lang::text("Claro", "Light") },
             active: dark,
         },
         HALF,
@@ -483,7 +483,7 @@ fn toggles(scheme: &Scheme) -> Column {
 }
 
 fn audio_devices_page(scheme: &Scheme, output: bool) -> Box<dyn Widget> {
-    let title = if output { "Saídas de som" } else { "Entradas de som" };
+    let title = if output { crate::lang::text("Saídas de som", "Audio outputs") } else { crate::lang::text("Entradas de som", "Audio inputs") };
 
     let (default, devices, loaded) = {
         AUDIO_REFRESH_REQUESTED.store(true, Ordering::Relaxed);
@@ -539,13 +539,13 @@ fn audio_devices_page(scheme: &Scheme, output: bool) -> Box<dyn Widget> {
     if !loaded {
         rows.push(boxed(scale(
             Type::BodyMedium,
-            "Carregando dispositivos…",
+            crate::lang::text("Carregando dispositivos…", "Loading devices…"),
             scheme.on_surface_variant,
         )));
     } else if devices.is_empty() {
         rows.push(boxed(scale(
             Type::BodyMedium,
-            "Nenhum dispositivo encontrado pelo pactl",
+            crate::lang::text("Nenhum dispositivo encontrado pelo pactl", "No devices found by pactl"),
             scheme.on_surface_variant,
         )));
     }
@@ -682,7 +682,7 @@ fn notices(scheme: &Scheme, height: f32) -> Column {
                 .align_child(Center, Center)
                 .child(scale(
                     Type::LabelLarge,
-                    "Nada por aqui",
+                    crate::lang::text("Nada por aqui", "Nothing here"),
                     scheme.on_surface_variant,
                 )),
         )
@@ -869,16 +869,16 @@ fn wifi_page(scheme: &Scheme) -> Box<dyn Widget> {
 
         let supporting = if point.active {
             if connecting {
-                "Conectando…"
+                crate::lang::text("Conectando…", "Connecting…")
             } else {
-                "Conectado"
+                crate::lang::text("Conectado", "Connected")
             }
         } else if point.saved {
-            "Salva"
+            crate::lang::text("Salva", "Saved")
         } else if point.secured {
-            "Protegida"
+            crate::lang::text("Protegida", "Secured")
         } else {
-            "Aberta"
+            crate::lang::text("Aberta", "Open")
         };
 
         let leading = leading_icon(
@@ -940,9 +940,9 @@ fn wifi_page(scheme: &Scheme) -> Box<dyn Widget> {
     let list_height = INNER_HEIGHT - 40.0 - 12.0;
 
     let body: Box<dyn Widget> = if !enabled {
-        boxed(empty_note("Wi-Fi desligado", list_height, scheme))
+        boxed(empty_note(crate::lang::text("Wi-Fi desligado", "Wi-Fi is off"), list_height, scheme))
     } else if rows.is_empty() {
-        boxed(empty_note("Procurando redes…", list_height, scheme))
+        boxed(empty_note(crate::lang::text("Procurando redes…", "Scanning for networks…"), list_height, scheme))
     } else {
         boxed(
             ScrollArea::new("ctl-wifi", Column::new(rows).gap(4.0).width(BODY))
@@ -964,7 +964,7 @@ fn password_card(ssid: &str, scheme: &Scheme) -> Rectangle {
     let field = amane::TextInput::new(PASSWORD_FIELD)
         .size(15.0)
         .color(scheme.on_surface)
-        .placeholder("Senha")
+        .placeholder(crate::lang::text("Senha", "Password"))
         .password()
         .focused()
         .on_change(|text| PASSWORD.with(|password| *password.borrow_mut() = text))
@@ -992,7 +992,7 @@ fn password_card(ssid: &str, scheme: &Scheme) -> Rectangle {
         boxed(spacer()),
         boxed(m3::button(
             "ctl:wifi-cancel",
-            "Cancelar",
+            crate::lang::text("Cancelar", "Cancel"),
             None,
             Kind::Text,
             scheme,
@@ -1003,7 +1003,7 @@ fn password_card(ssid: &str, scheme: &Scheme) -> Rectangle {
         )),
         boxed(m3::button(
             "ctl:wifi-join",
-            "Conectar",
+            crate::lang::text("Conectar", "Connect"),
             None,
             Kind::Filled,
             scheme,
@@ -1143,11 +1143,11 @@ fn bluetooth_page(scheme: &Scheme) -> Box<dyn Widget> {
     let list_height = INNER_HEIGHT - 40.0 - 12.0;
 
     let body: Box<dyn Widget> = if !available {
-        boxed(empty_note("Sem adaptador bluetooth", list_height, scheme))
+        boxed(empty_note(crate::lang::text("Sem adaptador bluetooth", "No Bluetooth adapter"), list_height, scheme))
     } else if !powered {
-        boxed(empty_note("Bluetooth desligado", list_height, scheme))
+        boxed(empty_note(crate::lang::text("Bluetooth desligado", "Bluetooth is off"), list_height, scheme))
     } else if devices.is_empty() {
-        boxed(empty_note("Procurando dispositivos…", list_height, scheme))
+        boxed(empty_note(crate::lang::text("Procurando dispositivos…", "Scanning for devices…"), list_height, scheme))
     } else {
         let rows: Vec<Box<dyn Widget>> = devices
             .iter()
@@ -1173,7 +1173,7 @@ fn device_row(device: &Device, scheme: &Scheme) -> Rectangle {
 
     let supporting = match (device.connected, device.paired, device.battery) {
         (true, _, Some(level)) => format!("Conectado · {level}%"),
-        (true, _, None) => String::from("Conectado"),
+        (true, _, None) => String::from(crate::lang::text("Conectado", "Connected")),
         (false, true, _) => String::from("Pareado"),
         _ => String::from("Disponível"),
     };
