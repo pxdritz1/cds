@@ -35,6 +35,7 @@ pub const LOCK: &str = "\u{e897}";
 pub const LOGOUT: &str = "\u{e9ba}";
 pub const RESTART: &str = "\u{f053}";
 pub const FORWARD: &str = "\u{e5c8}";
+pub const PIN: &str = "\u{e55f}";
 pub const BACK: &str = "\u{e5c4}";
 pub const CHECK: &str = "\u{e5ca}";
 pub const CHEVRON_RIGHT: &str = "\u{e5cc}";
