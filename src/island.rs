@@ -79,9 +79,23 @@ enum IslandMode {
 }
 
 pub fn reserve(_: &Monitor) -> LayerWindow {
+    let ui = Ui::read();
+    let media_visible = Media::read().playing()
+        && !ui.media_sheet()
+        && !ui.dash()
+        && !notification_preview_active();
+    let notice_expanded = notification_preview_active() && ui.hover() && !ui.dash();
+    let reserved_height = if media_visible {
+        peek::MEDIA_HEIGHT + 6.0
+    } else if notice_expanded {
+        peek::NOTICE_HEIGHT + 6.0
+    } else {
+        RESERVED
+    };
+
     LayerWindow::new()
         .width(Full)
-        .height(RESERVED)
+        .height(reserved_height)
         .anchor_vertical(Vertical::Top)
         .layer(Layer::Bottom)
         .space(Zone::Reserve)
@@ -408,7 +422,10 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
         .height(CENTER_HEIGHT)
         .anchor_vertical(Vertical::Top)
         .layer(Layer::Top)
-        .space(Zone::Respect)
+        // The separate reserve surface keeps windows below the island.
+        // Ignore its exclusive zone here so the island stays on the same
+        // top baseline as the left and right islands.
+        .space(Zone::Ignore)
         .margin(Margin {
             top: 3,
             ..Margin::default()
