@@ -295,12 +295,12 @@ fn condition_for(code: u8) -> &'static str {
 // the icon glyph the wmo code maps to, in material symbols
 pub fn glyph_for(code: u8) -> &'static str {
     use crate::island::widgets::{
-        CLOUDY, CLOUDY_SNOWING, DRIZZLE, FOGGY, HAIL, PARTLY_CLOUDY, RAINY,
-        RAINY_HEAVY, SHOWERS, SNOWING, STORM, SUNNY,
+        CLEAR_DAY, CLOUDY, CLOUDY_SNOWING, DRIZZLE, FOGGY, HAIL, PARTLY_CLOUDY,
+        RAINY, RAINY_HEAVY, SHOWERS, SNOWING, STORM,
     };
 
     match code {
-        0 => SUNNY,
+        0 => CLEAR_DAY,
         1..=2 => PARTLY_CLOUDY,
         3 => CLOUDY,
         45 | 48 => FOGGY,
@@ -308,10 +308,12 @@ pub fn glyph_for(code: u8) -> &'static str {
         55..=57 => RAINY,
         61..=63 => RAINY,
         65..=67 => RAINY_HEAVY,
-        71..=77 | 85 | 86 => SNOWING,
+        71..=76 | 85 | 86 => SNOWING,
+        77 => CLOUDY_SNOWING,
         80..=82 => SHOWERS,
-        95..=99 => STORM,
-        _ => CLOUDY_SNOWING,
+        96 | 99 => HAIL,
+        95 | 97 | 98 => STORM,
+        _ => CLOUDY,
     }
 }
 
