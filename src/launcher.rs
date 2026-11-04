@@ -124,14 +124,19 @@ fn filtered<'a>(apps: &'a [DesktopApp], query: &str) -> Vec<&'a DesktopApp> {
         return apps.iter().collect();
     }
 
-    apps.iter()
+    let mut results: Vec<&DesktopApp> = apps
+        .iter()
         .filter(|app| {
             app.name().to_lowercase().contains(&needle)
                 || app
                     .description()
                     .is_some_and(|description| description.to_lowercase().contains(&needle))
         })
-        .collect()
+        .collect();
+
+    let settings = crate::settings::Settings::read();
+    results.sort_by_key(|app| !settings.is_pinned(app.exec()));
+    results
 }
 
 pub fn view(monitor: &Monitor) -> LayerWindow {
@@ -291,13 +296,18 @@ fn result_row(scheme: &Scheme, app: &DesktopApp, index: usize, selected: bool) -
 
     let mut children: Vec<Box<dyn Widget>> = vec![icon_box, boxed(info)];
 
+    let exec = String::from(app.exec());
+    let pinned = crate::settings::Settings::read().is_pinned(&exec);
+
+    if pinned {
+        children.push(boxed(icon(m3::PIN, 16.0, scheme.primary)));
+    }
     if selected {
         children.push(boxed(icon(FORWARD, 18.0, scheme.on_secondary_container)));
     }
 
     let owned = key.clone();
-    let exec = String::from(app.exec());
-    let _name = String::from(app.name());
+    let pin_exec = exec.clone();
 
     Rectangle::new()
         .width(Parent)
@@ -307,11 +317,13 @@ fn result_row(scheme: &Scheme, app: &DesktopApp, index: usize, selected: bool) -
         .padding(8.0)
         .cursor(Pointer)
         .on_hover(move |inside| crate::motion::set_hover(owned.clone(), inside))
-        .on_click(move |button| {
-            if button == amane::Button::Left {
+        .on_click(move |button| match button {
+            amane::Button::Left => {
                 amane::spawn(&exec);
                 Overlay::close();
             }
+            amane::Button::Right => crate::settings::Settings::toggle_pinned(&pin_exec),
+            _ => {}
         })
         .child(
             Row::new(children)
