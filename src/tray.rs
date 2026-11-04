@@ -1,5 +1,9 @@
+use std::collections::hash_map::DefaultHasher;
+use std::fs::File;
+use std::hash::{Hash, Hasher};
 use std::path::Path;
 use std::process;
+use std::sync::Arc;
 use std::thread;
 use std::time::Duration;
 
@@ -13,6 +17,7 @@ use crate::theme::{Scheme, mix};
 
 const WATCHER_PATH: &str = "/StatusNotifierWatcher";
 const WATCHER_INTERFACE: &str = "org.freedesktop.StatusNotifierWatcher";
+const KDE_WATCHER_INTERFACE: &str = "org.kde.StatusNotifierWatcher";
 const ITEM_INTERFACE: &str = "org.freedesktop.StatusNotifierItem";
 
 #[derive(Clone, PartialEq)]
@@ -98,13 +103,13 @@ impl Service for Tray {
     }
 }
 
-
 /*
  * The shell provides its own StatusNotifierWatcher. This is intentionally
  * backed by a separate zbus connection: Amane's Bus wrapper does not expose
  * the caller's unique name, which is required when clients register an
  * object path instead of a well-known service name.
  */
+
 struct TrayWatcher;
 
 impl Service for TrayWatcher {
@@ -114,19 +119,48 @@ impl Service for TrayWatcher {
 
     fn listen() {
         use zbus::blocking::connection::Builder;
+        use zbus::fdo::{RequestNameFlags, RequestNameReply};
 
-        let watcher = StatusNotifierWatcher::default();
-        let connection = match Builder::session()
-            .and_then(|builder| builder.name("org.freedesktop.StatusNotifierWatcher"))
-            .and_then(|builder| builder.serve_at(WATCHER_PATH, watcher))
-            .and_then(|builder| builder.build())
-        {
+        let state = Arc::new(WatcherState::default());
+
+        let builder = Builder::session()
+            .and_then(|builder| {
+                builder.serve_at(WATCHER_PATH, StatusNotifierWatcher(state.clone()))
+            })
+            .and_then(|builder| builder.serve_at(WATCHER_PATH, KdeStatusNotifierWatcher(state)));
+
+        let connection = match builder.and_then(|builder| builder.build()) {
             Ok(connection) => connection,
             Err(error) => {
                 eprintln!("CDS: não foi possível iniciar StatusNotifierWatcher: {error}");
                 return;
             }
         };
+
+        let request_name = |name: &str| match connection
+            .request_name_with_flags(name, RequestNameFlags::DoNotQueue.into())
+        {
+            Ok(RequestNameReply::PrimaryOwner | RequestNameReply::AlreadyOwner) => true,
+            Ok(_) => false,
+            Err(error) => {
+                eprintln!("CDS: falha ao reivindicar {name}: {error}");
+                false
+            }
+        };
+
+        let owns_freedesktop = request_name("org.freedesktop.StatusNotifierWatcher");
+
+        let owns_kde = request_name("org.kde.StatusNotifierWatcher");
+
+        if !owns_freedesktop && !owns_kde {
+            eprintln!("CDS: outro StatusNotifierWatcher já está ativo no barramento");
+            return;
+        }
+
+        eprintln!(
+            "CDS: StatusNotifierWatcher ativo (freedesktop: {}, KDE: {})",
+            owns_freedesktop, owns_kde,
+        );
 
         loop {
             thread::sleep(Duration::from_secs(3600));
@@ -135,10 +169,16 @@ impl Service for TrayWatcher {
 }
 
 #[derive(Default)]
-struct StatusNotifierWatcher {
+struct WatcherState {
     items: std::sync::Mutex<Vec<String>>,
     hosts: std::sync::Mutex<Vec<String>>,
 }
+
+#[derive(Clone)]
+struct StatusNotifierWatcher(Arc<WatcherState>);
+
+#[derive(Clone)]
+struct KdeStatusNotifierWatcher(Arc<WatcherState>);
 
 #[zbus::interface(name = "org.freedesktop.StatusNotifierWatcher")]
 impl StatusNotifierWatcher {
@@ -152,6 +192,7 @@ impl StatusNotifierWatcher {
             let sender = header
                 .sender()
                 .ok_or_else(|| zbus::fdo::Error::Failed("chamador D-Bus sem sender".into()))?;
+
             format!("{sender}{service}")
         } else if service.contains('/') {
             service
@@ -160,7 +201,12 @@ impl StatusNotifierWatcher {
         };
 
         let newly_registered = {
-            let mut items = self.items.lock().unwrap_or_else(|error| error.into_inner());
+            let mut items = self
+                .0
+                .items
+                .lock()
+                .unwrap_or_else(|error| error.into_inner());
+
             if items.iter().any(|item| item == &address) {
                 false
             } else {
@@ -171,16 +217,18 @@ impl StatusNotifierWatcher {
         };
 
         if newly_registered {
-            connection
-                .emit_signal(
-                    None::<&str>,
-                    WATCHER_PATH,
-                    WATCHER_INTERFACE,
-                    "StatusNotifierItemRegistered",
-                    &(address.as_str(),),
-                )
-                .await
-                .map_err(|error| zbus::fdo::Error::Failed(error.to_string()))?;
+            for interface in [WATCHER_INTERFACE, KDE_WATCHER_INTERFACE] {
+                connection
+                    .emit_signal(
+                        None::<&str>,
+                        WATCHER_PATH,
+                        interface,
+                        "StatusNotifierItemRegistered",
+                        &(address.as_str(),),
+                    )
+                    .await
+                    .map_err(|error| zbus::fdo::Error::Failed(error.to_string()))?;
+            }
         }
 
         Ok(())
@@ -193,14 +241,22 @@ impl StatusNotifierWatcher {
         service: String,
     ) -> zbus::fdo::Result<()> {
         let host = if service.is_empty() {
-            header.sender().map(|sender| sender.to_string()).unwrap_or_default()
+            header
+                .sender()
+                .map(|sender| sender.to_string())
+                .unwrap_or_default()
         } else {
             service
         };
 
         let newly_registered = {
-            let mut hosts = self.hosts.lock().unwrap_or_else(|error| error.into_inner());
-            if hosts.iter().any(|entry| entry == &host) {
+            let mut hosts = self
+                .0
+                .hosts
+                .lock()
+                .unwrap_or_else(|error| error.into_inner());
+
+            if hosts.iter().any(|item| item == &host) {
                 false
             } else {
                 hosts.push(host);
@@ -209,16 +265,18 @@ impl StatusNotifierWatcher {
         };
 
         if newly_registered {
-            connection
-                .emit_signal(
-                    None::<&str>,
-                    WATCHER_PATH,
-                    WATCHER_INTERFACE,
-                    "StatusNotifierHostRegistered",
-                    &(),
-                )
-                .await
-                .map_err(|error| zbus::fdo::Error::Failed(error.to_string()))?;
+            for interface in [WATCHER_INTERFACE, KDE_WATCHER_INTERFACE] {
+                connection
+                    .emit_signal(
+                        None::<&str>,
+                        WATCHER_PATH,
+                        interface,
+                        "StatusNotifierHostRegistered",
+                        &(),
+                    )
+                    .await
+                    .map_err(|error| zbus::fdo::Error::Failed(error.to_string()))?;
+            }
         }
 
         Ok(())
@@ -226,19 +284,154 @@ impl StatusNotifierWatcher {
 
     #[zbus(property)]
     fn registered_status_notifier_items(&self) -> Vec<String> {
-        self.items.lock().unwrap_or_else(|error| error.into_inner()).clone()
+        self.0
+            .items
+            .lock()
+            .unwrap_or_else(|error| error.into_inner())
+            .clone()
     }
 
     #[zbus(property)]
     fn is_status_notifier_host_registered(&self) -> bool {
-        !self.hosts.lock().unwrap_or_else(|error| error.into_inner()).is_empty()
+        !self
+            .0
+            .hosts
+            .lock()
+            .unwrap_or_else(|error| error.into_inner())
+            .is_empty()
     }
 
     #[zbus(property)]
     fn protocol_version(&self) -> i32 {
         0
     }
+}
 
+#[zbus::interface(name = "org.kde.StatusNotifierWatcher")]
+impl KdeStatusNotifierWatcher {
+    async fn register_status_notifier_item(
+        &self,
+        #[zbus(header)] header: zbus::message::Header<'_>,
+        #[zbus(connection)] connection: &zbus::Connection,
+        service: String,
+    ) -> zbus::fdo::Result<()> {
+        let address = if service.starts_with('/') {
+            let sender = header
+                .sender()
+                .ok_or_else(|| zbus::fdo::Error::Failed("chamador D-Bus sem sender".into()))?;
+
+            format!("{sender}{service}")
+        } else if service.contains('/') {
+            service
+        } else {
+            format!("{service}/StatusNotifierItem")
+        };
+
+        let newly_registered = {
+            let mut items = self
+                .0
+                .items
+                .lock()
+                .unwrap_or_else(|error| error.into_inner());
+
+            if items.iter().any(|item| item == &address) {
+                false
+            } else {
+                items.push(address.clone());
+                items.sort();
+                true
+            }
+        };
+
+        if newly_registered {
+            for interface in [WATCHER_INTERFACE, KDE_WATCHER_INTERFACE] {
+                connection
+                    .emit_signal(
+                        None::<&str>,
+                        WATCHER_PATH,
+                        interface,
+                        "StatusNotifierItemRegistered",
+                        &(address.as_str(),),
+                    )
+                    .await
+                    .map_err(|error| zbus::fdo::Error::Failed(error.to_string()))?;
+            }
+        }
+
+        Ok(())
+    }
+
+    async fn register_status_notifier_host(
+        &self,
+        #[zbus(header)] header: zbus::message::Header<'_>,
+        #[zbus(connection)] connection: &zbus::Connection,
+        service: String,
+    ) -> zbus::fdo::Result<()> {
+        let host = if service.is_empty() {
+            header
+                .sender()
+                .map(|sender| sender.to_string())
+                .unwrap_or_default()
+        } else {
+            service
+        };
+
+        let newly_registered = {
+            let mut hosts = self
+                .0
+                .hosts
+                .lock()
+                .unwrap_or_else(|error| error.into_inner());
+
+            if hosts.iter().any(|item| item == &host) {
+                false
+            } else {
+                hosts.push(host);
+                true
+            }
+        };
+
+        if newly_registered {
+            for interface in [WATCHER_INTERFACE, KDE_WATCHER_INTERFACE] {
+                connection
+                    .emit_signal(
+                        None::<&str>,
+                        WATCHER_PATH,
+                        interface,
+                        "StatusNotifierHostRegistered",
+                        &(),
+                    )
+                    .await
+                    .map_err(|error| zbus::fdo::Error::Failed(error.to_string()))?;
+            }
+        }
+
+        Ok(())
+    }
+
+    #[zbus(property)]
+    fn registered_status_notifier_items(&self) -> Vec<String> {
+        self.0
+            .items
+            .lock()
+            .unwrap_or_else(|error| error.into_inner())
+            .clone()
+    }
+
+    #[zbus(property)]
+    fn is_status_notifier_host_registered(&self) -> bool {
+        !self
+            .0
+            .hosts
+            .lock()
+            .unwrap_or_else(|error| error.into_inner())
+            .is_empty()
+    }
+
+    #[zbus(property)]
+    fn protocol_version(&self) -> i32 {
+        0
+    }
 }
 
 struct TrayHost;
@@ -270,7 +463,9 @@ impl Service for TrayHost {
                     &freedesktop_host
                 };
 
-                if (host == &kde_host && owns_kde) || (host == &freedesktop_host && owns_freedesktop) {
+                if (host == &kde_host && owns_kde)
+                    || (host == &freedesktop_host && owns_freedesktop)
+                {
                     bus.call(
                         destination,
                         WATCHER_PATH,
@@ -430,7 +625,8 @@ fn scan_items() -> Option<Vec<TrayItem>> {
             attention_icon
         };
 
-        let icon_path = resolve_icon(&icon_name, &id);
+        let icon_path = resolve_icon(&icon_name, &id)
+            .or_else(|| resolve_icon_pixmap(&bus, &service, &path, &interface));
 
         items.push(TrayItem {
             service,
@@ -475,16 +671,73 @@ fn item_interface(bus: &Bus, service: &str, path: &str) -> String {
     ITEM_INTERFACE.to_string()
 }
 
-fn item_property(
-    bus: &Bus,
-    service: &str,
-    path: &str,
-    interface: &str,
-    name: &str,
-) -> String {
+fn item_property(bus: &Bus, service: &str, path: &str, interface: &str, name: &str) -> String {
     bus.property(service, path, interface, name)
         .text()
         .to_string()
+}
+
+fn resolve_icon_pixmap(bus: &Bus, service: &str, path: &str, interface: &str) -> Option<String> {
+    let pixmaps = bus.property(service, path, interface, "IconPixmap");
+
+    for pixmap in pixmaps.list() {
+        let fields = pixmap.list();
+
+        if fields.len() != 3 {
+            continue;
+        }
+
+        let width = fields[0].number() as u32;
+        let height = fields[1].number() as u32;
+
+        if width == 0 || height == 0 || width > 4096 || height > 4096 {
+            continue;
+        }
+
+        let expected = (width as usize)
+            .checked_mul(height as usize)?
+            .checked_mul(4)?;
+
+        let bytes: Vec<u8> = fields[2]
+            .list()
+            .iter()
+            .map(|value| value.number().clamp(0.0, 255.0) as u8)
+            .collect();
+
+        if bytes.len() != expected {
+            continue;
+        }
+
+        // SNI IconPixmap uses ARGB32; PNG expects RGBA.
+        let mut rgba = Vec::with_capacity(expected);
+
+        for pixel in bytes.chunks_exact(4) {
+            let [a, r, g, b] = [pixel[0], pixel[1], pixel[2], pixel[3]];
+            rgba.extend_from_slice(&[r, g, b, a]);
+        }
+
+        let mut hasher = DefaultHasher::new();
+        width.hash(&mut hasher);
+        height.hash(&mut hasher);
+        bytes.hash(&mut hasher);
+
+        let output = std::env::temp_dir().join(format!("amane-sni-{:016x}.png", hasher.finish()));
+
+        if !output.is_file() {
+            let file = File::create(&output).ok()?;
+            let mut encoder = png::Encoder::new(file, width, height);
+
+            encoder.set_color(png::ColorType::Rgba);
+            encoder.set_depth(png::BitDepth::Eight);
+
+            let mut writer = encoder.write_header().ok()?;
+            writer.write_image_data(&rgba).ok()?;
+        }
+
+        return Some(output.to_string_lossy().into_owned());
+    }
+
+    None
 }
 
 fn resolve_icon(icon_name: &str, id: &str) -> Option<String> {
