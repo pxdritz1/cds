@@ -13,7 +13,7 @@ use crate::clock::Clock;
 use crate::glyphs;
 use crate::m3::{
     self, Item, Kind, Type, badge_shape, boxed, button, icon, icon_button, leading_icon, list_item,
-    rail_item, round_button, scale, scale_label, slider, wavy,
+    rail_item, round_button, scale, scale_label, slider,
 };
 use crate::settings::Settings;
 use crate::theme::{Scheme, fade};
@@ -422,15 +422,52 @@ fn meter(name: &str, percent: u8, width: f32, scheme: &Scheme) -> Column {
             .justify(SpaceBetween)
             .align(Center),
         ),
-        boxed(wavy(
-            f32::from(percent.min(100)) / 100.0,
-            width,
-            true,
-            scheme.tertiary,
-            scheme.surface_container_highest,
-        )),
+        boxed(meter_bars(percent, width, scheme)),
     ])
     .width(Parent)
+}
+
+
+fn meter_bars(percent: u8, width: f32, scheme: &Scheme) -> Row {
+    const SEGMENTS: usize = 12;
+    const GAP: f32 = 4.0;
+    const HEIGHT: f32 = 8.0;
+
+    let trans = Settings::read().flag("trans_meter_colors");
+    let palette = if trans {
+        vec![
+            amane::Color::from("#5BCEFA"),
+            amane::Color::from("#F5A9B8"),
+            amane::Color::from("#FFFFFF"),
+            amane::Color::from("#F5A9B8"),
+            amane::Color::from("#5BCEFA"),
+        ]
+    } else {
+        vec![scheme.primary, scheme.secondary, scheme.tertiary]
+    };
+
+    let filled = ((usize::from(percent.min(100)) * SEGMENTS + 99) / 100).min(SEGMENTS);
+    let segment_width = ((width - GAP * (SEGMENTS - 1) as f32) / SEGMENTS as f32).max(1.0);
+
+    let bars = (0..SEGMENTS)
+        .map(|index| {
+            let color = if index < filled {
+                palette[index % palette.len()]
+            } else {
+                scheme.surface_container_highest
+            };
+
+            boxed(
+                Rectangle::new()
+                    .width(segment_width)
+                    .height(HEIGHT)
+                    .fill(color)
+                    .radius(4.0),
+            )
+        })
+        .collect();
+
+    Row::new(bars).gap(GAP).width(width).height(HEIGHT)
 }
 
 // ---- media ----------------------------------------------------------------
