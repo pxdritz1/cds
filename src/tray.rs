@@ -71,6 +71,8 @@ impl Service for Tray {
     fn new() -> Self {
         // Starting this tiny service registers the shell as an SNI host on
         // its own service thread; no D-Bus call is made by the drawing thread.
+        // Start the in-process watcher before registering this shell as a host.
+        let _watcher = TrayWatcher::read();
         let _host = TrayHost::read();
 
         Self::default()
@@ -94,6 +96,144 @@ impl Service for Tray {
         self.items = items;
         true
     }
+}
+
+
+/*
+ * The shell provides its own StatusNotifierWatcher. This is intentionally
+ * backed by a separate zbus connection: Amane's Bus wrapper does not expose
+ * the caller's unique name, which is required when clients register an
+ * object path instead of a well-known service name.
+ */
+struct TrayWatcher;
+
+impl Service for TrayWatcher {
+    fn new() -> Self {
+        Self
+    }
+
+    fn listen() {
+        use zbus::blocking::connection::Builder;
+
+        let watcher = StatusNotifierWatcher::default();
+        let connection = match Builder::session()
+            .and_then(|builder| builder.name("org.freedesktop.StatusNotifierWatcher"))
+            .and_then(|builder| builder.serve_at(WATCHER_PATH, watcher))
+            .and_then(|builder| builder.build())
+        {
+            Ok(connection) => connection,
+            Err(error) => {
+                eprintln!("CDS: não foi possível iniciar StatusNotifierWatcher: {error}");
+                return;
+            }
+        };
+
+        // Keep the KDE compatibility name on the same connection. A single
+        // watcher instance then serves both the Freedesktop and KDE names.
+        if let Err(error) = connection.request_name("org.kde.StatusNotifierWatcher") {
+            eprintln!("CDS: não foi possível registrar alias KDE do watcher: {error}");
+        }
+
+        loop {
+            thread::sleep(Duration::from_secs(3600));
+        }
+    }
+}
+
+#[derive(Default)]
+struct StatusNotifierWatcher {
+    items: std::sync::Mutex<Vec<String>>,
+    hosts: std::sync::Mutex<Vec<String>>,
+}
+
+#[zbus::interface(name = "org.freedesktop.StatusNotifierWatcher")]
+impl StatusNotifierWatcher {
+    fn register_status_notifier_item(
+        &self,
+        #[zbus(header)] header: zbus::message::Header<'_>,
+        service: String,
+        #[zbus(signal_emitter)] emitter: zbus::object_server::SignalEmitter<'_>,
+    ) -> zbus::fdo::Result<()> {
+        let address = if service.starts_with('/') {
+            let sender = header
+                .sender()
+                .ok_or_else(|| zbus::fdo::Error::Failed("chamador D-Bus sem sender".into()))?;
+            format!("{sender}{service}")
+        } else if service.contains('/') {
+            service
+        } else {
+            format!("{service}/StatusNotifierItem")
+        };
+
+        let mut items = self.items.lock().unwrap_or_else(|error| error.into_inner());
+        if !items.iter().any(|item| item == &address) {
+            items.push(address.clone());
+            items.sort();
+            Self::status_notifier_item_registered(&emitter, &address)
+                .map_err(|error| zbus::fdo::Error::Failed(error.to_string()))?;
+        }
+
+        Ok(())
+    }
+
+    fn register_status_notifier_host(
+        &self,
+        #[zbus(header)] header: zbus::message::Header<'_>,
+        service: String,
+        #[zbus(signal_emitter)] emitter: zbus::object_server::SignalEmitter<'_>,
+    ) -> zbus::fdo::Result<()> {
+        let host = if service.is_empty() {
+            header.sender().map(|sender| sender.to_string()).unwrap_or_default()
+        } else {
+            service
+        };
+
+        let mut hosts = self.hosts.lock().unwrap_or_else(|error| error.into_inner());
+        if !hosts.iter().any(|entry| entry == &host) {
+            hosts.push(host);
+            Self::status_notifier_host_registered(&emitter)
+                .map_err(|error| zbus::fdo::Error::Failed(error.to_string()))?;
+        }
+
+        Ok(())
+    }
+
+    #[zbus(property)]
+    fn registered_status_notifier_items(&self) -> Vec<String> {
+        self.items.lock().unwrap_or_else(|error| error.into_inner()).clone()
+    }
+
+    #[zbus(property)]
+    fn is_status_notifier_host_registered(&self) -> bool {
+        !self.hosts.lock().unwrap_or_else(|error| error.into_inner()).is_empty()
+    }
+
+    #[zbus(property)]
+    fn protocol_version(&self) -> i32 {
+        0
+    }
+
+    #[zbus(signal)]
+    fn status_notifier_item_registered(
+        emitter: &zbus::object_server::SignalEmitter<'_>,
+        service: &str,
+    ) -> zbus::Result<()>;
+
+    #[zbus(signal)]
+    fn status_notifier_item_unregistered(
+        emitter: &zbus::object_server::SignalEmitter<'_>,
+        service: &str,
+    ) -> zbus::Result<()>;
+
+    #[zbus(signal)]
+    fn status_notifier_host_registered(
+        emitter: &zbus::object_server::SignalEmitter<'_>,
+    ) -> zbus::Result<()>;
+
+    #[zbus(signal)]
+    fn status_notifier_host_unregistered(
+        emitter: &zbus::object_server::SignalEmitter<'_>,
+    ) -> zbus::Result<()>;
 }
 
 struct TrayHost;
