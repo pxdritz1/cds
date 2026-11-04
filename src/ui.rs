@@ -133,8 +133,12 @@ impl Ui {
     }
 
     pub fn reset_media_sheet() {
-        let mut ui = Self::write();
-        ui.media_sheet = false;
+        // Avoid notifying every window when the sheet is already closed.
+        if !Self::read().media_sheet {
+            return;
+        }
+
+        Self::write().media_sheet = false;
     }
 
     pub fn watch() {
