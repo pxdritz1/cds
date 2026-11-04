@@ -62,7 +62,7 @@ impl Service for Settings {
     }
 
     fn interval() -> Duration {
-        Duration::from_secs(30)
+        Duration::from_secs(15)
     }
 
     fn update(&mut self) -> bool {
@@ -174,8 +174,8 @@ impl Settings {
         settings.directory = path;
         settings.save();
 
-        settings.scan();
-
+        // The service refreshes the gallery on its next background scan.
+        // Never walk a user-selected directory from the input callback.
         String::from("ok")
     }
 
