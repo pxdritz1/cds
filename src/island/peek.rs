@@ -11,7 +11,7 @@ use crate::m3::{self, Type};
 use crate::clock::Clock;
 use crate::theme::Scheme;
 use super::widgets::{
-    BELL, CLOSE, NEXT, PAUSE, PLAY, boxed, icon, icon_button, label, round_button,
+    BELL, CLOSE, NEXT, PAUSE, PLAY, boxed, icon, icon_button, label, progress, round_button,
 };
 
 pub const MEDIA_WIDTH: f32 = 344.0;
@@ -117,7 +117,7 @@ pub fn media(scheme: &Scheme, alpha: f32) -> Box<dyn Widget> {
     .align(Center)
     .width(Parent);
 
-    let progress_bar = m3::progress("island-media", progress, 244.0, scheme);
+    let progress_bar = progress("island-media", progress, 244.0, scheme);
     let timeline = Column::new(vec![boxed(timeline), boxed(progress_bar)])
         .gap(0.0)
         .width(Parent);
