@@ -190,9 +190,9 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
     let hint = if count == 0 {
         String::from(crate::lang::text("Nenhum aplicativo encontrado", "No applications match"))
     } else if crate::settings::Settings::read().language() == "en" {
-        format!("{count} applications  ·  ↑↓ choose  ·  Enter opens")
+        format!("{count} applications  ·  ↑↓ choose  ·  Enter opens  ·  right-click pins")
     } else {
-        format!("{count} aplicativos  ·  ↑↓ selecionar  ·  Enter abrir")
+        format!("{count} aplicativos  ·  ↑↓ selecionar  ·  Enter abrir  ·  clique direito fixa")
     };
 
     let footer = Row::new(vec![
