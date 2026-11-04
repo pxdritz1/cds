@@ -165,7 +165,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
                 .child(icon(POWER, 18.0, scheme.on_primary_container)),
         ),
         boxed(text(
-            "Power",
+            crate::lang::text("Energia", "Power"),
             18.0,
             scheme.on_surface,
             amane::Weight::SemiBold,
