@@ -5,7 +5,7 @@
  */
 use amane::{
     Audio, Battery, Bluetooth, Button, Center, Color, Media, Monitor, Network, Parent, Pointer, Rectangle,
-    Row, Service, Widget, Workspace, Workspaces,
+    Row, Service, Stack, Widget, Workspace, Workspaces,
 };
 
 use crate::clock::Clock;
@@ -51,8 +51,22 @@ pub fn clock(scheme: &Scheme, alpha: f32) -> (Box<dyn Widget>, f32) {
 
     let media_playing = Media::read().playing();
     let weather = Weather::read();
-    let weather_glyph = if media_playing { MUSIC } else { weather.glyph() };
-    let weather_icon = icon(weather_glyph, ICON, scheme.on_surface_variant);
+    let weather_icon: Box<dyn Widget> = if media_playing {
+        boxed(Stack::new(vec![
+            boxed(m3::rotating_cookie(26.0, scheme.primary_container)),
+            boxed(
+                Rectangle::new()
+                    .width(26.0)
+                    .height(26.0)
+                    .align_child(Center, Center)
+                    .child(icon(MUSIC, 13.0, scheme.on_primary_container)),
+            ),
+        ])
+        .width(26.0)
+        .height(26.0))
+    } else {
+        boxed(icon(weather.glyph(), ICON, scheme.on_surface_variant))
+    };
 
     let time_date = Rectangle::new()
         .width(Parent)
@@ -76,7 +90,7 @@ pub fn clock(scheme: &Scheme, alpha: f32) -> (Box<dyn Widget>, f32) {
     let row = Row::new(vec![
         boxed(search),
         boxed(time_date),
-        boxed(weather_icon),
+        weather_icon,
     ])
     .gap(6.0)
     .align(Center)
