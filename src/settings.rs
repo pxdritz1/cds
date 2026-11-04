@@ -36,6 +36,7 @@ pub struct Settings {
     hover_delay_ms: u64,
     language: String,
     pinned_apps: BTreeSet<String>,
+    media_title_max_width: u32,
 }
 
 fn default_flag(name: &str) -> bool {
@@ -55,6 +56,7 @@ impl Service for Settings {
             hover_delay_ms: 500,
             language: String::from("pt-BR"),
             pinned_apps: BTreeSet::new(),
+            media_title_max_width: 320,
         };
 
         settings.load();
@@ -118,6 +120,18 @@ impl Settings {
         self.hover_delay_ms
     }
 
+
+    pub fn media_title_max_width(&self) -> u32 {
+        self.media_title_max_width
+    }
+
+    pub fn set_media_title_max_width(value: u32) {
+        let mut settings = Self::write();
+        settings.media_title_max_width = value.clamp(104, 520);
+        settings.save();
+        drop(settings);
+        crate::ui::Ui::refresh();
+    }
 
     pub fn language(&self) -> &str {
         &self.language
@@ -394,6 +408,9 @@ impl Settings {
                 "location" => self.location = String::from(value),
                 "language" => self.language = if value == "en" { String::from("en") } else { String::from("pt-BR") },
                 "pinned_app" => { self.pinned_apps.insert(String::from(value)); },
+                "media_title_max_width" => {
+                    self.media_title_max_width = value.parse::<u32>().unwrap_or(320).clamp(104, 520)
+                },
                 "hover_delay_ms" => {
                     self.hover_delay_ms = value.parse::<u64>().unwrap_or(500).clamp(100, 2000)
                 },
@@ -414,7 +431,7 @@ impl Settings {
         }
 
         let mut text = format!(
-            "wallpaper={}\nscheme={}\ndark={}\ndirectory={}\nlocation={}\nhover_delay_ms={}\nlanguage={}\n",
+            "wallpaper={}\nscheme={}\ndark={}\ndirectory={}\nlocation={}\nhover_delay_ms={}\nlanguage={}\nmedia_title_max_width={}\n",
             self.wallpaper,
             self.scheme,
             self.dark,
@@ -422,6 +439,7 @@ impl Settings {
             self.location,
             self.hover_delay_ms,
             self.language,
+            self.media_title_max_width,
         );
 
         for (name, value) in &self.flags {
