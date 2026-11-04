@@ -58,7 +58,7 @@ impl Service for Weather {
 
 impl Weather {
     pub fn condition(&self) -> &str {
-        self.condition.as_str()
+        condition_for(self.code)
     }
 
     pub fn temperature(&self) -> &str {
@@ -224,7 +224,7 @@ fn hour_of(time: &str) -> String {
         .next()
         .unwrap_or("?");
 
-    format!("{hour}h")
+    if crate::settings::Settings::read().language() == "en" { format!("{hour}:00") } else { format!("{hour}h") }
 }
 
 // numbers or strings of one json array, read in line as plain values
@@ -278,17 +278,17 @@ fn json_array<'a>(json: &'a str, key: &str) -> Vec<&'a str> {
 // the wmo weather codes of open-meteo, translated
 fn condition_for(code: u8) -> &'static str {
     match code {
-        0 => "Céu limpo",
-        1..=2 => "Parcialmente nublado",
-        3 => "Nublado",
-        45 | 48 => "Névoa",
-        51..=57 => "Garoa",
-        61..=67 => "Chuva",
-        71..=77 => "Neve",
-        80..=82 => "Chuva forte",
-        85 | 86 => "Neve forte",
-        95..=99 => "Tempestade",
-        _ => "Sem dados",
+        0 => crate::lang::text("Céu limpo", "Clear sky"),
+        1..=2 => crate::lang::text("Parcialmente nublado", "Partly cloudy"),
+        3 => crate::lang::text("Nublado", "Overcast"),
+        45 | 48 => crate::lang::text("Névoa", "Fog"),
+        51..=57 => crate::lang::text("Garoa", "Drizzle"),
+        61..=67 => crate::lang::text("Chuva", "Rain"),
+        71..=77 => crate::lang::text("Neve", "Snow"),
+        80..=82 => crate::lang::text("Chuva forte", "Rain showers"),
+        85 | 86 => crate::lang::text("Neve forte", "Snow showers"),
+        95..=99 => crate::lang::text("Tempestade", "Thunderstorm"),
+        _ => crate::lang::text("Sem dados", "No data"),
     }
 }
 
@@ -409,10 +409,12 @@ pub fn command(arguments: &[String]) -> String {
     let weather = Weather::read();
 
     format!(
-        "{} | {} | humid. {} | vento {}",
+        "{} | {} | {} {} | {} {}",
         weather.condition(),
         weather.temperature(),
+        crate::lang::text("umidade", "humidity"),
         weather.humidity(),
+        crate::lang::text("vento", "wind"),
         weather.wind()
     )
 }
