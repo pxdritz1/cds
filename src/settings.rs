@@ -34,6 +34,7 @@ pub struct Settings {
     wallpapers: Vec<String>,
     flags: BTreeMap<String, bool>,
     hover_delay_ms: u64,
+    language: String,
 }
 
 fn default_flag(name: &str) -> bool {
@@ -51,6 +52,7 @@ impl Service for Settings {
             wallpapers: Vec::new(),
             flags: BTreeMap::new(),
             hover_delay_ms: 500,
+            language: String::from("pt-BR"),
         };
 
         settings.load();
@@ -112,6 +114,16 @@ impl Settings {
 
     pub fn hover_delay_ms(&self) -> u64 {
         self.hover_delay_ms
+    }
+
+    pub fn language(&self) -> &str {
+        &self.language
+    }
+
+    pub fn set_language(language: &str) {
+        let mut settings = Self::write();
+        settings.language = if language == "en" { String::from("en") } else { String::from("pt-BR") };
+        settings.save();
     }
 
     pub fn set_hover_delay_ms(value: u64) {
@@ -365,6 +377,7 @@ impl Settings {
                 "dark" => self.dark = value != "false",
                 "directory" => self.directory = expand_home_path(value),
                 "location" => self.location = String::from(value),
+                "language" => self.language = if value == "en" { String::from("en") } else { String::from("pt-BR") },
                 "hover_delay_ms" => {
                     self.hover_delay_ms = value.parse::<u64>().unwrap_or(500).clamp(100, 2000)
                 },
@@ -385,13 +398,14 @@ impl Settings {
         }
 
         let mut text = format!(
-            "wallpaper={}\nscheme={}\ndark={}\ndirectory={}\nlocation={}\nhover_delay_ms={}\n",
+            "wallpaper={}\nscheme={}\ndark={}\ndirectory={}\nlocation={}\nhover_delay_ms={}\nlanguage={}\n",
             self.wallpaper,
             self.scheme,
             self.dark,
             self.directory.display(),
             self.location,
             self.hover_delay_ms,
+            self.language,
         );
 
         for (name, value) in &self.flags {
