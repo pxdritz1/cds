@@ -24,7 +24,8 @@ impl Service for Clock {
 
     fn listen() {
         loop {
-            thread::sleep(Duration::from_secs(1));
+            // The UI displays minutes, so polling every five seconds is sufficient.
+            thread::sleep(Duration::from_secs(5));
 
             let Some(fresh) = read() else {
                 continue;
