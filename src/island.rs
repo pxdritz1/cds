@@ -325,27 +325,31 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
             dash::RADIUS,
         ),
 
-        IslandMode::NoticeCompact => {
-            let notification = notice.expect("the notice mode only starts with a notice");
-
-            (
+        IslandMode::NoticeCompact => match notice {
+            Some(notification) => (
                 peek::notice_compact(scheme, notification, alpha),
                 peek::NOTICE_COMPACT_WIDTH,
                 peek::NOTICE_COMPACT_HEIGHT,
                 peek::NOTICE_COMPACT_HEIGHT / 2.0,
-            )
-        }
+            ),
+            None => {
+                let (content, width) = compact::clock(scheme, alpha);
+                (content, width, BAR_HEIGHT, crate::m3::shape::ISLAND_COMPACT)
+            }
+        },
 
-        IslandMode::Notice => {
-            let notification = notice.expect("the notice mode only starts with a notice");
-
-            (
+        IslandMode::Notice => match notice {
+            Some(notification) => (
                 peek::notice(scheme, notification, alpha),
                 peek::NOTICE_WIDTH,
                 peek::NOTICE_HEIGHT,
                 peek::NOTICE_HEIGHT / 2.0,
-            )
-        }
+            ),
+            None => {
+                let (content, width) = compact::clock(scheme, alpha);
+                (content, width, BAR_HEIGHT, crate::m3::shape::ISLAND_COMPACT)
+            }
+        },
 
         IslandMode::Media => (
             peek::media(scheme, alpha),
