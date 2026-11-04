@@ -268,14 +268,8 @@ pub fn window() -> Window {
                 DIRECTORY_INPUT,
                 &directory,
                 scheme,
-                {
-                    let current = directory.clone();
-
-                    move |_text| {
-                        // nothing while typing; the submit applies it
-                        let _ = current.clone();
-                    }
-                },
+                // The directory is applied only when the field is submitted.
+                move |_text| {},
                 move |path| {
                     Settings::set_directory(&path);
                 },
