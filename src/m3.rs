@@ -1,5 +1,6 @@
 use std::f32::consts::TAU;
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::sync::OnceLock;
+use std::time::{Duration, Instant};
 
 use amane::{
     Arc, Button, Canvas, Cap, Center, Color, Column, Padding, Parent, Path, Pointer, Rectangle,
@@ -701,15 +702,14 @@ pub fn wavy(fraction: f32, width: f32, animated: bool, color: Color, track: Colo
     let middle = HEIGHT / 2.0;
 
     let phase = if animated {
-        // The media timeline is a single animated widget; 60 FPS keeps
-        // its wave motion smooth while it is visible.
-        let millis = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .map_or(0, |elapsed| elapsed.as_millis() as u64);
+        // Use a monotonic clock: wall-clock adjustments must not jump the wave.
+        // Keep one shared epoch so rebuilding the widget does not restart it.
+        static WAVE_EPOCH: OnceLock<Instant> = OnceLock::new();
+        let elapsed = WAVE_EPOCH.get_or_init(Instant::now).elapsed().as_secs_f32();
 
         motion::request_frame_at_most(60);
 
-        TAU * (millis % 1600) as f32 / 1600.0
+        TAU * (elapsed % 1.6) / 1.6
     } else {
         0.0
     };
@@ -735,9 +735,9 @@ pub fn wavy(fraction: f32, width: f32, animated: bool, color: Color, track: Colo
         let mut x = STROKE / 2.0;
 
         while x < active {
-            // A slightly wider sampling interval cuts canvas path work in
-            // half while remaining visually smooth at this widget's height.
-            x = (x + 4.0).min(active);
+            // Two-pixel samples avoid the visibly angular wave produced by
+            // sparse points, without generating an excessive Canvas path.
+            x = (x + 2.0).min(active);
             path = path.line_to(x, wave(x));
         }
 
