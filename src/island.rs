@@ -17,7 +17,7 @@ use crate::motion;
 use crate::overlay::{Overlay, Panel};
 use crate::theme::{Scheme, Theme, fade};
 use crate::tray::{self, Tray};
-use crate::ui::{Tab, Ui};
+use crate::ui::Ui;
 
 const RESERVED: f32 = 52.0;
 const BAR_HEIGHT: f32 = 40.0;
