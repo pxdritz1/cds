@@ -161,7 +161,7 @@ impl Settings {
         Some((latitude, longitude))
     }
 
-    // moves the wallpaper source directory, rescanning right away
+    // changes the wallpaper source directory; the gallery refreshes in the background
     pub fn set_directory(path: &str) -> String {
         let path = expand_home_path(path);
 
