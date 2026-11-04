@@ -474,6 +474,12 @@ pub fn home_directory(variable: &str, fallback: &str) -> PathBuf {
         return PathBuf::from(path);
     }
 
-    let home = env::var_os("HOME").expect("failed to find home: HOME is not set");
-    PathBuf::from(home).join(fallback)
+    // A missing HOME should not panic the shell during startup. Fall back
+    // to the current directory, then /tmp if the process has no cwd either.
+    let home = env::var_os("HOME")
+        .map(PathBuf::from)
+        .or_else(|| env::current_dir().ok())
+        .unwrap_or_else(|| PathBuf::from("/tmp"));
+
+    home.join(fallback)
 }
