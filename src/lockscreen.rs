@@ -46,15 +46,21 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
     // Stagger the corner widgets so the lock screen settles in layers rather
     // than popping into place all at once. The shared clock schedules frames
     // only for this short entrance sequence.
+    let clock_intro = entrance(0);
     let center_intro = entrance(70);
     let analog_intro = entrance(150);
     let weather_intro = entrance(220);
     let user_intro = entrance(290);
+    let notification_intro = entrance(190);
+    let password_intro = entrance(270);
 
-    if center_intro < 0.999
+    if clock_intro < 0.999
+        || center_intro < 0.999
         || analog_intro < 0.999
         || weather_intro < 0.999
         || user_intro < 0.999
+        || notification_intro < 0.999
+        || password_intro < 0.999
     {
         crate::motion::request_frame_at_most(60);
     }
@@ -130,6 +136,8 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
             left: 18.0 * ui_scale,
         })
         .align_child(Center, Center)
+        .opacity(password_intro)
+        .translate(0.0, 8.0 * (1.0 - password_intro))
         .child(
             TextInput::new(PASSWORD)
                 .size(17.0 * ui_scale)
@@ -197,7 +205,9 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
             .align(Center)
             .width(Parent)
             .height(Parent),
-        );
+        )
+        .opacity(notification_intro)
+        .translate(0.0, 8.0 * (1.0 - notification_intro));
 
     let center_panel = Rectangle::new()
         .width(440.0 * ui_scale)
@@ -208,7 +218,19 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
         .padding(28.0 * ui_scale)
         .child(
             Column::new(vec![
-                Box::new(scale(Type::DisplayLarge, clock.time(true), scheme.on_surface).size(82.0 * ui_scale)),
+                Box::new(
+                    Rectangle::new()
+                        .width(Parent)
+                        .height(96.0 * ui_scale)
+                        .opacity(clock_intro)
+                        .translate(0.0, 14.0 * (1.0 - clock_intro))
+                        .align_child(Center, Center)
+                        .child(scale(
+                            Type::DisplayLarge,
+                            clock.time(true),
+                            scheme.on_surface,
+                        ).size(82.0 * ui_scale)),
+                ),
                 Box::new(scale_label(
                     Type::TitleMedium,
                     clock.date(),
