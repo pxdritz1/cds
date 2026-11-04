@@ -130,15 +130,16 @@ pub fn status(scheme: &Scheme) -> (Box<dyn Widget>, f32) {
     let mut items: Vec<Box<dyn Widget>> = Vec::new();
     let mut width = SIDE * 2.0 - 4.0;
 
+    // Keep the expandable tray chevron immediately to the left of Wi-Fi.
+    items.push(boxed(tray_button(scheme)));
+    width += 28.0;
+
     items.push(boxed(icon(
         glyphs::wifi(&network),
         ICON,
         if network.connected() { color } else { dim },
     )));
-    width += ICON;
-
-    items.push(boxed(tray_button(scheme)));
-    width += ITEM_GAP + 28.0;
+    width += ITEM_GAP + ICON;
 
     if bluetooth.available() {
         let connected = bluetooth.devices().iter().any(|device| device.connected());
