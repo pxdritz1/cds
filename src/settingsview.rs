@@ -4,7 +4,7 @@ use amane::{
 };
 
 use crate::island::widgets::{
-    DARK_MODE, LIGHT_MODE, OPEN_NEW, SUNNY, TUNE, boxed, chip, icon, label, text,
+    DARK_MODE, LIGHT_MODE, OPEN_NEW, CLEAR_DAY, TUNE, boxed, chip, icon, label, text,
 };
 use crate::settings::Settings;
 use crate::theme::{Scheme, Theme};
@@ -315,7 +315,7 @@ pub fn window() -> Window {
     // the weather section, where the dash reads its forecast spot from
     let climate = settings_card(WIDTH - PADDING * 2.0, 122.0, scheme.surface_container_low).child(
         Column::new(vec![
-            Box::new(section(SUNNY, crate::lang::text("Clima", "Weather"), scheme)),
+            Box::new(section(CLEAR_DAY, crate::lang::text("Clima", "Weather"), scheme)),
             Box::new(field(
                 crate::lang::text("Coordenadas (latitude,longitude — vazio volta ao automático)", "Coordinates (latitude,longitude — empty uses automatic location)"),
                 LOCATION_INPUT,
