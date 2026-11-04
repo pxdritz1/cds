@@ -9,7 +9,7 @@ use std::time::{Duration, Instant};
 
 use amane::{
     Audio, Battery, Brightness, Center, Horizontal, Layer, LayerWindow, Margin, Monitor, Padding,
-    Parent, Rectangle, Row, Service, Shadow, Vertical, Widget, Zone, request_frame,
+    Parent, Rectangle, Row, Service, Shadow, Vertical, Widget, Zone,
 };
 
 use crate::glyphs;
@@ -151,7 +151,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
     let presence = motion::presence(&key, active.is_some() && focused);
 
     if active.is_some() || presence > 0.001 {
-        request_frame();
+        motion::request_frame_at_most(30);
     }
 
     let kind = active.map(|(kind, _, _)| kind).unwrap_or_else(|| {
