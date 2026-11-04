@@ -1,12 +1,12 @@
+use std::path::Path;
+
 use amane::{
-    Center, Column, Media, Notification, Notifications, Padding, Parent, Rectangle, Row, Service,
-    Widget,
+    Apps, Center, Column, Image, Media, Notification, Notifications, Padding, Parent, Rectangle,
+    Row, Service, Widget,
 };
 
 use crate::art::{artwork, media_labels};
 use crate::theme::Scheme;
-use crate::ui::{Tab, Ui};
-
 use super::widgets::{
     BELL, CLOSE, NEXT, PAUSE, PLAY, boxed, icon, icon_button, label, round_button,
 };
@@ -87,13 +87,25 @@ pub fn media(scheme: &Scheme, alpha: f32) -> Box<dyn Widget> {
 pub fn notice(scheme: &Scheme, notification: &Notification, alpha: f32) -> Box<dyn Widget> {
     let id = notification.id();
 
-    let bell = Rectangle::new()
-        .width(40.0)
-        .height(40.0)
-        .fill(scheme.primary_container)
-        .radius(20.0)
-        .align_child(Center, Center)
-        .child(icon(BELL, 20.0, scheme.on_primary_container));
+    let avatar = notification_art(notification)
+        .filter(|path| Image::loaded(path))
+        .map(|path| {
+            Rectangle::new()
+                .width(40.0)
+                .height(40.0)
+                .radius(20.0)
+                .clip()
+                .fill(Image::cover(path).thumbnail(64, 64))
+        })
+        .unwrap_or_else(|| {
+            Rectangle::new()
+                .width(40.0)
+                .height(40.0)
+                .fill(scheme.primary_container)
+                .radius(20.0)
+                .align_child(Center, Center)
+                .child(icon(BELL, 20.0, scheme.on_primary_container))
+        });
 
     let info = Column::new(vec![
         boxed(label(
@@ -115,7 +127,7 @@ pub fn notice(scheme: &Scheme, notification: &Notification, alpha: f32) -> Box<d
     .width(240.0);
 
     let row = Row::new(vec![
-        boxed(bell),
+        boxed(avatar),
         boxed(info),
         boxed(icon_button("peek-close", CLOSE, 32.0, scheme, move || {
             Notifications::dismiss(id)
@@ -138,7 +150,79 @@ pub fn notice(scheme: &Scheme, notification: &Notification, alpha: f32) -> Box<d
                 left: 12.0,
             })
             .cursor(amane::Pointer)
-            .on_click(|_| Ui::open(Tab::Alerts))
+            .on_click(move |_| Notifications::click(id))
             .child(row),
     )
 }
+
+fn notification_art(notification: &Notification) -> Option<String> {
+    if let Some(path) = local_image_path(notification.image()) {
+        return Some(path);
+    }
+
+    if let Some(path) = local_image_path(notification.icon()) {
+        return Some(path);
+    }
+
+    let icon_name = notification.icon();
+    let app_name = notification.app_name();
+
+    if icon_name.is_empty() && app_name.is_empty() {
+        return None;
+    }
+
+    let apps = Apps::read();
+    let app = apps.list().iter().find(|app| {
+        let name = app.name();
+        let icon = app.icon().unwrap_or("");
+
+        (!app_name.is_empty() && name.eq_ignore_ascii_case(app_name))
+            || (!icon_name.is_empty() && icon.eq_ignore_ascii_case(icon_name))
+    })?;
+
+    app.icon_path()
+        .map(|path| path.to_string_lossy().into_owned())
+}
+
+fn local_image_path(value: &str) -> Option<String> {
+    if value.is_empty() {
+        return None;
+    }
+
+    let path = if let Some(encoded) = value.strip_prefix("file://") {
+        decode_file_url_path(encoded)?
+    } else {
+        value.to_string()
+    };
+
+    let path = Path::new(&path);
+
+    if path.is_file() {
+        Some(path.to_string_lossy().into_owned())
+    } else {
+        None
+    }
+}
+
+fn decode_file_url_path(value: &str) -> Option<String> {
+    let bytes = value.as_bytes();
+    let mut decoded = Vec::with_capacity(bytes.len());
+    let mut index = 0;
+
+    while index < bytes.len() {
+        if bytes[index] == b'%' {
+            let high = *bytes.get(index + 1)?;
+            let low = *bytes.get(index + 2)?;
+            let high = (high as char).to_digit(16)?;
+            let low = (low as char).to_digit(16)?;
+            decoded.push((high * 16 + low) as u8);
+            index += 3;
+        } else {
+            decoded.push(bytes[index]);
+            index += 1;
+        }
+    }
+
+    String::from_utf8(decoded).ok()
+}
+
