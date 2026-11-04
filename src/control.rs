@@ -657,7 +657,7 @@ fn notices(scheme: &Scheme, height: f32) -> Column {
     let list: Vec<Notification> = Notifications::read().list().to_vec();
 
     let header = Row::new(vec![
-        boxed(scale(Type::TitleSmall, "Notificações", scheme.on_surface)),
+        boxed(scale(Type::TitleSmall, crate::lang::text("Notificações", "Notifications"), scheme.on_surface)),
         boxed(spacer()),
         boxed(icon_button(
             "ctl:clear",
@@ -1175,7 +1175,7 @@ fn device_row(device: &Device, scheme: &Scheme) -> Rectangle {
         (true, _, Some(level)) => format!("Conectado · {level}%"),
         (true, _, None) => String::from(crate::lang::text("Conectado", "Connected")),
         (false, true, _) => String::from("Pareado"),
-        _ => String::from("Disponível"),
+        _ => String::from(crate::lang::text("Disponível", "Available")),
     };
 
     let leading = leading_icon(
