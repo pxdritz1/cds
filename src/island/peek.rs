@@ -3,9 +3,11 @@ use std::sync::OnceLock;
 use std::time::Instant;
 
 use amane::{
-    Apps, Canvas, Cap, Center, Column, Image, Media, Notification, Notifications, Padding,
-    Parent, Path, Rectangle, Row, Service, Shape, Widget, request_frame,
+    Apps, Center, Column, Image, Media, Notification, Notifications, Padding, Parent,
+    Rectangle, Row, Service, Widget, request_frame,
 };
+
+use crate::m3::{self, Type};
 
 use crate::art::{artwork, media_labels};
 use crate::clock::Clock;
@@ -14,8 +16,8 @@ use super::widgets::{
     BELL, CLOSE, NEXT, PAUSE, PLAY, boxed, icon, icon_button, label, round_button,
 };
 
-pub const MEDIA_WIDTH: f32 = 344.0;
-pub const MEDIA_HEIGHT: f32 = 90.0;
+pub const MEDIA_WIDTH: f32 = 300.0;
+pub const MEDIA_HEIGHT: f32 = 76.0;
 pub const NOTICE_COMPACT_WIDTH: f32 = 260.0;
 pub const NOTICE_COMPACT_HEIGHT: f32 = 52.0;
 pub const NOTICE_WIDTH: f32 = 364.0;
@@ -23,91 +25,106 @@ pub const NOTICE_HEIGHT: f32 = 72.0;
 
 pub fn media(scheme: &Scheme, alpha: f32) -> Box<dyn Widget> {
     let media = Media::read();
-
     let playing = media.playing();
-
-    let glyph = if playing { PAUSE } else { PLAY };
-
+    let glyph = if playing { m3::PAUSE } else { m3::PLAY };
     let (title, artist) = media_labels(&media);
 
     let info = Column::new(vec![
         boxed(marquee_label(
             title,
-            13.5,
+            13.0,
             scheme.on_surface,
             amane::Weight::SemiBold,
         )),
-        boxed(label(
+        boxed(m3::scale_label(
+            Type::LabelSmall,
             artist,
-            11.5,
             scheme.on_surface_variant,
-            amane::Weight::Regular,
             1,
         )),
     ])
     .gap(1.0)
-    .width(130.0);
+    .width(104.0);
 
     let clock = Clock::read();
     let clock_view = Column::new(vec![
-        boxed(label(
+        boxed(m3::scale_label(
+            Type::LabelMedium,
             clock.time(true),
-            12.0,
             scheme.on_surface,
-            amane::Weight::SemiBold,
             1,
         )),
-        boxed(label(
+        boxed(m3::scale_label(
+            Type::LabelSmall,
             clock.short_date(),
-            9.5,
             scheme.on_surface_variant,
-            amane::Weight::Regular,
             1,
         )),
     ])
     .gap(1.0)
-    .width(48.0)
+    .width(42.0)
     .align(Center);
 
     let row = Row::new(vec![
-        boxed(artwork(media.art_url(), 44.0, 14.0, scheme)),
+        boxed(artwork(media.art_url(), 38.0, 12.0, scheme)),
         boxed(info),
-        boxed(round_button(
+        boxed(m3::round_button(
             "peek-play",
             glyph,
-            40.0,
+            34.0,
             scheme.primary,
             scheme.on_primary,
             Media::play_pause,
         )),
-        boxed(round_button(
+        boxed(m3::round_button(
             "peek-next",
-            NEXT,
-            34.0,
+            m3::NEXT,
+            30.0,
             scheme.secondary_container,
             scheme.on_secondary_container,
             Media::next,
         )),
         boxed(clock_view),
     ])
-    .gap(6.0)
+    .gap(5.0)
     .align(Center)
     .width(Parent)
-    .height(58.0);
+    .height(46.0);
 
     let position = media.position().as_secs();
     let length = media.length().as_secs();
+    let fraction = if length > 0 {
+        position as f32 / length as f32
+    } else {
+        0.0
+    };
 
     let timeline = Row::new(vec![
-        boxed(label(format_time(position), 9.0, scheme.on_surface_variant, amane::Weight::Medium, 1)),
-        boxed(animated_wave(playing, scheme.primary)),
-        boxed(label(format_time(length), 9.0, scheme.on_surface_variant, amane::Weight::Medium, 1)),
+        boxed(m3::scale_label(
+            Type::LabelSmall,
+            format_time(position),
+            scheme.on_surface_variant,
+            1,
+        )),
+        boxed(m3::wavy(
+            fraction,
+            154.0,
+            playing,
+            scheme.primary,
+            scheme.surface_container_highest,
+        )),
+        boxed(m3::scale_label(
+            Type::LabelSmall,
+            format_time(length),
+            scheme.on_surface_variant,
+            1,
+        )),
     ])
-    .gap(7.0)
+    .gap(6.0)
     .align(Center)
     .justify(Center)
     .width(Parent)
-    .height(22.0);
+    .height(18.0);
 
     let content = Column::new(vec![boxed(row), boxed(timeline)])
         .gap(1.0)
@@ -120,9 +137,9 @@ pub fn media(scheme: &Scheme, alpha: f32) -> Box<dyn Widget> {
             .height(Parent)
             .opacity(alpha)
             .padding(Padding {
-                top: 4.0,
-                right: 12.0,
-                bottom: 4.0,
+                top: 3.0,
+                right: 10.0,
+                bottom: 3.0,
                 left: 10.0,
             })
             .child(content),
@@ -324,45 +341,6 @@ fn format_time(seconds: u64) -> String {
     format!("{:02}:{:02}", seconds / 60, seconds % 60)
 }
 
-fn animated_wave(playing: bool, color: amane::Color) -> Canvas {
-    static START: OnceLock<Instant> = OnceLock::new();
-    const WIDTH: f32 = 214.0;
-    const HEIGHT: f32 = 18.0;
-    const STEPS: usize = 160;
-
-    let elapsed = START.get_or_init(Instant::now).elapsed();
-    if playing {
-        request_frame();
-    }
-
-    let phase = if playing {
-        elapsed.as_secs_f32() * 4.2
-    } else {
-        0.0
-    };
-
-    let mut path = Path::new();
-    for step in 0..=STEPS {
-        let x = WIDTH * step as f32 / STEPS as f32;
-        let normalized = step as f32 / STEPS as f32;
-        let envelope = 0.35 + 0.65 * (normalized * std::f32::consts::PI).sin().abs();
-        let modulation = (x * 0.045 + phase * 0.35).sin() * 0.35 + 0.65;
-        let amplitude = 5.2 * envelope * modulation;
-        let y = HEIGHT / 2.0 + (x * 0.105 + phase).sin() * amplitude;
-
-        path = if step == 0 {
-            path.move_to(x, y)
-        } else {
-            path.line_to(x, y)
-        };
-    }
-
-    Canvas::new()
-        .width(WIDTH)
-        .height(HEIGHT)
-        .shapes(vec![Box::new(path.stroke(1.7, color).cap(Cap::Round))])
-}
-
 fn marquee_label(
     content: String,
     size: f32,
@@ -375,7 +353,7 @@ fn marquee_label(
 
     let chars: Vec<char> = content.chars().collect();
     if chars.len() <= VISIBLE_CHARS {
-        return label(content, size, color, weight, 1);
+        return m3::label(content, size, color, weight, 1);
     }
 
     let elapsed = START.get_or_init(Instant::now).elapsed();
@@ -390,5 +368,5 @@ fn marquee_label(
         .map(|step| tape[(offset + step) % tape.len()])
         .collect::<String>();
 
-    label(window, size, color, weight, 1)
+    m3::label(window, size, color, weight, 1)
 }
