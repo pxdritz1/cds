@@ -296,7 +296,7 @@ fn condition_for(code: u8) -> &'static str {
 pub fn glyph_for(code: u8) -> &'static str {
     use crate::island::widgets::{
         CLEAR_DAY, CLOUDY, CLOUDY_SNOWING, DRIZZLE, FOGGY, HAIL, PARTLY_CLOUDY,
-        RAINY, RAINY_HEAVY, SHOWERS, SNOWING, STORM,
+        RAINY, RAINY_HEAVY, SNOWING, STORM,
     };
 
     match code {
@@ -310,7 +310,7 @@ pub fn glyph_for(code: u8) -> &'static str {
         65..=67 => RAINY_HEAVY,
         71..=76 | 85 | 86 => SNOWING,
         77 => CLOUDY_SNOWING,
-        80..=82 => SHOWERS,
+        80..=82 => RAINY_HEAVY,
         96 | 99 => HAIL,
         95 | 97 | 98 => STORM,
         _ => CLOUDY,
