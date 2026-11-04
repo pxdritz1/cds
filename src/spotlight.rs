@@ -26,46 +26,48 @@ const INPUT: &str = "cds-spotlight";
  */
 struct Spot {
     action: &'static str,
-    label: &'static str,
-    hint: &'static str,
+    label_pt: &'static str,
+    label_en: &'static str,
+    hint_pt: &'static str,
+    hint_en: &'static str,
     glyph: &'static str,
 }
 
 const ACTIONS: [Spot; 6] = [
     Spot {
         action: "dash",
-        label: "Dash do sistema",
-        hint: "relógio, clima, medidores",
+        label_pt: "Dash do sistema", label_en: "System dashboard",
+        hint_pt: "relógio, clima, medidores", hint_en: "clock, weather and system meters",
         glyph: m3::WIDGETS,
     },
     Spot {
         action: "apps",
-        label: "Grade de aplicativos",
-        hint: "todos os programas instalados",
+        label_pt: "Grade de aplicativos", label_en: "Application grid",
+        hint_pt: "todos os programas instalados", hint_en: "all installed applications",
         glyph: m3::APPS,
     },
     Spot {
         action: "config",
-        label: "Ajustes do shell",
-        hint: "aparência, wallpapers, clima",
+        label_pt: "Ajustes do shell", label_en: "Shell settings",
+        hint_pt: "aparência, wallpapers, clima", hint_en: "appearance, wallpapers and weather",
         glyph: m3::TUNE,
     },
     Spot {
         action: "wallpaper",
-        label: "Trocar o wallpaper",
-        hint: "um aleatório da pasta, na hora",
+        label_pt: "Trocar o wallpaper", label_en: "Change wallpaper",
+        hint_pt: "um aleatório da pasta, na hora", hint_en: "pick a random image from the folder",
         glyph: m3::WALLPAPER,
     },
     Spot {
         action: "light",
-        label: "Alternar claro / escuro",
-        hint: "regenera as cores do matugen",
+        label_pt: "Alternar claro / escuro", label_en: "Toggle light / dark mode",
+        hint_pt: "regenera as cores do matugen", hint_en: "regenerate the Matugen palette",
         glyph: m3::DARK_MODE,
     },
     Spot {
         action: "clipboard",
-        label: "Clipboard",
-        hint: "histórico de cópias",
+        label_pt: "Clipboard", label_en: "Clipboard",
+        hint_pt: "histórico de cópias", hint_en: "copied items history",
         glyph: m3::PASTE,
     },
 ];
@@ -160,8 +162,8 @@ fn matched_actions(query: &str) -> Vec<&'static Spot> {
         .iter()
         .filter(|spot| {
             needle.is_empty()
-                || spot.label.to_lowercase().contains(&needle)
-                || spot.hint.to_lowercase().contains(&needle)
+                || crate::lang::text(spot.label_pt, spot.label_en).to_lowercase().contains(&needle)
+                || crate::lang::text(spot.hint_pt, spot.hint_en).to_lowercase().contains(&needle)
         })
         .take(5)
         .collect()
@@ -251,8 +253,8 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
     let list: Box<dyn Widget> = if items.is_empty() {
         boxed(m3::empty_state(
             m3::SEARCH,
-            "Nada encontrado",
-            "Ações do shell e programas instalados respondem aqui",
+            crate::lang::text("Nada encontrado", "Nothing found"),
+            crate::lang::text("Ações do shell e programas instalados respondem aqui", "Search shell actions and installed apps here"),
             Parent,
             150.0,
             scheme,
@@ -265,7 +267,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
         "spotlight",
         INPUT,
         m3::SEARCH,
-        "Buscar ações e programas…",
+        crate::lang::text("Buscar ações e programas…", "Search actions and apps…"),
         open,
         scheme,
         move |text| {
@@ -277,13 +279,13 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
     let footer = Row::new(vec![
         boxed(scale_label(
             Type::LabelMedium,
-            "↑↓ navega · Enter executa",
+            crate::lang::text("↑↓ navega · Enter executa", "↑↓ navigate · Enter run"),
             scheme.on_surface_variant,
             1,
         )),
         boxed(scale_label(
             Type::LabelMedium,
-            "Esc fecha",
+            crate::lang::text("Esc fecha", "Esc closes"),
             scheme.on_surface_variant,
             1,
         )),
@@ -334,7 +336,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
 fn app_row(app: &DesktopApp, scheme: &Scheme, index: usize, selected: bool) -> Rectangle {
     let key = format!("spot-app:{index}");
     let headline = String::from(app.name());
-    let supporting = String::from(app.description().unwrap_or("Programa"));
+    let supporting = String::from(app.description().unwrap_or(crate::lang::text("Programa", "Application")));
     let icon_path = app.icon_path().map(|path| path.to_path_buf());
     let app = app.clone();
 
@@ -393,9 +395,9 @@ fn app_row(app: &DesktopApp, scheme: &Scheme, index: usize, selected: bool) -> R
 fn action_row(spot: &'static Spot, scheme: &Scheme, index: usize, selected: bool) -> Rectangle {
     let key = format!("spot-action:{index}");
 
-    let headline = String::from(spot.label);
+    let headline = String::from(crate::lang::text(spot.label_pt, spot.label_en));
 
-    let supporting = String::from(spot.hint);
+    let supporting = String::from(crate::lang::text(spot.hint_pt, spot.hint_en));
 
     let action = spot.action;
 
