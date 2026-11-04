@@ -276,7 +276,7 @@ pub fn apply(source: &str, value: &str, scheme: &str, dark: bool) -> String {
 
 /*
  * the views change themes from the click handlers, where waiting for a
- * whole matugen run would freeze the bar; they spawn it and let the file
+ * whole matugen run would freeze the bar; a single worker coalesces jobs and lets the file
  * watcher refresh the scheme when it lands
  */
 type MatugenJob = (String, String, String, bool);
