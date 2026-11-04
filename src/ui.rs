@@ -115,7 +115,9 @@ impl Ui {
     }
 
     pub fn set_hover(hover: bool) {
-        let auto_open = hover && crate::settings::Settings::read().flag("hover_dash");
+        let auto_open = hover
+            && crate::settings::Settings::read().flag("hover_dash")
+            && !crate::island::notification_preview_active();
         let generation = HOVER_GENERATION.fetch_add(1, Ordering::Relaxed) + 1;
 
         {
