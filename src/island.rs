@@ -10,7 +10,7 @@ use std::time::{Duration, Instant, SystemTime};
 use amane::{
     Button, Center, Column, End, Full, Horizontal, InputArea, Key, Keyboard, Layer, LayerWindow,
     Margin, Media, Monitor, Notification, Notifications, Padding, Parent, Pointer, Rectangle,
-    Service, Shadow, Stack, Start, Vertical, Widget, Zone, request_frame,
+    Service, Shadow, Stack, Start, Vertical, Widget, Zone,
 };
 
 use crate::motion;
@@ -311,7 +311,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
     };
 
     if matches!(mode, IslandMode::NoticeCompact | IslandMode::Notice) {
-        request_frame();
+        motion::request_frame_at_most(20);
     }
 
     // content fades in when the island changes what it shows
