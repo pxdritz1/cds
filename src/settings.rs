@@ -30,6 +30,7 @@ pub struct Settings {
     wallpapers: Vec<String>,
     flags: BTreeMap<String, bool>,
     hover_delay_ms: u64,
+    scan_requested: bool,
 }
 
 fn default_flag(name: &str) -> bool {
@@ -47,6 +48,7 @@ impl Service for Settings {
             wallpapers: Vec::new(),
             flags: BTreeMap::new(),
             hover_delay_ms: 500,
+            scan_requested: true,
         };
 
         settings.load();
@@ -56,16 +58,19 @@ impl Service for Settings {
             let _ = fs::create_dir_all(&settings.directory);
         }
 
-        settings.scan();
-
         settings
     }
 
     fn interval() -> Duration {
-        Duration::from_secs(15)
+        Duration::from_secs(2)
     }
 
     fn update(&mut self) -> bool {
+        if !self.scan_requested {
+            return false;
+        }
+
+        self.scan_requested = false;
         self.scan()
     }
 }
@@ -172,6 +177,7 @@ impl Settings {
         let mut settings = Self::write();
 
         settings.directory = path;
+        settings.scan_requested = true;
         settings.save();
 
         // The service refreshes the gallery on its next background scan.
