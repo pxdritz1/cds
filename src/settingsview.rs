@@ -247,7 +247,7 @@ pub fn window() -> Window {
         .width(Parent),
     );
 
-    let media_settings = settings_card(WIDTH - PADDING * 2.0, 176.0, scheme.surface_container_low).child(
+    let media_settings = settings_card(WIDTH - PADDING * 2.0, 184.0, scheme.surface_container_low).child(
         Column::new(vec![
             Box::new(section(MUSIC, crate::lang::text("Player de mídia", "Media player"), scheme)),
             Box::new(Row::new(vec![
@@ -258,12 +258,13 @@ pub fn window() -> Window {
             ]).gap(8.0).width(Parent)),
             Box::new(section(TUNE, crate::lang::text("Largura máxima do título", "Maximum title width"), scheme)),
             Box::new(Row::new(vec![
-                boxed(chip("sv:media-width-104", "104 px", 78.0, media_title_max_width == 104, scheme, || Settings::set_media_title_max_width(104))),
-                boxed(chip("sv:media-width-160", "160 px", 78.0, media_title_max_width == 160, scheme, || Settings::set_media_title_max_width(160))),
-                boxed(chip("sv:media-width-220", "220 px", 78.0, media_title_max_width == 220, scheme, || Settings::set_media_title_max_width(220))),
-                boxed(chip("sv:media-width-280", "280 px", 78.0, media_title_max_width == 280, scheme, || Settings::set_media_title_max_width(280))),
-                boxed(chip("sv:media-width-360", "360 px", 78.0, media_title_max_width == 360, scheme, || Settings::set_media_title_max_width(360))),
-                boxed(chip("sv:media-width-440", "440 px", 78.0, media_title_max_width == 440, scheme, || Settings::set_media_title_max_width(440))),
+                boxed(chip("sv:media-width-104", "104 px", 72.0, media_title_max_width == 104, scheme, || Settings::set_media_title_max_width(104))),
+                boxed(chip("sv:media-width-160", "160 px", 72.0, media_title_max_width == 160, scheme, || Settings::set_media_title_max_width(160))),
+                boxed(chip("sv:media-width-220", "220 px", 72.0, media_title_max_width == 220, scheme, || Settings::set_media_title_max_width(220))),
+                boxed(chip("sv:media-width-280", "280 px", 72.0, media_title_max_width == 280, scheme, || Settings::set_media_title_max_width(280))),
+                boxed(chip("sv:media-width-320", "320 px", 72.0, media_title_max_width == 320, scheme, || Settings::set_media_title_max_width(320))),
+                boxed(chip("sv:media-width-400", "400 px", 72.0, media_title_max_width == 400, scheme, || Settings::set_media_title_max_width(400))),
+                boxed(chip("sv:media-width-520", "520 px", 72.0, media_title_max_width == 520, scheme, || Settings::set_media_title_max_width(520))),
             ]).gap(6.0).width(Parent)),
         ]).gap(9.0).width(Parent),
     );
