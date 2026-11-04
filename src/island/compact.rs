@@ -4,7 +4,7 @@
  * and the system status on the right (it opens the control center).
  */
 use amane::{
-    Audio, Battery, Bluetooth, Button, Center, Color, Monitor, Network, Parent, Pointer, Rectangle,
+    Audio, Battery, Bluetooth, Button, Center, Color, Media, Monitor, Network, Parent, Pointer, Rectangle,
     Row, Service, Widget, Workspace, Workspaces,
 };
 
@@ -17,7 +17,7 @@ use crate::theme::{Scheme, fade, mix};
 use crate::tray::Tray;
 use crate::weather::Weather;
 
-use super::widgets::{EXPAND_MORE, boxed, icon, text};
+use super::widgets::{EXPAND_MORE, MUSIC, boxed, icon, text};
 
 const DOT: f32 = 7.0;
 const FOCUSED: f32 = 22.0;
@@ -49,14 +49,31 @@ pub fn clock(scheme: &Scheme, alpha: f32) -> (Box<dyn Widget>, f32) {
         .align_child(Center, Center)
         .child(icon(crate::m3::SEARCH, ICON, scheme.on_surface_variant));
 
+    let media_playing = Media::read().playing();
     let weather = Weather::read();
-    let weather_icon = icon(weather.glyph(), ICON, scheme.on_surface_variant);
+    let weather_glyph = if media_playing { MUSIC } else { weather.glyph() };
+    let weather_icon = icon(weather_glyph, ICON, scheme.on_surface_variant);
+
+    let time_date = Rectangle::new()
+        .cursor(Pointer)
+        .on_click(|button| {
+            if button == Button::Left && Media::read().playing() {
+                crate::ui::Ui::toggle_media_sheet();
+            }
+        })
+        .child(
+            Row::new(vec![
+                boxed(time),
+                boxed(icon("·", 10.0, fade(scheme.on_surface_variant, 140))),
+                boxed(date),
+            ])
+            .gap(6.0)
+            .align(Center),
+        );
 
     let row = Row::new(vec![
         boxed(search),
-        boxed(time),
-        boxed(icon("·", 10.0, fade(scheme.on_surface_variant, 140))),
-        boxed(date),
+        boxed(time_date),
         boxed(weather_icon),
     ])
     .gap(6.0)
