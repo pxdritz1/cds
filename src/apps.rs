@@ -4,7 +4,7 @@
  */
 use amane::{
     Apps, Button, Center, Column, DesktopApp, Image, Key, LayerWindow, Monitor, Padding, Parent,
-    Pointer, Rectangle, Row, ScrollArea, Service, Widget,
+    Pointer, Rectangle, Row, ScrollArea, Widget,
 };
 
 use crate::m3::{self, Type, badge_shape, boxed, scale, scale_label, state_layer};
