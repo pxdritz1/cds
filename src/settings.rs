@@ -8,6 +8,7 @@ use amane::Service;
 use crate::theme::{self, config_home, home_directory};
 
 const EXTENSIONS: [&str; 3] = ["png", "jpg", "jpeg"];
+const MAX_WALLPAPERS: usize = 2000;
 
 pub const SCHEMES: [(&str, &str); 8] = [
     ("scheme-tonal-spot", "Tonal"),
@@ -61,7 +62,7 @@ impl Service for Settings {
     }
 
     fn interval() -> Duration {
-        Duration::from_secs(5)
+        Duration::from_secs(30)
     }
 
     fn update(&mut self) -> bool {
@@ -148,10 +149,16 @@ impl Settings {
     pub fn coordinates(&self) -> Option<(f32, f32)> {
         let (latitude, longitude) = self.location.trim().split_once(',')?;
 
-        Some((
-            latitude.trim().parse().ok()?,
-            longitude.trim().parse().ok()?,
-        ))
+        let latitude = latitude.trim().parse::<f32>().ok()?;
+        let longitude = longitude.trim().parse::<f32>().ok()?;
+
+        if !(-90.0..=90.0).contains(&latitude)
+            || !(-180.0..=180.0).contains(&longitude)
+        {
+            return None;
+        }
+
+        Some((latitude, longitude))
     }
 
     // moves the wallpaper source directory, rescanning right away
@@ -181,8 +188,17 @@ impl Settings {
                 return "failed: use latitude,longitude like -20.44,-54.65".into();
             };
 
-            if latitude.trim().parse::<f32>().is_err() || longitude.trim().parse::<f32>().is_err() {
+            let (Ok(latitude), Ok(longitude)) = (
+                latitude.trim().parse::<f32>(),
+                longitude.trim().parse::<f32>(),
+            ) else {
                 return "failed: latitude and longitude are numbers".into();
+            };
+
+            if !(-90.0..=90.0).contains(&latitude)
+                || !(-180.0..=180.0).contains(&longitude)
+            {
+                return "failed: latitude must be between -90 and 90 and longitude between -180 and 180".into();
             }
         }
 
@@ -354,7 +370,15 @@ impl Settings {
             text.push_str(&format!("flag.{name}={value}\n"));
         }
 
-        let _ = fs::write(file, text);
+        // Publish settings atomically: a crash or power loss must not leave
+        // a truncated config that resets the shell to its defaults.
+        let staged = file.with_extension("conf.tmp");
+
+        if fs::write(&staged, text).is_ok() {
+            if fs::rename(&staged, &file).is_err() {
+                let _ = fs::remove_file(staged);
+            }
+        }
     }
 
     fn scan(&mut self) -> bool {
@@ -362,13 +386,15 @@ impl Settings {
             .map(|entries| {
                 entries
                     .flatten()
+                    .take(MAX_WALLPAPERS)
                     .map(|entry| entry.path())
                     .filter(|path| {
-                        path.extension()
-                            .and_then(|extension| extension.to_str())
-                            .is_some_and(|extension| {
-                                EXTENSIONS.contains(&extension.to_lowercase().as_str())
-                            })
+                        path.is_file()
+                            && path.extension()
+                                .and_then(|extension| extension.to_str())
+                                .is_some_and(|extension| {
+                                    EXTENSIONS.contains(&extension.to_ascii_lowercase().as_str())
+                                })
                     })
                     .map(|path| path.to_string_lossy().into_owned())
                     .collect()
