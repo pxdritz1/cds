@@ -5,6 +5,8 @@
  * pages with the networks and devices around.
  */
 use std::cell::{Cell, RefCell};
+use std::process::Command;
+use std::time::Duration;
 
 use amane::{
     Bluetooth, Brightness, Button, Center, Column, Key, LayerWindow, Media, Monitor,
@@ -61,6 +63,82 @@ thread_local! {
     static PAGE: Cell<Page> = const { Cell::new(Page::Main) };
     static PENDING: RefCell<Option<String>> = const { RefCell::new(None) };
     static PASSWORD: RefCell<String> = const { RefCell::new(String::new()) };
+}
+
+#[derive(Default, PartialEq)]
+struct AudioDevices {
+    output_default: String,
+    outputs: Vec<String>,
+    input_default: String,
+    inputs: Vec<String>,
+    loaded: bool,
+}
+
+impl Service for AudioDevices {
+    fn new() -> Self {
+        Self::default()
+    }
+
+    fn interval() -> Duration {
+        Duration::from_secs(3)
+    }
+
+    fn update(&mut self) -> bool {
+        let Some((output_default, outputs, input_default, inputs)) = scan_audio_devices() else {
+            return false;
+        };
+
+        let next = Self {
+            output_default,
+            outputs,
+            input_default,
+            inputs,
+            loaded: true,
+        };
+
+        if *self == next {
+            return false;
+        }
+
+        *self = next;
+        true
+    }
+}
+
+fn pactl_output(arguments: &[&str]) -> Option<String> {
+    Command::new("timeout")
+        .arg("2s")
+        .arg("pactl")
+        .args(arguments)
+        .output()
+        .ok()
+        .filter(|result| result.status.success())
+        .map(|result| String::from_utf8_lossy(&result.stdout).into_owned())
+}
+
+fn scan_audio_devices() -> Option<(String, Vec<String>, String, Vec<String>)> {
+    let output_default = pactl_output(&["get-default-sink"])?.trim().to_owned();
+    let input_default = pactl_output(&["get-default-source"])?.trim().to_owned();
+    let outputs = parse_audio_devices(&pactl_output(&["list", "short", "sinks"])?, false);
+    let inputs = parse_audio_devices(&pactl_output(&["list", "short", "sources"])?, true);
+
+    Some((output_default, outputs, input_default, inputs))
+}
+
+fn parse_audio_devices(text: &str, exclude_monitors: bool) -> Vec<String> {
+    text.lines()
+        .filter_map(|line| {
+            let mut fields = line.split_whitespace();
+            let _index = fields.next()?;
+            let name = fields.next()?;
+
+            if exclude_monitors && name.ends_with(".monitor") {
+                return None;
+            }
+
+            Some(name.to_owned())
+        })
+        .collect()
 }
 
 fn page() -> Page {
@@ -386,41 +464,27 @@ fn toggles(scheme: &Scheme) -> Column {
 }
 
 fn audio_devices_page(scheme: &Scheme, output: bool) -> Box<dyn Widget> {
-    use std::process::Command;
-
     let title = if output { "Saídas de som" } else { "Entradas de som" };
-    let list_arg = if output { "sinks" } else { "sources" };
-    let default_arg = if output { "get-default-sink" } else { "get-default-source" };
+
+    let (default, devices, loaded) = {
+        let audio = AudioDevices::read();
+
+        if output {
+            (
+                audio.output_default.clone(),
+                audio.outputs.clone(),
+                audio.loaded,
+            )
+        } else {
+            (
+                audio.input_default.clone(),
+                audio.inputs.clone(),
+                audio.loaded,
+            )
+        }
+    };
+
     let set_arg = if output { "set-default-sink" } else { "set-default-source" };
-
-    let default = Command::new("pactl")
-        .arg(default_arg)
-        .output()
-        .ok()
-        .filter(|result| result.status.success())
-        .map(|result| String::from_utf8_lossy(&result.stdout).trim().to_string())
-        .unwrap_or_default();
-
-    let devices = Command::new("pactl")
-        .args(["list", "short", list_arg])
-        .output()
-        .ok()
-        .filter(|result| result.status.success())
-        .map(|result| {
-            String::from_utf8_lossy(&result.stdout)
-                .lines()
-                .filter_map(|line| {
-                    let mut fields = line.split_whitespace();
-                    let _index = fields.next()?;
-                    let name = fields.next()?.to_string();
-                    if !output && name.ends_with(".monitor") {
-                        return None;
-                    }
-                    Some(name)
-                })
-                .collect::<Vec<_>>()
-        })
-        .unwrap_or_default();
 
     let mut rows: Vec<Box<dyn Widget>> = vec![boxed(
         Row::new(vec![
@@ -452,8 +516,18 @@ fn audio_devices_page(scheme: &Scheme, output: bool) -> Box<dyn Widget> {
         ));
     }
 
-    if devices.is_empty() {
-        rows.push(boxed(scale(Type::BodyMedium, "Nenhum dispositivo encontrado pelo pactl", scheme.on_surface_variant)));
+    if !loaded {
+        rows.push(boxed(scale(
+            Type::BodyMedium,
+            "Carregando dispositivos…",
+            scheme.on_surface_variant,
+        )));
+    } else if devices.is_empty() {
+        rows.push(boxed(scale(
+            Type::BodyMedium,
+            "Nenhum dispositivo encontrado pelo pactl",
+            scheme.on_surface_variant,
+        )));
     }
 
     boxed(ScrollArea::new(
