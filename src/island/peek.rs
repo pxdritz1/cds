@@ -69,7 +69,7 @@ pub fn media(scheme: &Scheme, alpha: f32) -> Box<dyn Widget> {
         .cursor(amane::Pointer)
         .on_click(|button| {
             if button == amane::Button::Left {
-                crate::ui::Ui::toggle_media_sheet();
+                crate::ui::Ui::toggle();
             }
         })
         .align_child(Center, Center)
