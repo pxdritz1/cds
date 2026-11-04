@@ -130,7 +130,7 @@ impl Service for TrayWatcher {
         let connection = match builder.and_then(|builder| builder.build()) {
             Ok(connection) => connection,
             Err(error) => {
-                eprintln!("CDS: não foi possível iniciar StatusNotifierWatcher: {error}");
+                eprintln!("CDS: could not start StatusNotifierWatcher: {error}");
                 return;
             }
         };
@@ -141,7 +141,7 @@ impl Service for TrayWatcher {
             Ok(RequestNameReply::PrimaryOwner | RequestNameReply::AlreadyOwner) => true,
             Ok(_) => false,
             Err(error) => {
-                eprintln!("CDS: falha ao reivindicar {name}: {error}");
+                eprintln!("CDS: failed to claim {name}: {error}");
                 false
             }
         };
@@ -151,12 +151,12 @@ impl Service for TrayWatcher {
         let owns_kde = request_name("org.kde.StatusNotifierWatcher");
 
         if !owns_freedesktop && !owns_kde {
-            eprintln!("CDS: outro StatusNotifierWatcher já está ativo no barramento");
+            eprintln!("CDS: another StatusNotifierWatcher is already active on the bus");
             return;
         }
 
         eprintln!(
-            "CDS: StatusNotifierWatcher ativo (freedesktop: {}, KDE: {})",
+            "CDS: StatusNotifierWatcher active (freedesktop: {}, KDE: {})",
             owns_freedesktop, owns_kde,
         );
 
