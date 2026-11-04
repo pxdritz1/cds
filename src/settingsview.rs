@@ -4,7 +4,7 @@ use amane::{
 };
 
 use crate::island::widgets::{
-    DARK_MODE, LIGHT_MODE, OPEN_NEW, CLEAR_DAY, TUNE, boxed, chip, icon, label, text,
+    DARK_MODE, LIGHT_MODE, OPEN_NEW, CLEAR_DAY, TUNE, MUSIC, boxed, chip, icon, label, text,
 };
 use crate::settings::Settings;
 use crate::theme::{Scheme, Theme};
@@ -145,6 +145,11 @@ pub fn window() -> Window {
     let hover_dash = settings.flag("hover_dash");
     let hover_delay_ms = settings.hover_delay_ms();
     let trans_meter_colors = settings.flag("trans_meter_colors");
+    let media_title = settings.flag("media_show_title");
+    let media_artist = settings.flag("media_show_artist");
+    let media_clock = settings.flag("media_show_clock");
+    let media_artwork = settings.flag("media_show_artwork");
+    let media_title_max_width = settings.media_title_max_width();
 
     let current = String::from(settings.scheme_name());
 
@@ -240,6 +245,27 @@ pub fn window() -> Window {
         ])
         .gap(10.0)
         .width(Parent),
+    );
+
+    let media_settings = settings_card(WIDTH - PADDING * 2.0, 176.0, scheme.surface_container_low).child(
+        Column::new(vec![
+            Box::new(section(MUSIC, crate::lang::text("Player de mídia", "Media player"), scheme)),
+            Box::new(Row::new(vec![
+                boxed(chip("sv:media-title", crate::lang::text("Título", "Title"), 112.0, media_title, scheme, || { Settings::toggle_flag("media_show_title"); crate::ui::Ui::refresh(); })),
+                boxed(chip("sv:media-artist", crate::lang::text("Artista", "Artist"), 112.0, media_artist, scheme, || { Settings::toggle_flag("media_show_artist"); crate::ui::Ui::refresh(); })),
+                boxed(chip("sv:media-clock", crate::lang::text("Relógio", "Clock"), 112.0, media_clock, scheme, || { Settings::toggle_flag("media_show_clock"); crate::ui::Ui::refresh(); })),
+                boxed(chip("sv:media-artwork", crate::lang::text("Capa", "Artwork"), 112.0, media_artwork, scheme, || { Settings::toggle_flag("media_show_artwork"); crate::ui::Ui::refresh(); })),
+            ]).gap(8.0).width(Parent)),
+            Box::new(section(TUNE, crate::lang::text("Largura máxima do título", "Maximum title width"), scheme)),
+            Box::new(Row::new(vec![
+                boxed(chip("sv:media-width-104", "104 px", 78.0, media_title_max_width == 104, scheme, || Settings::set_media_title_max_width(104))),
+                boxed(chip("sv:media-width-160", "160 px", 78.0, media_title_max_width == 160, scheme, || Settings::set_media_title_max_width(160))),
+                boxed(chip("sv:media-width-220", "220 px", 78.0, media_title_max_width == 220, scheme, || Settings::set_media_title_max_width(220))),
+                boxed(chip("sv:media-width-280", "280 px", 78.0, media_title_max_width == 280, scheme, || Settings::set_media_title_max_width(280))),
+                boxed(chip("sv:media-width-360", "360 px", 78.0, media_title_max_width == 360, scheme, || Settings::set_media_title_max_width(360))),
+                boxed(chip("sv:media-width-440", "440 px", 78.0, media_title_max_width == 440, scheme, || Settings::set_media_title_max_width(440))),
+            ]).gap(6.0).width(Parent)),
+        ]).gap(9.0).width(Parent),
     );
 
     let appearance = settings_card(WIDTH - PADDING * 2.0, 330.0, scheme.surface_container_low).child(
@@ -386,6 +412,7 @@ pub fn window() -> Window {
                         "settings-panels",
                         Column::new(vec![
                             Box::new(appearance),
+                            Box::new(media_settings),
                             Box::new(behavior),
                             Box::new(wallpapers),
                             Box::new(climate),
