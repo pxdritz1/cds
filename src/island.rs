@@ -221,12 +221,12 @@ pub fn right(monitor: &Monitor) -> LayerWindow {
                 .height(Parent)
                 // Leaving the tray's input area dismisses it. This does not
                 // open the tray on hover; it only observes pointer departure.
-                .on_hover(|inside| {
+                .on_hover(move |inside| {
                     if tray_open && !inside {
                         Tray::close();
                     }
                 })
-                .on_click(|_| {
+                .on_click(move |_| {
                     if tray_open {
                         Tray::close();
                     }
