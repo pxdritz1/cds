@@ -120,19 +120,18 @@ impl Launcher {
 fn filtered<'a>(apps: &'a [DesktopApp], query: &str) -> Vec<&'a DesktopApp> {
     let needle = query.trim().to_lowercase();
 
-    if needle.is_empty() {
-        return apps.iter().collect();
-    }
-
-    let mut results: Vec<&DesktopApp> = apps
-        .iter()
-        .filter(|app| {
-            app.name().to_lowercase().contains(&needle)
-                || app
-                    .description()
-                    .is_some_and(|description| description.to_lowercase().contains(&needle))
-        })
-        .collect();
+    let mut results: Vec<&DesktopApp> = if needle.is_empty() {
+        apps.iter().collect()
+    } else {
+        apps.iter()
+            .filter(|app| {
+                app.name().to_lowercase().contains(&needle)
+                    || app
+                        .description()
+                        .is_some_and(|description| description.to_lowercase().contains(&needle))
+            })
+            .collect()
+    };
 
     let settings = crate::settings::Settings::read();
     results.sort_by_key(|app| !settings.is_pinned(app.exec()));
