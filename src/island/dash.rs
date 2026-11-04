@@ -67,10 +67,10 @@ pub fn view(scheme: &Scheme, tab: Tab, alpha: f32) -> Rectangle {
 fn rail(scheme: &Scheme, tab: Tab) -> Column {
     let items = [
         (Tab::Home, m3::HOME, "Home", "home"),
-        (Tab::Media, m3::MUSIC, "Mídia", "media"),
-        (Tab::Weather, m3::CLOUDY, "Clima", "weather"),
-        (Tab::Wallpapers, m3::WALLPAPER, "Papéis", "wallpapers"),
-        (Tab::Alerts, m3::BELL, "Alertas", "alerts"),
+        (Tab::Media, m3::MUSIC, crate::lang::text("Mídia", "Media"), "media"),
+        (Tab::Weather, m3::CLOUDY, crate::lang::text("Clima", "Weather"), "weather"),
+        (Tab::Wallpapers, m3::WALLPAPER, crate::lang::text("Papéis", "Wallpapers"), "wallpapers"),
+        (Tab::Alerts, m3::BELL, crate::lang::text("Alertas", "Alerts"), "alerts"),
     ];
 
     let mut children: Vec<Box<dyn Widget>> = vec![boxed(
@@ -244,7 +244,7 @@ fn weather_reading() -> (String, String, String, String, &'static str) {
     };
 
     (
-        fallback(weather.condition(), "Sem dados"),
+        fallback(weather.condition(), crate::lang::text("Sem dados", "No data")),
         fallback(weather.temperature(), "—"),
         fallback(weather.humidity(), "—"),
         fallback(weather.wind(), "—"),
@@ -254,7 +254,7 @@ fn weather_reading() -> (String, String, String, String, &'static str) {
 
 fn labels(media: &Media) -> (String, String) {
     if media.active().is_none() {
-        return (String::from("Nada tocando"), String::from("Sem player"));
+        return (String::from(crate::lang::text("Nada tocando", "Nothing playing")), String::from(crate::lang::text("Sem player", "No player")));
     }
 
     crate::art::media_labels(media)
@@ -395,7 +395,7 @@ fn meters(scheme: &Scheme) -> Rectangle {
     let battery = Battery::read();
 
     if battery.present() {
-        rows.push(boxed(meter("Bateria", battery.percent(), inner, scheme)));
+        rows.push(boxed(meter(crate::lang::text("Bateria", "Battery"), battery.percent(), inner, scheme)));
     }
 
     card(METERS, ROW_B, scheme.surface_container_high).child(
@@ -582,7 +582,7 @@ fn weather_tab(scheme: &Scheme) -> Box<dyn Widget> {
                 .align_child(Center, Center)
                 .child(scale(
                     Type::LabelLarge,
-                    "A previsão por hora chega no próximo ciclo",
+                    crate::lang::text("A previsão por hora chega no próximo ciclo", "Hourly forecast will appear after the next update"),
                     scheme.on_surface_variant,
                 )),
         )
@@ -653,7 +653,7 @@ fn wallpapers(scheme: &Scheme) -> Box<dyn Widget> {
     let modes = Row::new(vec![
         boxed(m3::chip(
             "mode:dark",
-            "Escuro",
+            crate::lang::text("Escuro", "Dark"),
             96.0,
             settings.dark(),
             scheme,
@@ -661,7 +661,7 @@ fn wallpapers(scheme: &Scheme) -> Box<dyn Widget> {
         )),
         boxed(m3::chip(
             "mode:light",
-            "Claro",
+            crate::lang::text("Claro", "Light"),
             96.0,
             !settings.dark(),
             scheme,
@@ -692,8 +692,8 @@ fn wallpapers(scheme: &Scheme) -> Box<dyn Widget> {
     let grid: Box<dyn Widget> = if rows.is_empty() {
         boxed(empty(
             m3::WALLPAPER,
-            "Nenhum papel de parede",
-            "Coloque imagens em ~/Pictures/Wallpapers",
+            crate::lang::text("Nenhum papel de parede", "No wallpapers found"),
+            crate::lang::text("Coloque imagens em ~/Pictures/Wallpapers", "Add images to ~/Pictures/Wallpapers"),
             list_height,
             scheme,
         ))
@@ -766,8 +766,8 @@ fn alerts(scheme: &Scheme) -> Box<dyn Widget> {
     let body: Box<dyn Widget> = if list.is_empty() {
         boxed(empty(
             m3::BELL,
-            "Tudo em dia",
-            "As notificações novas aparecem aqui",
+            crate::lang::text("Tudo em dia", "All caught up"),
+            crate::lang::text("As notificações novas aparecem aqui", "New notifications will show up here"),
             list_height,
             scheme,
         ))
