@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::thread;
 use std::time::{Duration, Instant};
 
@@ -10,6 +11,8 @@ use crate::theme::{self, config_home, home_directory};
 
 const EXTENSIONS: [&str; 3] = ["png", "jpg", "jpeg"];
 const MAX_WALLPAPERS: usize = 2000;
+
+static SCAN_GENERATION: AtomicU64 = AtomicU64::new(1);
 
 pub const SCHEMES: [(&str, &str); 8] = [
     ("scheme-tonal-spot", "Tonal"),
@@ -31,8 +34,6 @@ pub struct Settings {
     wallpapers: Vec<String>,
     flags: BTreeMap<String, bool>,
     hover_delay_ms: u64,
-    scan_requested: bool,
-    last_scan: Instant,
 }
 
 fn default_flag(name: &str) -> bool {
@@ -50,8 +51,6 @@ impl Service for Settings {
             wallpapers: Vec::new(),
             flags: BTreeMap::new(),
             hover_delay_ms: 500,
-            scan_requested: true,
-            last_scan: Instant::now(),
         };
 
         settings.load();
@@ -65,31 +64,31 @@ impl Service for Settings {
     }
 
     fn listen() {
+        let mut scanned_generation = 0;
+        let mut last_scan: Option<Instant> = None;
+
         loop {
-            let directory = {
-                let settings = Self::read();
+            let generation = SCAN_GENERATION.load(Ordering::Relaxed);
+            let due = generation != scanned_generation
+                || last_scan.is_none_or(|last| last.elapsed() >= Duration::from_secs(60));
 
-                if settings.scan_requested
-                    || settings.last_scan.elapsed() >= Duration::from_secs(60)
-                {
-                    Some(settings.directory.clone())
-                } else {
-                    None
-                }
-            };
+            if due {
+                let directory = Self::read().directory.clone();
 
-            if let Some(directory) = directory {
                 // Directory I/O happens without holding the shared service lock.
                 let found = scan_directory(&directory);
-                let mut settings = Self::write();
 
-                if settings.directory == directory {
+                if generation == SCAN_GENERATION.load(Ordering::Relaxed) {
                     if let Some(found) = found {
-                        settings.wallpapers = found;
+                        let mut settings = Self::write();
+
+                        if settings.directory == directory && settings.wallpapers != found {
+                            settings.wallpapers = found;
+                        }
                     }
 
-                    settings.scan_requested = false;
-                    settings.last_scan = Instant::now();
+                    scanned_generation = generation;
+                    last_scan = Some(Instant::now());
                 }
             }
 
@@ -200,7 +199,7 @@ impl Settings {
         let mut settings = Self::write();
 
         settings.directory = path;
-        settings.scan_requested = true;
+        SCAN_GENERATION.fetch_add(1, Ordering::Relaxed);
         settings.save();
 
         // The service refreshes the gallery on its next background scan.
