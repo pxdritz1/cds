@@ -84,11 +84,13 @@ pub fn reserve(_: &Monitor) -> LayerWindow {
         && !ui.media_sheet()
         && !ui.dash()
         && !notification_preview_active();
-    let notice_expanded = notification_preview_active() && ui.hover() && !ui.dash();
+    let notice_active = notification_preview_active() && !ui.dash();
     let reserved_height = if media_visible {
         peek::MEDIA_HEIGHT + 6.0
-    } else if notice_expanded {
+    } else if notice_active && ui.hover() {
         peek::NOTICE_HEIGHT + 6.0
+    } else if notice_active {
+        peek::NOTICE_COMPACT_HEIGHT + 6.0
     } else {
         RESERVED
     };
