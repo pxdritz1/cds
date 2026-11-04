@@ -13,7 +13,7 @@ use crate::art::{artwork, media_labels};
 use crate::clock::Clock;
 use crate::theme::Scheme;
 use super::widgets::{
-    BELL, CLOSE, NEXT, PAUSE, PLAY, boxed, icon, icon_button, label, round_button,
+    BELL, CLOSE, boxed, icon, icon_button, label,
 };
 
 pub const MEDIA_WIDTH: f32 = 300.0;
@@ -346,27 +346,52 @@ fn marquee_label(
     size: f32,
     color: amane::Color,
     weight: amane::Weight,
-) -> amane::Text {
-    const VISIBLE_CHARS: usize = 17;
-    const STEP_MS: u128 = 280;
+) -> Rectangle {
+    const VIEWPORT: f32 = 104.0;
+    const SPEED: f32 = 28.0;
     static START: OnceLock<Instant> = OnceLock::new();
 
-    let chars: Vec<char> = content.chars().collect();
-    if chars.len() <= VISIBLE_CHARS {
-        return m3::label(content, size, color, weight, 1);
+    let text = m3::text(content.clone(), size, color, weight);
+    let text_width = m3::measured(&text);
+
+    if text_width <= VIEWPORT {
+        return Rectangle::new()
+            .width(VIEWPORT)
+            .height(18.0)
+            .clip()
+            .align_child(amane::Start, Center)
+            .child(text);
     }
 
-    let elapsed = START.get_or_init(Instant::now).elapsed();
+    let separator = "   •   ";
+    let separator_text = m3::text(separator, size, color, weight);
+    let separator_width = m3::measured(&separator_text);
+    let loop_width = text_width + separator_width;
+
+    let elapsed = START.get_or_init(Instant::now).elapsed().as_secs_f32();
     request_frame();
 
-    let separator: Vec<char> = "   •   ".chars().collect();
-    let mut tape = chars.clone();
-    tape.extend(separator);
-    let offset = ((elapsed.as_millis() / STEP_MS) as usize) % tape.len();
+    let offset = (elapsed * SPEED) % loop_width;
+    let repeated = Row::new(vec![
+        boxed(text.clone()),
+        boxed(m3::text(separator, size, color, weight)),
+        boxed(m3::text(content.clone(), size, color, weight)),
+        boxed(m3::text(separator, size, color, weight)),
+    ])
+    .gap(0.0)
+    .align(Center)
+    .width(loop_width * 2.0)
+    .height(18.0);
 
-    let window = (0..VISIBLE_CHARS)
-        .map(|step| tape[(offset + step) % tape.len()])
-        .collect::<String>();
-
-    m3::label(window, size, color, weight, 1)
+    Rectangle::new()
+        .width(VIEWPORT)
+        .height(18.0)
+        .clip()
+        .child(
+            Rectangle::new()
+                .width(loop_width * 2.0)
+                .height(18.0)
+                .translate(-offset, 0.0)
+                .child(repeated),
+        )
 }
