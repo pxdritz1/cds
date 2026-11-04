@@ -334,7 +334,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
 
     let header = Row::new(vec![
         boxed(text(
-            "Clipboard",
+            crate::lang::text("Área de transferência", "Clipboard"),
             20.0,
             scheme.on_surface,
             amane::Weight::SemiBold,
@@ -384,7 +384,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
                 String::from("Nothing copied yet")
             } else {
                 format!(
-                    "{count} item{}  ·  ↑↓ choose  ·  Enter copies",
+                    crate::lang::text("{count} item(ns)  ·  ↑↓ selecionar  ·  Enter copiar", "{count} item(s)  ·  ↑↓ choose  ·  Enter copies"),
                     if count == 1 { "" } else { "s" }
                 )
             },
@@ -393,7 +393,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
             amane::Weight::Medium,
         )),
         boxed(text(
-            crate::lang::text("Esc fecha", "Esc closes"),
+            crate::lang::text("Esc fecha", crate::lang::text("Esc fecha", "Esc closes")),
             11.5,
             fade(scheme.on_surface_variant, 170),
             amane::Weight::Regular,
