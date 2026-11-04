@@ -103,11 +103,6 @@ pub fn clock(scheme: &Scheme, alpha: f32) -> (Box<dyn Widget>, f32) {
         .height(Parent)
         .cursor(Pointer)
         .align_child(Center, Center)
-        .on_click(|button| {
-            if button == Button::Left && Media::read().playing() {
-                crate::ui::Ui::toggle_media_sheet();
-            }
-        })
         .child(
             Row::new(vec![
                 boxed(time),
