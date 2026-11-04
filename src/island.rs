@@ -66,7 +66,7 @@ const TRAY_PADDING: f32 = 8.0;
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum IslandMode {
     Compact = 0,       // the clock
-    Media = 1,         // the hover peek for the current player
+    Media = 1,         // the player-and-clock sheet
     NoticeCompact = 2, // a notification arriving
     Notice = 3,        // an expanded notification preview
     Dash = 4,          // the full dash
@@ -267,9 +267,12 @@ pub fn right(monitor: &Monitor) -> LayerWindow {
 pub fn view(monitor: &Monitor) -> LayerWindow {
     let theme = Theme::read();
     let scheme = theme.scheme();
-    let ui = Ui::read();
     let notifications = Notifications::read();
-    let has_media = Media::read().active().is_some();
+    let has_media = Media::read().playing();
+    if !has_media {
+        Ui::reset_media_sheet();
+    }
+    let ui = Ui::read();
 
     let notice = recent(&notifications);
 
@@ -279,7 +282,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
         IslandMode::Notice
     } else if notice.is_some() {
         IslandMode::NoticeCompact
-    } else if ui.hover() && has_media {
+    } else if has_media && !ui.media_sheet() {
         IslandMode::Media
     } else {
         IslandMode::Compact
