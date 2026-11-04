@@ -84,7 +84,7 @@ impl Service for Tray {
     }
 
     fn interval() -> Duration {
-        Duration::from_millis(2500)
+        Duration::from_secs(5)
     }
 
     fn update(&mut self) -> bool {
