@@ -8,7 +8,7 @@ use std::cell::{Cell, RefCell};
 
 use amane::{
     Bluetooth, Brightness, Button, Center, Column, Key, LayerWindow, Media, Monitor,
-    Network, Notification, Notifications, Padding, Parent, Rectangle, Row, Scroll, ScrollArea, Service,
+    Network, Notification, Notifications, Padding, Parent, Rectangle, Row, ScrollArea, Service,
     Widget,
 };
 
