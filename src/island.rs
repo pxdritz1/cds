@@ -369,7 +369,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
 
         IslandMode::Media => (
             peek::media(scheme, alpha),
-            peek::MEDIA_WIDTH,
+            peek::media_width(),
             peek::MEDIA_HEIGHT,
             crate::m3::shape::ISLAND_EXPANDED,
         ),
