@@ -91,7 +91,8 @@ impl Service for Tray {
                 let changed = Self::read().items != items;
 
                 if changed {
-                    Self::write().items = items;
+                    let mut tray = Self::write();
+                    tray.items = items;
                 }
             }
 
