@@ -5,7 +5,8 @@
  */
 use std::f32::consts::TAU;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
-use std::time::Duration;
+use std::sync::OnceLock;
+use std::time::{Duration, Instant};
 
 use amane::{
     Arc, Canvas, Cap, Center, Column, End, Full, Horizontal, Image, Keyboard, Layer,
@@ -24,12 +25,39 @@ const PASSWORD: &str = "cds-lockscreen-password";
 
 static PASSWORD_LENGTH: AtomicUsize = AtomicUsize::new(0);
 static POWER_MENU_OPEN: AtomicBool = AtomicBool::new(false);
+static LOCKSCREEN_INTRO: OnceLock<Instant> = OnceLock::new();
+
+fn entrance(delay_ms: u64) -> f32 {
+    let elapsed = LOCKSCREEN_INTRO
+        .get_or_init(Instant::now)
+        .elapsed()
+        .as_millis() as u64;
+
+    let progress = (elapsed.saturating_sub(delay_ms) as f32 / 460.0).clamp(0.0, 1.0);
+    1.0 - (1.0 - progress).powi(3)
+}
 
 pub fn view(monitor: &Monitor) -> LayerWindow {
     let theme = Theme::read();
     let scheme = theme.scheme();
     let shortest = monitor.width.min(monitor.height) as f32;
     let ui_scale = (shortest / 900.0).clamp(0.76, 1.12);
+
+    // Stagger the corner widgets so the lock screen settles in layers rather
+    // than popping into place all at once. The shared clock schedules frames
+    // only for this short entrance sequence.
+    let center_intro = entrance(70);
+    let analog_intro = entrance(150);
+    let weather_intro = entrance(220);
+    let user_intro = entrance(290);
+
+    if center_intro < 0.999
+        || analog_intro < 0.999
+        || weather_intro < 0.999
+        || user_intro < 0.999
+    {
+        request_frame();
+    }
 
     let clock = Clock::read();
     let lock = Lock::read();
@@ -339,6 +367,12 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
         );
 
     let power_menu_open = POWER_MENU_OPEN.load(Ordering::Relaxed);
+    let power_intro = crate::motion::fade("lockscreen:power-menu", u64::from(power_menu_open));
+
+    if power_menu_open && power_intro < 0.999 {
+        request_frame();
+    }
+
     let power_menu = if power_menu_open {
         Some(power_menu(scheme, ui_scale))
     } else {
@@ -352,6 +386,9 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
             Rectangle::new()
                 .width(Parent)
                 .height(Parent)
+                .opacity(center_intro)
+                .scale(0.94 + 0.06 * center_intro)
+                .translate(0.0, 24.0 * (1.0 - center_intro))
                 .align_child(Center, Center)
                 .child(center_panel),
         ),
@@ -365,6 +402,9 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
                     bottom: 0.0,
                     left: 0.0,
                 })
+                .opacity(analog_intro)
+                .scale(0.94 + 0.06 * analog_intro)
+                .translate(22.0 * (1.0 - analog_intro), 0.0)
                 .align_child(End, amane::Start)
                 .child(analog_panel),
         ),
@@ -378,6 +418,9 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
                     bottom: 36.0 * ui_scale,
                     left: 40.0 * ui_scale,
                 })
+                .opacity(weather_intro)
+                .scale(0.94 + 0.06 * weather_intro)
+                .translate(-22.0 * (1.0 - weather_intro), 0.0)
                 .align_child(amane::Start, End)
                 .child(weather_panel),
         ),
@@ -391,6 +434,9 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
                     bottom: 36.0 * ui_scale,
                     left: 0.0,
                 })
+                .opacity(user_intro)
+                .scale(0.94 + 0.06 * user_intro)
+                .translate(0.0, 20.0 * (1.0 - user_intro))
                 .align_child(End, End)
                 .child(user_media_panel),
         ),
@@ -407,6 +453,9 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
                     bottom: 210.0 * ui_scale,
                     left: 0.0,
                 })
+                .opacity(power_intro)
+                .scale(0.96 + 0.04 * power_intro)
+                .translate(0.0, 12.0 * (1.0 - power_intro))
                 .align_child(End, End)
                 .child(menu),
         ));
