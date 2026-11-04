@@ -282,7 +282,7 @@ pub fn window() -> Window {
             )),
             Box::new(text(
                 &format!(
-                    "{}",
+                    "{} {}",
                     Settings::read().wallpapers().len(),
                     crate::lang::text("imagens encontradas", "images found")
                 ),
