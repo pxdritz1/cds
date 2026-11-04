@@ -37,7 +37,6 @@ pub fn media(scheme: &Scheme, alpha: f32) -> Box<dyn Widget> {
             13.5,
             scheme.on_surface,
             amane::Weight::SemiBold,
-            130.0,
         )),
         boxed(label(
             artist,
@@ -360,7 +359,6 @@ fn marquee_label(
     size: f32,
     color: amane::Color,
     weight: amane::Weight,
-    width: usize,
 ) -> amane::Text {
     const VISIBLE_CHARS: usize = 17;
     const STEP_MS: u128 = 280;
@@ -383,6 +381,5 @@ fn marquee_label(
         .map(|step| tape[(offset + step) % tape.len()])
         .collect::<String>();
 
-    let _ = width;
     label(window, size, color, weight, 1)
 }
