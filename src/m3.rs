@@ -1,5 +1,6 @@
 use std::f32::consts::TAU;
-use std::time::{Duration, Instant, OnceLock, SystemTime, UNIX_EPOCH};
+use std::sync::OnceLock;
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use amane::{
     Arc, Button, Canvas, Cap, Center, Color, Column, Padding, Parent, Path, Pointer, Rectangle,
