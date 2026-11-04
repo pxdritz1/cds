@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
+use std::thread;
 use std::time::{Duration, Instant};
 
 use amane::Service;
@@ -63,22 +64,37 @@ impl Service for Settings {
         settings
     }
 
-    fn interval() -> Duration {
-        Duration::from_secs(2)
-    }
+    fn listen() {
+        loop {
+            let directory = {
+                let settings = Self::read();
 
-    fn update(&mut self) -> bool {
-        // Rescan after a directory change immediately, otherwise only once
-        // per minute so external wallpaper changes still appear without
-        // walking the folder on every service tick.
-        if !self.scan_requested && self.last_scan.elapsed() < Duration::from_secs(60) {
-            return false;
+                if settings.scan_requested
+                    || settings.last_scan.elapsed() >= Duration::from_secs(60)
+                {
+                    Some(settings.directory.clone())
+                } else {
+                    None
+                }
+            };
+
+            if let Some(directory) = directory {
+                // Directory I/O happens without holding the shared service lock.
+                let found = scan_directory(&directory);
+                let mut settings = Self::write();
+
+                if settings.directory == directory {
+                    if let Some(found) = found {
+                        settings.wallpapers = found;
+                    }
+
+                    settings.scan_requested = false;
+                    settings.last_scan = Instant::now();
+                }
+            }
+
+            thread::sleep(Duration::from_secs(1));
         }
-
-        self.scan_requested = false;
-        let changed = self.scan();
-        self.last_scan = Instant::now();
-        changed
     }
 }
 
@@ -394,34 +410,28 @@ impl Settings {
         }
     }
 
-    fn scan(&mut self) -> bool {
-        let mut found: Vec<String> = fs::read_dir(&self.directory)
-            .map(|entries| {
-                entries
-                    .flatten()
-                    .take(MAX_WALLPAPERS)
-                    .map(|entry| entry.path())
-                    .filter(|path| {
-                        path.is_file()
-                            && path.extension()
-                                .and_then(|extension| extension.to_str())
-                                .is_some_and(|extension| {
-                                    EXTENSIONS.contains(&extension.to_ascii_lowercase().as_str())
-                                })
+}
+
+fn scan_directory(directory: &Path) -> Option<Vec<String>> {
+    let mut found: Vec<String> = fs::read_dir(directory)
+        .ok()?
+        .flatten()
+        .take(MAX_WALLPAPERS)
+        .map(|entry| entry.path())
+        .filter(|path| {
+            path.is_file()
+                && path.extension()
+                    .and_then(|extension| extension.to_str())
+                    .is_some_and(|extension| {
+                        EXTENSIONS.contains(&extension.to_ascii_lowercase().as_str())
                     })
-                    .map(|path| path.to_string_lossy().into_owned())
-                    .collect()
-            })
-            .unwrap_or_default();
+        })
+        .map(|path| path.to_string_lossy().into_owned())
+        .collect();
 
-        found.sort();
-
-        let changed = found != self.wallpapers;
-
-        self.wallpapers = found;
-
-        changed
-    }
+    found.sort();
+    Some(found)
+}
 }
 
 /*
