@@ -8,7 +8,7 @@ use std::cell::{Cell, RefCell};
 
 use amane::{
     Battery, Bluetooth, Brightness, Button, Center, Column, Key, LayerWindow, Media, Monitor,
-    Network, Notification, Notifications, Padding, Parent, Rectangle, Row, ScrollArea, Service,
+    Network, Notification, Notifications, Padding, Parent, Rectangle, Row, Scroll, ScrollArea, Service,
     Widget,
 };
 
@@ -41,6 +41,8 @@ enum Page {
     Main,
     Wifi,
     Bluetooth,
+    Output,
+    Input,
 }
 
 impl Page {
@@ -49,6 +51,8 @@ impl Page {
             Page::Main => 0,
             Page::Wifi => 1,
             Page::Bluetooth => 2,
+            Page::Output => 3,
+            Page::Input => 4,
         }
     }
 }
@@ -81,7 +85,7 @@ fn go(next: Page) {
     match next {
         Page::Wifi => Network::scan(),
         Page::Bluetooth => Bluetooth::start_scan(),
-        Page::Main => {}
+        Page::Output | Page::Input | Page::Main => {}
     }
 
     Ui::refresh();
@@ -102,6 +106,8 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
         Page::Main => main_page(scheme),
         Page::Wifi => wifi_page(scheme),
         Page::Bluetooth => bluetooth_page(scheme),
+        Page::Output => audio_devices_page(scheme, true),
+        Page::Input => audio_devices_page(scheme, false),
     };
 
     let alpha = motion::fade("control-page", page().index());
@@ -259,10 +265,10 @@ fn toggles(scheme: &Scheme) -> Column {
         )
     };
 
-    let (mic_muted, mic_volume) = {
+    let (output_muted, output_volume, mic_muted, mic_volume) = {
         let audio = amane::Audio::read();
 
-        (audio.microphone_muted(), audio.microphone_volume())
+        (audio.muted(), audio.volume(), audio.microphone_muted(), audio.microphone_volume())
     };
 
     let dark = Settings::read().dark();
@@ -314,6 +320,25 @@ fn toggles(scheme: &Scheme) -> Column {
         Some(Box::new(|| go(Page::Bluetooth))),
     );
 
+    let sound = tile(
+        Tile {
+            key: "ctl:sound",
+            glyph: glyphs::volume(output_volume, output_muted),
+            title: "Som",
+            subtitle: &if output_muted { String::from("Silenciado") } else { format!("{output_volume}%") },
+            active: !output_muted,
+        },
+        HALF,
+        scheme,
+        amane::Audio::toggle_mute,
+        Some(Box::new(|| go(Page::Output))),
+    )
+    .on_scroll(|scroll| {
+        let volume = i32::from(amane::Audio::read().volume());
+        let step = if scroll.y < 0.0 { 5 } else { -5 };
+        amane::Audio::set_volume((volume + step).clamp(0, 100) as u8);
+    });
+
     let mic = tile(
         Tile {
             key: "ctl:mic",
@@ -329,8 +354,13 @@ fn toggles(scheme: &Scheme) -> Column {
         HALF,
         scheme,
         amane::Audio::toggle_microphone_mute,
-        None,
-    );
+        Some(Box::new(|| go(Page::Input))),
+    )
+    .on_scroll(|scroll| {
+        let volume = i32::from(amane::Audio::read().microphone_volume());
+        let step = if scroll.y < 0.0 { 5 } else { -5 };
+        amane::Audio::set_microphone_volume((volume + step).clamp(0, 100) as u8);
+    });
 
     let silence = tile(
         Tile {
@@ -360,27 +390,88 @@ fn toggles(scheme: &Scheme) -> Column {
         None,
     );
 
-    let power = tile(
-        Tile {
-            key: "ctl:battery",
-            glyph: glyphs::battery(battery_percent, charging),
-            title: "Bateria",
-            subtitle: &battery_subtitle,
-            active: charging,
-        },
-        HALF,
-        scheme,
-        || {},
-        None,
-    );
-
     Column::new(vec![
         boxed(Row::new(vec![boxed(wifi), boxed(bluetooth)]).gap(8.0)),
-        boxed(Row::new(vec![boxed(mic), boxed(silence)]).gap(8.0)),
-        boxed(Row::new(vec![boxed(theme), boxed(power)]).gap(8.0)),
+        boxed(Row::new(vec![boxed(sound), boxed(mic)]).gap(8.0)),
+        boxed(Row::new(vec![boxed(theme), boxed(silence)]).gap(8.0)),
     ])
     .gap(8.0)
     .width(Parent)
+}
+
+fn audio_devices_page(scheme: &Scheme, output: bool) -> Box<dyn Widget> {
+    use std::process::Command;
+
+    let title = if output { "Saídas de som" } else { "Entradas de som" };
+    let list_arg = if output { "sinks" } else { "sources" };
+    let default_arg = if output { "get-default-sink" } else { "get-default-source" };
+    let set_arg = if output { "set-default-sink" } else { "set-default-source" };
+
+    let default = Command::new("pactl")
+        .arg(default_arg)
+        .output()
+        .ok()
+        .filter(|result| result.status.success())
+        .map(|result| String::from_utf8_lossy(&result.stdout).trim().to_string())
+        .unwrap_or_default();
+
+    let devices = Command::new("pactl")
+        .args(["list", "short", list_arg])
+        .output()
+        .ok()
+        .filter(|result| result.status.success())
+        .map(|result| {
+            String::from_utf8_lossy(&result.stdout)
+                .lines()
+                .filter_map(|line| {
+                    let mut fields = line.split_whitespace();
+                    let _index = fields.next()?;
+                    let name = fields.next()?.to_string();
+                    Some(name)
+                })
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+
+    let mut rows: Vec<Box<dyn Widget>> = vec![boxed(
+        Row::new(vec![
+            boxed(icon_button("ctl:audio-back", m3::BACK, 36.0, scheme, || go(Page::Main))),
+            boxed(scale(Type::TitleMedium, title, scheme.on_surface)),
+        ])
+        .gap(10.0)
+        .align(Center),
+    )];
+
+    for (index, device) in devices.iter().enumerate() {
+        let selected = *device == default;
+        let label = if selected { format!("✓  {device}") } else { device.clone() };
+        let device_name = device.clone();
+        let command = set_arg;
+        rows.push(boxed(
+            Rectangle::new()
+                .width(Parent)
+                .height(48.0)
+                .fill(if selected { scheme.secondary_container } else { scheme.surface_container_high })
+                .radius(14.0)
+                .cursor(amane::Pointer)
+                .on_click(move |_| {
+                    let _ = Command::new("pactl").args([command, &device_name]).spawn();
+                })
+                .padding(12.0)
+                .align_child(amane::Start, Center)
+                .child(scale(Type::LabelMedium, label, if selected { scheme.on_secondary_container } else { scheme.on_surface })),
+        ));
+        let _ = index;
+    }
+
+    if devices.is_empty() {
+        rows.push(boxed(scale(Type::BodyMedium, "Nenhum dispositivo encontrado pelo pactl", scheme.on_surface_variant)));
+    }
+
+    boxed(ScrollArea::new(
+        if output { "ctl-audio-outputs" } else { "ctl-audio-inputs" },
+        Column::new(rows).gap(8.0).width(Parent),
+    ).width(Parent).height(Parent))
 }
 
 fn sliders(scheme: &Scheme) -> (Column, f32) {
