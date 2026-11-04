@@ -117,6 +117,18 @@ impl Spotlight {
         spotlight.selected = 0;
     }
 
+    pub fn launch_selected() {
+        let (query, selected) = {
+            let spotlight = Self::read();
+            (spotlight.query.clone(), spotlight.selected)
+        };
+
+        let apps = matched_apps(&query);
+        let actions = matched_actions(&query);
+
+        run_by_index(&apps, &actions, selected);
+    }
+
     pub fn toggle() {
         let showing = Overlay::read().panel() == Panel::Spotlight;
 
@@ -273,7 +285,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
         move |text| {
             Spotlight::set_query(text);
         },
-        move |_| {},
+        |_| Spotlight::launch_selected(),
     );
 
     let footer = Row::new(vec![
@@ -327,7 +339,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
         move |key| match key {
             Key::Down | Key::Tab => Spotlight::move_by(1, count),
             Key::Up => Spotlight::move_by(-1, count),
-            Key::Enter => run_by_index(&apps, &actions, selected),
+            Key::Enter => Spotlight::launch_selected(),
             _ => {}
         },
     )
