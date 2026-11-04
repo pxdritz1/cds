@@ -41,6 +41,9 @@ pub const WIDGETS: &str = "\u{e1bd}";
 pub const CLEAR_ALL: &str = "\u{e0b8}";
 pub const REFRESH: &str = "\u{e5d5}";
 pub const KEYBOARD: &str = "\u{e312}";
+pub const CLOUDY: &str = "\u{f15c}";
+pub const AIR: &str = "\u{efd8}";
+pub const DROP: &str = "\u{e798}";
 
 pub mod shape {
     // Material 3 Expressive shape tokens
