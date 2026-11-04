@@ -38,10 +38,11 @@ const TRAY_PADDING: f32 = 8.0;
 // what the center island is showing, which decides its size and how content fades
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum IslandMode {
-    Compact = 0, // the clock
-    Media = 1,   // the hover peek for the current player
-    Notice = 2,  // a notification arriving
-    Dash = 3,    // the full dash
+    Compact = 0,       // the clock
+    Media = 1,         // the hover peek for the current player
+    NoticeCompact = 2, // a notification arriving
+    Notice = 3,        // an expanded notification preview
+    Dash = 4,          // the full dash
 }
 
 pub fn reserve(_: &Monitor) -> LayerWindow {
@@ -247,8 +248,10 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
 
     let mode = if ui.dash() {
         IslandMode::Dash
-    } else if notice.is_some() {
+    } else if notice.is_some() && ui.hover() {
         IslandMode::Notice
+    } else if notice.is_some() {
+        IslandMode::NoticeCompact
     } else if ui.hover() && has_media {
         IslandMode::Media
     } else {
@@ -269,6 +272,17 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
             dash::HEIGHT,
             dash::RADIUS,
         ),
+
+        IslandMode::NoticeCompact => {
+            let notification = notice.expect("the notice mode only starts with a notice");
+
+            (
+                peek::notice_compact(scheme, notification, alpha),
+                peek::NOTICE_COMPACT_WIDTH,
+                peek::NOTICE_COMPACT_HEIGHT,
+                peek::NOTICE_COMPACT_HEIGHT / 2.0,
+            )
+        }
 
         IslandMode::Notice => {
             let notification = notice.expect("the notice mode only starts with a notice");
