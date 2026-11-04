@@ -413,7 +413,7 @@ fn audio_devices_page(scheme: &Scheme, output: bool) -> Box<dyn Widget> {
                     let mut fields = line.split_whitespace();
                     let _index = fields.next()?;
                     let name = fields.next()?.to_string();
-                    if !output && name.ends_with(\".monitor\") {
+                    if !output && name.ends_with(".monitor") {
                         return None;
                     }
                     Some(name)
