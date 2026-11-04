@@ -754,14 +754,13 @@ pub fn wavy(fraction: f32, width: f32, animated: bool, color: Color, track: Colo
     let middle = HEIGHT / 2.0;
 
     let phase = if animated {
-        // CPU and RAM meters share one 30 FPS animation clock. This keeps the
-        // wave motion fluid without asking the compositor for a frame at 60+
-        // FPS or doing duplicate work for each meter.
+        // The media timeline is a single animated widget; 60 FPS keeps
+        // its wave motion smooth while it is visible.
         let millis = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .map_or(0, |elapsed| elapsed.as_millis() as u64);
 
-        motion::request_frame_at_most(30);
+        motion::request_frame_at_most(60);
 
         TAU * (millis % 1600) as f32 / 1600.0
     } else {
