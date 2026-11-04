@@ -10,16 +10,57 @@ use crate::m3::{self, Type};
 use crate::art::{artwork, media_labels};
 use crate::clock::Clock;
 use crate::theme::Scheme;
+use crate::settings::Settings;
 use super::widgets::{
     BELL, CLOSE, boxed, icon, icon_button, label,
 };
 
 pub const MEDIA_WIDTH: f32 = 300.0;
-pub const MEDIA_HEIGHT: f32 = 76.0;
+pub const MEDIA_HEIGHT: f32 = 71.0;
 pub const NOTICE_COMPACT_WIDTH: f32 = 260.0;
 pub const NOTICE_COMPACT_HEIGHT: f32 = 52.0;
 pub const NOTICE_WIDTH: f32 = 364.0;
 pub const NOTICE_HEIGHT: f32 = 72.0;
+
+/// Calculate the media island width from visible content and the configured title limit.
+pub fn media_width() -> f32 {
+    let media = Media::read();
+    let (title, _) = media_labels(&media);
+    let settings = Settings::read();
+    let show_title = settings.flag("media_show_title");
+    let show_artist = settings.flag("media_show_artist");
+    let show_clock = settings.flag("media_show_clock");
+    let show_artwork = settings.flag("media_show_artwork");
+    let max_title_width = settings.media_title_max_width() as f32;
+    drop(settings);
+
+    let info_width = media_info_width(&title, show_title, show_artist, max_title_width);
+    let mut count = 2usize;
+    let mut content = 64.0;
+    if show_artwork { count += 1; content += 38.0; }
+    if info_width > 0.0 { count += 1; content += info_width; }
+    if show_clock { count += 1; content += 42.0; }
+    (content + count.saturating_sub(1) as f32 * 5.0 + 20.0).max(MEDIA_WIDTH).min(740.0)
+}
+
+fn media_info_width(title: &str, show_title: bool, show_artist: bool, max_width: f32) -> f32 {
+    if !show_title && !show_artist { return 0.0; }
+    if !show_title { return 104.0; }
+    let estimated = title.chars().map(|c| {
+        if c.is_whitespace() || "ilI.,'!:;|".contains(c) { 3.8 }
+        else if "MW@#%&".contains(c) { 10.0 }
+        else if c.is_ascii_uppercase() { 8.2 }
+        else if c.is_ascii() { 7.0 }
+        else { 8.5 }
+    }).sum::<f32>() + 4.0;
+    estimated.max(104.0).min(max_width.max(104.0))
+}
+
+fn media_title_label(content: String, size: f32, color: amane::Color, weight: amane::Weight, width: f32) -> Rectangle {
+    Rectangle::new().width(width).height(18.0).clip()
+        .align_child(amane::Start, Center)
+        .child(m3::text(content, size, color, weight))
+}
 
 pub fn media(scheme: &Scheme, alpha: f32) -> Box<dyn Widget> {
     let media = Media::read();
@@ -27,75 +68,45 @@ pub fn media(scheme: &Scheme, alpha: f32) -> Box<dyn Widget> {
     let glyph = if playing { m3::PAUSE } else { m3::PLAY };
     let (title, artist) = media_labels(&media);
 
-    let info = Column::new(vec![
-        boxed(marquee_label(
-            title,
-            13.0,
-            scheme.on_surface,
-            amane::Weight::SemiBold,
-        )),
-        boxed(m3::scale_label(
-            Type::LabelSmall,
-            artist,
-            scheme.on_surface_variant,
-            1,
-        )),
-    ])
-    .gap(1.0)
-    .width(104.0);
+    let settings = Settings::read();
+    let show_title = settings.flag("media_show_title");
+    let show_artist = settings.flag("media_show_artist");
+    let show_clock = settings.flag("media_show_clock");
+    let show_artwork = settings.flag("media_show_artwork");
+    let title_max_width = settings.media_title_max_width() as f32;
+    drop(settings);
 
-    let clock = Clock::read();
-    let clock_view = Column::new(vec![
-        boxed(m3::scale_label(
-            Type::LabelMedium,
-            clock.time(true),
-            scheme.on_surface,
-            1,
-        )),
-        boxed(m3::scale_label(
-            Type::LabelSmall,
-            clock.short_date(),
-            scheme.on_surface_variant,
-            1,
-        )),
-    ])
-    .gap(1.0)
-    .width(42.0)
-    .align(Center);
+    let info_width = media_info_width(&title, show_title, show_artist, title_max_width);
+    let mut info_lines: Vec<Box<dyn Widget>> = Vec::new();
+    if show_title {
+        info_lines.push(boxed(media_title_label(title, 13.0, scheme.on_surface, amane::Weight::SemiBold, info_width)));
+    }
+    if show_artist {
+        info_lines.push(boxed(m3::scale_label(Type::LabelSmall, artist, scheme.on_surface_variant, 1)));
+    }
+    let info = if info_lines.is_empty() {
+        None
+    } else {
+        Some(boxed(Column::new(info_lines).gap(1.0).width(info_width)))
+    };
 
-    // The player clock is display-only; returning to the compact island
-    // is intentionally not available from this surface.
-    let clock_view = Rectangle::new()
-        .width(42.0)
-        .height(46.0)
-        .align_child(Center, Center)
-        .child(clock_view);
+    let clock_view = if show_clock {
+        let clock = Clock::read();
+        let clock_column = Column::new(vec![
+            boxed(m3::scale_label(Type::LabelMedium, clock.time(true), scheme.on_surface, 1)),
+            boxed(m3::scale_label(Type::LabelSmall, clock.short_date(), scheme.on_surface_variant, 1)),
+        ]).gap(1.0).width(42.0).align(Center);
+        Some(boxed(Rectangle::new().width(42.0).height(46.0).align_child(Center, Center).child(clock_column)))
+    } else { None };
 
-    let row = Row::new(vec![
-        boxed(artwork(media.art_url(), 38.0, 12.0, scheme)),
-        boxed(info),
-        boxed(m3::round_button(
-            "peek-play",
-            glyph,
-            34.0,
-            scheme.primary,
-            scheme.on_primary,
-            Media::play_pause,
-        )),
-        boxed(m3::round_button(
-            "peek-next",
-            m3::NEXT,
-            30.0,
-            scheme.secondary_container,
-            scheme.on_secondary_container,
-            Media::next,
-        )),
-        boxed(clock_view),
-    ])
-    .gap(5.0)
-    .align(Center)
-    .width(Parent)
-    .height(46.0);
+    let mut row_children: Vec<Box<dyn Widget>> = Vec::new();
+    if show_artwork { row_children.push(boxed(artwork(media.art_url(), 38.0, 12.0, scheme))); }
+    if let Some(info) = info { row_children.push(info); }
+    row_children.push(boxed(m3::round_button("peek-play", glyph, 34.0, scheme.primary, scheme.on_primary, Media::play_pause)));
+    row_children.push(boxed(m3::round_button("peek-next", m3::NEXT, 30.0, scheme.secondary_container, scheme.on_secondary_container, Media::next)));
+    if let Some(clock_view) = clock_view { row_children.push(clock_view); }
+
+    let row = Row::new(row_children).gap(5.0).align(Center).width(Parent).height(46.0);
 
     let position = media.position().as_secs();
     let length = media.length().as_secs();
