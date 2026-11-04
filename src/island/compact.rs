@@ -65,7 +65,7 @@ pub fn clock(scheme: &Scheme, alpha: f32) -> (Box<dyn Widget>, f32) {
                 })
                 .child(
                     Stack::new(vec![
-                        boxed(m3::rotating_cookie(26.0, scheme.primary_container)),
+                        boxed(m3::cookie(12.0, 26.0, scheme.primary_container)),
                         boxed(
                             Rectangle::new()
                                 .width(26.0)
