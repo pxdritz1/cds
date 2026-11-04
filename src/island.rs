@@ -123,12 +123,24 @@ pub fn right(monitor: &Monitor) -> LayerWindow {
     let scheme = theme.scheme();
 
     let tray_open = Tray::read().open();
+    let tray_count = Tray::read().items().len();
     let (status, status_width) = compact::status(scheme);
 
     let (content, width, height, radius): (Box<dyn Widget>, f32, f32, f32) = if tray_open {
         let (menu, menu_width, menu_height) = tray::menu(scheme);
 
-        let column = Column::new(vec![status, menu])
+        // A single tray icon sits in the horizontal center of the expanded card.
+        // With multiple icons, keep the usual right-aligned tray layout.
+        let menu_slot = Rectangle::new()
+            .width(Parent)
+            .height(menu_height)
+            .align_child(
+                if tray_count == 1 { Center } else { End },
+                Center,
+            )
+            .child(menu);
+
+        let column = Column::new(vec![status, Box::new(menu_slot)])
             .align(End)
             .gap(TRAY_PADDING)
             .width(Parent)
@@ -173,6 +185,28 @@ pub fn right(monitor: &Monitor) -> LayerWindow {
     })
     .child(Stack::new(vec![content]).width(Parent).height(Parent));
 
+    let (region, keyboard) = if tray_open {
+        (
+            vec![InputArea {
+                x: 0,
+                y: 0,
+                width: RIGHT_WIDTH.ceil() as i32,
+                height: RIGHT_HEIGHT.ceil() as i32,
+            }],
+            Keyboard::OnDemand,
+        )
+    } else {
+        (
+            vec![InputArea {
+                x: (RIGHT_WIDTH - width).max(0.0) as i32,
+                y: 0,
+                width: width.ceil() as i32,
+                height: height.ceil() as i32,
+            }],
+            Keyboard::None,
+        )
+    };
+
     LayerWindow::new()
         .width(RIGHT_WIDTH)
         .height(RIGHT_HEIGHT)
@@ -185,17 +219,19 @@ pub fn right(monitor: &Monitor) -> LayerWindow {
             right: MARGIN,
             ..Margin::default()
         })
+        .keyboard(keyboard)
         .namespace("cds-right")
-        .input_region(vec![InputArea {
-            x: (RIGHT_WIDTH - width).max(0.0) as i32,
-            y: 0,
-            width: width.ceil() as i32,
-            height: height.ceil() as i32,
-        }])
+        .input_region(region)
+        .on_key(|key| {
+            if key == Key::Escape {
+                Tray::close();
+            }
+        })
         .child(
             Rectangle::new()
                 .width(Parent)
                 .height(Parent)
+                .on_click(|_| Tray::close())
                 .align_child(End, Start)
                 .child(island),
         )
