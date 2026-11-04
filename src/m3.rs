@@ -1,9 +1,8 @@
 use std::f32::consts::TAU;
-use std::sync::OnceLock;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 use amane::{
-    Arc, Button, Canvas, Cap, Center, Color, Column, Padding, Parent, Path, Pointer, Rectangle,
+    Arc, Button, Canvas, Cap, Center, Color, Column, Line, Padding, Parent, Pointer, Rectangle,
     Row, Service, Shadow, Shape, Size, Stack, Start, Text, Widget,
 };
 
@@ -691,57 +690,31 @@ pub fn slider(
     .height(HEIGHT)
 }
 
-pub fn wavy(fraction: f32, width: f32, animated: bool, color: Color, track: Color) -> Canvas {
+pub fn progress_line(fraction: f32, width: f32, color: Color, track: Color) -> Canvas {
     const HEIGHT: f32 = 16.0;
-    const AMPLITUDE: f32 = 2.6;
-    const LENGTH: f32 = 22.0;
-    const STROKE: f32 = 4.0;
+    const INSET: f32 = 2.0;
+    const STROKE: f32 = 3.0;
 
     let fraction = fraction.clamp(0.0, 1.0);
-    let active = width * fraction;
-    let middle = HEIGHT / 2.0;
+    let end = (width - INSET).max(INSET);
+    let active_end = INSET + (end - INSET) * fraction;
 
-    let phase = if animated {
-        // Use a monotonic clock: wall-clock adjustments must not jump the wave.
-        // Keep one shared epoch so rebuilding the widget does not restart it.
-        static WAVE_EPOCH: OnceLock<Instant> = OnceLock::new();
-        let elapsed = WAVE_EPOCH.get_or_init(Instant::now).elapsed().as_secs_f32();
+    let mut shapes: Vec<Box<dyn Shape>> = vec![Box::new(
+        Line::new()
+            .from(INSET, HEIGHT / 2.0)
+            .to(end, HEIGHT / 2.0)
+            .stroke(STROKE, track)
+            .cap(Cap::Round),
+    )];
 
-        motion::request_frame_at_most(60);
-
-        TAU * (elapsed % 1.6) / 1.6
-    } else {
-        0.0
-    };
-
-    let mut shapes: Vec<Box<dyn Shape>> = Vec::new();
-
-    let rest = active + STROKE + 2.0;
-
-    if rest < width {
+    if fraction > 0.0 {
         shapes.push(Box::new(
-            amane::Line::new()
-                .from(rest, middle)
-                .to(width - STROKE / 2.0, middle)
-                .stroke(STROKE, track)
+            Line::new()
+                .from(INSET, HEIGHT / 2.0)
+                .to(active_end, HEIGHT / 2.0)
+                .stroke(STROKE, color)
                 .cap(Cap::Round),
         ));
-    }
-
-    if active > 1.0 {
-        let wave = |x: f32| middle + AMPLITUDE * (TAU * x / LENGTH - phase).sin();
-
-        let mut path = Path::new().move_to(STROKE / 2.0, wave(STROKE / 2.0));
-        let mut x = STROKE / 2.0;
-
-        while x < active {
-            // Two-pixel samples avoid the visibly angular wave produced by
-            // sparse points, without generating an excessive Canvas path.
-            x = (x + 2.0).min(active);
-            path = path.line_to(x, wave(x));
-        }
-
-        shapes.push(Box::new(path.stroke(STROKE, color).cap(Cap::Round)));
     }
 
     Canvas::new().width(width).height(HEIGHT).shapes(shapes)
