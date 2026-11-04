@@ -1,6 +1,4 @@
 use std::path::Path as FsPath;
-use std::sync::OnceLock;
-use std::time::Instant;
 
 use amane::{
     Apps, Center, Column, Image, Media, Notification, Notifications, Padding, Parent,
@@ -360,9 +358,6 @@ fn marquee_label(
     weight: amane::Weight,
 ) -> Rectangle {
     const VIEWPORT: f32 = 104.0;
-    const SPEED: f32 = 28.0;
-    static START: OnceLock<Instant> = OnceLock::new();
-
     let text = m3::text(content.clone(), size, color, weight);
     let text_width = m3::measured(&text);
 
@@ -375,35 +370,10 @@ fn marquee_label(
             .child(text);
     }
 
-    let separator = "   •   ";
-    let separator_text = m3::text(separator, size, color, weight);
-    let separator_width = m3::measured(&separator_text);
-    let loop_width = text_width + separator_width;
-
-    let elapsed = START.get_or_init(Instant::now).elapsed().as_secs_f32();
-    crate::motion::request_frame_at_most(30);
-
-    let offset = (elapsed * SPEED) % loop_width;
-    let repeated = Row::new(vec![
-        boxed(m3::text(content.clone(), size, color, weight)),
-        boxed(m3::text(separator, size, color, weight)),
-        boxed(m3::text(content.clone(), size, color, weight)),
-        boxed(m3::text(separator, size, color, weight)),
-    ])
-    .gap(0.0)
-    .align(Center)
-    .width(loop_width * 2.0)
-    .height(18.0);
-
     Rectangle::new()
         .width(VIEWPORT)
         .height(18.0)
         .clip()
-        .child(
-            Rectangle::new()
-                .width(loop_width * 2.0)
-                .height(18.0)
-                .translate(-offset, 0.0)
-                .child(repeated),
-        )
+        .align_child(amane::Start, Center)
+        .child(text)
 }
