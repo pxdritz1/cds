@@ -13,6 +13,8 @@ use super::widgets::{
 
 pub const MEDIA_WIDTH: f32 = 344.0;
 pub const MEDIA_HEIGHT: f32 = 64.0;
+pub const NOTICE_COMPACT_WIDTH: f32 = 260.0;
+pub const NOTICE_COMPACT_HEIGHT: f32 = 52.0;
 pub const NOTICE_WIDTH: f32 = 364.0;
 pub const NOTICE_HEIGHT: f32 = 72.0;
 
@@ -84,28 +86,73 @@ pub fn media(scheme: &Scheme, alpha: f32) -> Box<dyn Widget> {
     )
 }
 
+pub fn notice_compact(
+    scheme: &Scheme,
+    notification: &Notification,
+    alpha: f32,
+) -> Box<dyn Widget> {
+    let id = notification.id();
+    let avatar = notification_avatar(scheme, notification, 32.0);
+    let title = label(
+        notification.summary(),
+        13.0,
+        scheme.on_surface,
+        amane::Weight::SemiBold,
+        1,
+    );
+
+    let row = Row::new(vec![boxed(avatar), boxed(title)])
+        .gap(10.0)
+        .align(Center)
+        .width(Parent)
+        .height(Parent);
+
+    boxed(
+        Rectangle::new()
+            .width(Parent)
+            .height(Parent)
+            .opacity(alpha)
+            .padding(Padding {
+                top: 0.0,
+                right: 14.0,
+                bottom: 0.0,
+                left: 14.0,
+            })
+            .cursor(amane::Pointer)
+            .on_click(move |_| Notifications::click(id))
+            .child(row),
+    )
+}
+
+fn notification_avatar(
+    scheme: &Scheme,
+    notification: &Notification,
+    size: f32,
+) -> Rectangle {
+    let image_size = (size * 1.6) as u32;
+
+    if let Some(path) = notification_art(notification).filter(|path| Image::loaded(path)) {
+        Rectangle::new()
+            .width(size)
+            .height(size)
+            .radius(size / 2.0)
+            .clip()
+            .fill(Image::cover(path).thumbnail(image_size, image_size))
+    } else {
+        Rectangle::new()
+            .width(size)
+            .height(size)
+            .fill(scheme.primary_container)
+            .radius(size / 2.0)
+            .align_child(Center, Center)
+            .child(icon(BELL, size * 0.5, scheme.on_primary_container))
+    }
+}
+
 pub fn notice(scheme: &Scheme, notification: &Notification, alpha: f32) -> Box<dyn Widget> {
     let id = notification.id();
 
-    let avatar = notification_art(notification)
-        .filter(|path| Image::loaded(path))
-        .map(|path| {
-            Rectangle::new()
-                .width(40.0)
-                .height(40.0)
-                .radius(20.0)
-                .clip()
-                .fill(Image::cover(path).thumbnail(64, 64))
-        })
-        .unwrap_or_else(|| {
-            Rectangle::new()
-                .width(40.0)
-                .height(40.0)
-                .fill(scheme.primary_container)
-                .radius(20.0)
-                .align_child(Center, Center)
-                .child(icon(BELL, 20.0, scheme.on_primary_container))
-        });
+    let avatar = notification_avatar(scheme, notification, 40.0);
 
     let info = Column::new(vec![
         boxed(label(
