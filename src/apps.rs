@@ -3,7 +3,7 @@
  * tile; a click spawns the program and the panel steps down.
  */
 use amane::{
-    Apps, Button, Center, Column, DesktopApp, Image, Key, LayerWindow, Monitor, Padding, Parent,
+    Service, Apps, Button, Center, Column, DesktopApp, Image, Key, LayerWindow, Monitor, Padding, Parent,
     Pointer, Rectangle, Row, ScrollArea, Widget,
 };
 
