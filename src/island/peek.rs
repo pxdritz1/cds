@@ -6,6 +6,7 @@ use amane::{
 };
 
 use crate::art::{artwork, media_labels};
+use crate::clock::Clock;
 use crate::theme::Scheme;
 use super::widgets::{
     BELL, CLOSE, NEXT, PAUSE, PLAY, boxed, icon, icon_button, label, round_button,
@@ -44,7 +45,28 @@ pub fn media(scheme: &Scheme, alpha: f32) -> Box<dyn Widget> {
         )),
     ])
     .gap(1.0)
-    .width(172.0);
+    .width(130.0);
+
+    let clock = Clock::read();
+    let clock_view = Column::new(vec![
+        boxed(label(
+            clock.time(true),
+            12.0,
+            scheme.on_surface,
+            amane::Weight::SemiBold,
+            1,
+        )),
+        boxed(label(
+            clock.short_date(),
+            9.5,
+            scheme.on_surface_variant,
+            amane::Weight::Regular,
+            1,
+        )),
+    ])
+    .gap(1.0)
+    .width(48.0)
+    .align(Center);
 
     let row = Row::new(vec![
         boxed(artwork(media.art_url(), 44.0, 14.0, scheme)),
@@ -65,8 +87,9 @@ pub fn media(scheme: &Scheme, alpha: f32) -> Box<dyn Widget> {
             scheme.on_secondary_container,
             Media::next,
         )),
+        boxed(clock_view),
     ])
-    .gap(10.0)
+    .gap(6.0)
     .align(Center)
     .width(Parent)
     .height(Parent);
