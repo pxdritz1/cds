@@ -790,7 +790,7 @@ pub fn menu(scheme: &Scheme) -> (Box<dyn Widget>, f32, f32) {
                     .height(EMPTY_HEIGHT)
                     .align_child(Center, Center)
                     .child(label(
-                        "Nenhum indicador de bandeja registrado",
+                        crate::lang::text("Nenhum indicador de bandeja registrado", "No tray items registered"),
                         11.5,
                         scheme.on_surface_variant,
                         amane::Weight::Medium,
