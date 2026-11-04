@@ -10,7 +10,7 @@ use crate::settings::Settings;
 use crate::theme::{Scheme, Theme};
 
 const WIDTH: f32 = 620.0;
-const HEIGHT: f32 = 470.0;
+const HEIGHT: f32 = 560.0;
 const PADDING: f32 = 16.0;
 
 const DIRECTORY_INPUT: &str = "cds-settings-directory";
@@ -225,7 +225,7 @@ pub fn window() -> Window {
         .width(Parent),
     );
 
-    let appearance = settings_card(WIDTH - PADDING * 2.0, 286.0, scheme.surface_container_low).child(
+    let appearance = settings_card(WIDTH - PADDING * 2.0, 330.0, scheme.surface_container_low).child(
         Column::new(vec![
             Box::new(section(TUNE, crate::lang::text("Aparência", "Appearance"), scheme)),
             Box::new(
