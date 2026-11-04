@@ -38,7 +38,7 @@ pub struct Settings {
 }
 
 fn default_flag(name: &str) -> bool {
-    !matches!(name, "dnd")
+    !matches!(name, "dnd" | "trans_meter_colors")
 }
 
 impl Service for Settings {
