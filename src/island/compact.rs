@@ -345,7 +345,7 @@ fn dot_width(workspace: &Workspace) -> f32 {
     motion::number(
         &format!("workspace:{}", workspace.id()),
         target,
-        Duration::from_millis(320),
+        motion::WORKSPACE_DURATION,
     )
 }
 
@@ -353,7 +353,7 @@ fn dot_height(workspace: &Workspace) -> f32 {
     motion::number(
         &format!("workspace-height:{}", workspace.id()),
         if workspace.focused() { FOCUSED_HEIGHT } else { DOT },
-        Duration::from_millis(320),
+        motion::WORKSPACE_DURATION,
     )
 }
 
