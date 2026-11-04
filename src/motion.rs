@@ -1,36 +1,61 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::mpsc;
 use std::sync::OnceLock;
+use std::thread;
 use std::time::{Duration, Instant};
 
 use amane::{Animation, Blend, Color, Easing};
 
-static FRAME_EPOCH: OnceLock<Instant> = OnceLock::new();
-static LAST_FRAME_MS: AtomicU64 = AtomicU64::new(0);
+static FRAME_TIMER: OnceLock<Option<mpsc::Sender<u64>>> = OnceLock::new();
 
-/// Coalesce animation redraw requests across the shell.
+/// Coalesce continuous animation redraws without running faster than requested.
 pub fn request_frame_at_most(fps: u64) {
-    let interval = (1000 / fps.clamp(1, 60)).max(1);
-    let now = FRAME_EPOCH
-        .get_or_init(Instant::now)
-        .elapsed()
-        .as_millis() as u64;
+    let interval_ms = (1000 / fps.clamp(1, 60)).max(1);
 
-    loop {
-        let previous = LAST_FRAME_MS.load(Ordering::Relaxed);
+    let sender = FRAME_TIMER.get_or_init(|| {
+        let (sender, receiver) = mpsc::channel::<u64>();
 
-        if previous != 0 && now.saturating_sub(previous) < interval {
-            return;
-        }
+        match thread::Builder::new()
+            .name(String::from("cds-frame-timer"))
+            .spawn(move || {
+                let mut last_frame = Instant::now();
 
-        if LAST_FRAME_MS
-            .compare_exchange(previous, now.max(1), Ordering::Relaxed, Ordering::Relaxed)
-            .is_ok()
+                while let Ok(mut interval_ms) = receiver.recv() {
+                    let mut interval = Duration::from_millis(interval_ms);
+                    let mut deadline = last_frame + interval;
+
+                    loop {
+                        match receiver.recv_timeout(deadline.saturating_duration_since(Instant::now())) {
+                            Ok(next_interval) => {
+                                interval_ms = interval_ms.min(next_interval);
+                                interval = Duration::from_millis(interval_ms);
+                                deadline = last_frame + interval;
+                            }
+                            Err(mpsc::RecvTimeoutError::Timeout) => break,
+                            Err(mpsc::RecvTimeoutError::Disconnected) => return,
+                        }
+                    }
+
+                    amane::request_frame();
+                    last_frame = Instant::now();
+                }
+            })
         {
-            amane::request_frame();
-            return;
+            Ok(_) => Some(sender),
+            Err(error) => {
+                eprintln!("CDS: não foi possível iniciar o temporizador de frames: {error}");
+                None
+            }
         }
+    });
+
+    if let Some(sender) = sender {
+        if sender.send(interval_ms).is_err() {
+            amane::request_frame();
+        }
+    } else {
+        amane::request_frame();
     }
 }
 
