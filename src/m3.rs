@@ -4,7 +4,7 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use amane::{
     Arc, Button, Canvas, Cap, Center, Color, Column, Padding, Parent, Path, Pointer, Rectangle,
-    Row, Service, Shadow, Shape, Size, Stack, Start, Text, Widget, request_frame,
+    Row, Service, Shadow, Shape, Size, Stack, Start, Text, Widget,
 };
 
 use crate::motion;
