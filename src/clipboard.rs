@@ -334,7 +334,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
 
     let header = Row::new(vec![
         boxed(text(
-            "Clipboard",
+            crate::lang::text("Área de transferência", "Clipboard"),
             20.0,
             scheme.on_surface,
             amane::Weight::SemiBold,
@@ -527,9 +527,9 @@ fn meta(text: &str) -> String {
     let lines = text.lines().count().max(1);
 
     if lines > 1 {
-        format!("{characters} characters · {lines} lines")
+        if crate::settings::Settings::read().language() == "en" { format!("{characters} characters · {lines} lines") } else { format!("{characters} caracteres · {lines} linhas") }
     } else {
-        format!("{characters} characters")
+        if crate::settings::Settings::read().language() == "en" { format!("{characters} characters") } else { format!("{characters} caracteres") }
     }
 }
 
