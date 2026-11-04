@@ -148,10 +148,10 @@ struct StatusNotifierWatcher {
 
 #[zbus::interface(name = "org.freedesktop.StatusNotifierWatcher")]
 impl StatusNotifierWatcher {
-    fn register_status_notifier_item(
+    async fn register_status_notifier_item(
         &self,
         #[zbus(header)] header: zbus::message::Header<'_>,
-        #[zbus(connection)] connection: &zbus::blocking::Connection,
+        #[zbus(connection)] connection: &zbus::Connection,
         service: String,
     ) -> zbus::fdo::Result<()> {
         let address = if service.starts_with('/') {
@@ -177,13 +177,14 @@ impl StatusNotifierWatcher {
                     "StatusNotifierItemRegistered",
                     &(address.as_str(),),
                 )
+                .await
                 .map_err(|error| zbus::fdo::Error::Failed(error.to_string()))?;
         }
 
         Ok(())
     }
 
-    fn register_status_notifier_host(
+    async fn register_status_notifier_host(
         &self,
         #[zbus(header)] header: zbus::message::Header<'_>,
         #[zbus(connection)] connection: &zbus::blocking::Connection,
@@ -206,6 +207,7 @@ impl StatusNotifierWatcher {
                     "StatusNotifierHostRegistered",
                     &(),
                 )
+                .await
                 .map_err(|error| zbus::fdo::Error::Failed(error.to_string()))?;
         }
 
