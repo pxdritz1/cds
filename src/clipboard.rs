@@ -53,7 +53,8 @@ impl Service for Clipboard {
      */
     fn listen() {
         loop {
-            thread::sleep(Duration::from_millis(900));
+            // Keep clipboard updates responsive without launching wl-paste almost every frame.
+            thread::sleep(Duration::from_millis(1500));
 
             let Some(text) = current() else {
                 continue;
