@@ -4,7 +4,7 @@ use std::time::Instant;
 
 use amane::{
     Apps, Center, Column, Image, Media, Notification, Notifications, Padding, Parent,
-    Rectangle, Row, Service, Widget, request_frame,
+    Rectangle, Row, Service, Widget,
 };
 
 use crate::m3::{self, Type};
@@ -381,7 +381,7 @@ fn marquee_label(
     let loop_width = text_width + separator_width;
 
     let elapsed = START.get_or_init(Instant::now).elapsed().as_secs_f32();
-    request_frame();
+    crate::motion::request_frame_at_most(30);
 
     let offset = (elapsed * SPEED) % loop_width;
     let repeated = Row::new(vec![
