@@ -92,7 +92,7 @@ pub fn clock(scheme: &Scheme, alpha: f32) -> (Box<dyn Widget>, f32) {
     let row = Row::new(vec![
         boxed(search),
         boxed(time_date),
-        boxed(Rectangle::new().width(26.0).height(26.0).align_child(Center, Center).child(weather_icon)),
+        boxed(Stack::new(vec![weather_icon]).width(26.0).height(26.0)),
     ])
     .gap(6.0)
     .align(Center)
