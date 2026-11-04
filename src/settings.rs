@@ -432,7 +432,6 @@ fn scan_directory(directory: &Path) -> Option<Vec<String>> {
     found.sort();
     Some(found)
 }
-}
 
 /*
  * one place decides whether a matugen run waits. the ipc answers only
