@@ -19,8 +19,9 @@ use crate::weather::Weather;
 
 use super::widgets::{EXPAND_MORE, MUSIC, boxed, icon, text};
 
-const DOT: f32 = 7.0;
-const FOCUSED: f32 = 22.0;
+const DOT: f32 = 8.0;
+const FOCUSED: f32 = 28.0;
+const FOCUSED_HEIGHT: f32 = 10.0;
 const DOT_GAP: f32 = 7.0;
 const SIDE: f32 = 14.0;
 const ICON: f32 = 18.0;
@@ -159,8 +160,9 @@ pub fn workspaces(monitor: &Monitor, scheme: &Scheme) -> (Box<dyn Widget>, f32) 
         }
 
         let width = dot_width(workspace);
+        let height = dot_height(workspace);
         dots_width += width;
-        dots.push(boxed(dot(workspace, width, scheme)));
+        dots.push(boxed(dot(workspace, width, height, scheme)));
     }
 
     drop(workspaces);
@@ -341,11 +343,19 @@ fn dot_width(workspace: &Workspace) -> f32 {
     motion::number(
         &format!("workspace:{}", workspace.id()),
         target,
-        motion::WORKSPACE_DURATION,
+        Duration::from_millis(320),
     )
 }
 
-fn dot(workspace: &Workspace, width: f32, scheme: &Scheme) -> Rectangle {
+fn dot_height(workspace: &Workspace) -> f32 {
+    motion::number(
+        &format!("workspace-height:{}", workspace.id()),
+        if workspace.focused() { FOCUSED_HEIGHT } else { DOT },
+        Duration::from_millis(320),
+    )
+}
+
+fn dot(workspace: &Workspace, width: f32, height: f32, scheme: &Scheme) -> Rectangle {
     let target = if workspace.focused() {
         scheme.primary
     } else if workspace.urgent() {
@@ -357,16 +367,16 @@ fn dot(workspace: &Workspace, width: f32, scheme: &Scheme) -> Rectangle {
     let fill = motion::color(
         &format!("workspace-color:{}", workspace.id()),
         target,
-        motion::SELECT_DURATION,
+        Duration::from_millis(280),
     );
 
     let id = workspace.id();
 
     Rectangle::new()
         .width(width)
-        .height(DOT)
+        .height(height)
         .fill(fill)
-        .radius(DOT / 2.0)
+        .radius(height / 2.0)
         .cursor(Pointer)
         .on_click(move |_| Workspaces::focus(id))
 }
