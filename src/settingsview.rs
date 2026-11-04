@@ -192,7 +192,7 @@ pub fn window() -> Window {
         })
         .collect();
 
-    let behavior = settings_card(WIDTH - PADDING * 2.0, 250.0, scheme.surface_container_low).child(
+    let behavior = settings_card(WIDTH - PADDING * 2.0, 300.0, scheme.surface_container_low).child(
         Column::new(vec![
             Box::new(section(TUNE, crate::lang::text("Comportamento", "Behavior"), scheme)),
             Box::new(chip(
@@ -406,7 +406,7 @@ pub fn window() -> Window {
     Window::new()
         .title(crate::lang::text("Chloe Dynamic Shell — Configurações", "Chloe Dynamic Shell — Settings"))
         .size(WIDTH, HEIGHT)
-        .resizable(true)
+        .resizable(false)
         .child(content)
         .on_key(|key| {
             if key == Key::Escape {
