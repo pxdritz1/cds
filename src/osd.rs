@@ -184,7 +184,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
                 f32::from(now.volume) / 100.0
             }),
             if now.muted {
-                String::from("Mudo")
+                String::from(crate::lang::text("Mudo", "Muted"))
             } else {
                 format!("{}%", now.volume)
             },
@@ -198,24 +198,24 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
             glyphs::microphone(now.microphone_muted),
             None,
             String::from(if now.microphone_muted {
-                "Microfone desligado"
+                crate::lang::text("Microfone desligado", "Microphone muted")
             } else {
-                "Microfone ligado"
+                crate::lang::text("Microfone ligado", "Microphone on")
             }),
         ),
         Kind::Charger => (
             glyphs::battery(now.battery, now.charging),
             None,
             if now.charging {
-                format!("Carregando · {}%", now.battery)
+                format!("{} · {}%", crate::lang::text("Carregando", "Charging"), now.battery)
             } else {
-                format!("Na bateria · {}%", now.battery)
+                format!("{} · {}%", crate::lang::text("Na bateria", "On battery"), now.battery)
             },
         ),
         Kind::LowBattery => (
             glyphs::battery(now.battery, false),
             None,
-            format!("Bateria fraca · {}%", now.battery),
+            format!("{} · {}%", crate::lang::text("Bateria fraca", "Low battery"), now.battery),
         ),
     };
 
