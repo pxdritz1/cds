@@ -560,10 +560,10 @@ fn analogue_clock(clock: &Clock, scheme: &crate::theme::Scheme, ui_scale: f32) -
 
 fn power_menu(scheme: &crate::theme::Scheme, ui_scale: f32) -> Rectangle {
     let actions = [
-        (1, m3::LOGOUT, "Sair da sessão"),
-        (2, m3::POWER, "Suspender"),
-        (3, m3::RESTART, "Reiniciar"),
-        (4, m3::POWER, "Desligar"),
+        (1, m3::LOGOUT, crate::lang::text("Sair da sessão", "Log out")),
+        (2, m3::POWER, crate::lang::text("Suspender", "Suspend")),
+        (3, m3::RESTART, crate::lang::text("Reiniciar", "Restart")),
+        (4, m3::POWER, crate::lang::text("Desligar", "Shut down")),
     ];
 
     let rows: Vec<Box<dyn amane::Widget>> = actions
