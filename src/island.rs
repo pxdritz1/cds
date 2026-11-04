@@ -441,7 +441,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
         // top baseline as the left and right islands.
         .space(Zone::Ignore)
         .margin(Margin {
-            top: 3,
+            top: MARGIN,
             ..Margin::default()
         })
         .keyboard(keyboard)
