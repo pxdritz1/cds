@@ -165,10 +165,18 @@ impl StatusNotifierWatcher {
             format!("{service}/StatusNotifierItem")
         };
 
-        let mut items = self.items.lock().unwrap_or_else(|error| error.into_inner());
-        if !items.iter().any(|item| item == &address) {
-            items.push(address.clone());
-            items.sort();
+        let newly_registered = {
+            let mut items = self.items.lock().unwrap_or_else(|error| error.into_inner());
+            if items.iter().any(|item| item == &address) {
+                false
+            } else {
+                items.push(address.clone());
+                items.sort();
+                true
+            }
+        };
+
+        if newly_registered {
             connection
                 .emit_signal(
                     None::<&str>,
@@ -187,7 +195,7 @@ impl StatusNotifierWatcher {
     async fn register_status_notifier_host(
         &self,
         #[zbus(header)] header: zbus::message::Header<'_>,
-        #[zbus(connection)] connection: &zbus::blocking::Connection,
+        #[zbus(connection)] connection: &zbus::Connection,
         service: String,
     ) -> zbus::fdo::Result<()> {
         let host = if service.is_empty() {
@@ -196,9 +204,17 @@ impl StatusNotifierWatcher {
             service
         };
 
-        let mut hosts = self.hosts.lock().unwrap_or_else(|error| error.into_inner());
-        if !hosts.iter().any(|entry| entry == &host) {
-            hosts.push(host);
+        let newly_registered = {
+            let mut hosts = self.hosts.lock().unwrap_or_else(|error| error.into_inner());
+            if hosts.iter().any(|entry| entry == &host) {
+                false
+            } else {
+                hosts.push(host);
+                true
+            }
+        };
+
+        if newly_registered {
             connection
                 .emit_signal(
                     None::<&str>,
