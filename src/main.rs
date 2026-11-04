@@ -11,6 +11,7 @@ mod glyphs;
 mod ipc;
 mod island;
 mod launcher;
+mod lang;
 mod lockscreen;
 mod m3;
 mod motion;
