@@ -119,6 +119,7 @@ pub fn notice_compact(
                 left: 14.0,
             })
             .cursor(amane::Pointer)
+            .on_hover(move |inside| crate::island::set_notice_hover(id, inside))
             .on_click(move |_| Notifications::click(id))
             .child(row),
     )
@@ -197,6 +198,7 @@ pub fn notice(scheme: &Scheme, notification: &Notification, alpha: f32) -> Box<d
                 left: 12.0,
             })
             .cursor(amane::Pointer)
+            .on_hover(move |inside| crate::island::set_notice_hover(id, inside))
             .on_click(move |_| Notifications::click(id))
             .child(row),
     )
