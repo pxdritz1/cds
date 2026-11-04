@@ -1,4 +1,8 @@
 use amane::Service;
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::time::Duration;
+
+static HOVER_GENERATION: AtomicU64 = AtomicU64::new(0);
 
 #[derive(Clone, Copy, PartialEq, Eq, Default)]
 pub enum Tab {
@@ -67,6 +71,7 @@ impl Ui {
     }
 
     pub fn toggle() {
+        HOVER_GENERATION.fetch_add(1, Ordering::Relaxed);
         let dash = {
             let mut ui = Self::write();
 
@@ -82,6 +87,7 @@ impl Ui {
     }
 
     pub fn open(tab: Tab) {
+        HOVER_GENERATION.fetch_add(1, Ordering::Relaxed);
         {
             let mut ui = Self::write();
 
@@ -94,6 +100,7 @@ impl Ui {
     }
 
     pub fn close() {
+        HOVER_GENERATION.fetch_add(1, Ordering::Relaxed);
         if !Self::read().dash {
             return;
         }
@@ -109,22 +116,46 @@ impl Ui {
 
     pub fn set_hover(hover: bool) {
         let auto_open = hover && crate::settings::Settings::read().flag("hover_dash");
-        let mut ui = Self::write();
+        let generation = HOVER_GENERATION.fetch_add(1, Ordering::Relaxed) + 1;
 
-        if ui.hover == hover && (!auto_open || ui.dash) {
-            return;
+        {
+            let mut ui = Self::write();
+
+            if ui.hover == hover && (!auto_open || ui.dash) {
+                return;
+            }
+
+            ui.hover = hover;
+
+            if !hover && ui.hover_opened_dash {
+                ui.dash = false;
+                ui.hover_opened_dash = false;
+            }
         }
 
-        ui.hover = hover;
+        if auto_open {
+            let delay = crate::settings::Settings::read().hover_delay_ms();
+            std::thread::spawn(move || {
+                std::thread::sleep(Duration::from_millis(delay));
+                if HOVER_GENERATION.load(Ordering::Relaxed) != generation {
+                    return;
+                }
 
-        if auto_open && !ui.dash {
-            ui.dash = true;
-            ui.hover_opened_dash = true;
-            drop(ui);
-            crate::overlay::Overlay::close();
-        } else if !hover && ui.hover_opened_dash {
-            ui.dash = false;
-            ui.hover_opened_dash = false;
+                let should_open = {
+                    let mut ui = Self::write();
+                    if ui.hover && !ui.dash {
+                        ui.dash = true;
+                        ui.hover_opened_dash = true;
+                        true
+                    } else {
+                        false
+                    }
+                };
+
+                if should_open {
+                    crate::overlay::Overlay::close();
+                }
+            });
         }
     }
 
