@@ -93,7 +93,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
         .width(340.0 * ui_scale)
         .height(58.0 * ui_scale)
         .fill(fade(scheme.surface_container_highest, 238))
-        .radius(20.0)
+        .radius(20.0 * ui_scale)
         .border(1.5, field_border)
         .padding(Padding {
             top: 0.0,
@@ -126,13 +126,13 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
         .width(340.0 * ui_scale)
         .height(4.0 * ui_scale)
         .fill(fade(scheme.on_surface, 36))
-        .radius(2.0)
+        .radius(2.0 * ui_scale)
         .child(
             Rectangle::new()
                 .width(password_width)
-                .height(4.0)
+                .height(4.0 * ui_scale)
                 .fill(if failed { scheme.error } else { scheme.primary })
-                .radius(2.0),
+                .radius(2.0 * ui_scale),
         );
 
     let notifications = Notifications::read();
@@ -145,7 +145,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
     drop(notifications);
 
     let notification_chip = Rectangle::new()
-        .width(340.0)
+        .width(340.0 * ui_scale)
         .height(54.0 * ui_scale)
         .fill(fade(scheme.surface_container_highest, 220))
         .radius(18.0 * ui_scale)
@@ -192,8 +192,8 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
                 Box::new(password_progress),
                 Box::new(
                     Rectangle::new()
-                        .width(340.0)
-                        .height(22.0)
+                        .width(340.0 * ui_scale)
+                        .height(22.0 * ui_scale)
                         .align_child(Center, Center)
                         .child(scale_label(
                             Type::LabelMedium,
@@ -233,7 +233,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
                         .width(54.0 * ui_scale)
                         .height(54.0 * ui_scale)
                         .fill(scheme.tertiary_container)
-                        .radius(18.0)
+                        .radius(18.0 * ui_scale)
                         .align_child(Center, Center)
                         .child(m3::icon(weather.glyph(), 30.0 * ui_scale, scheme.on_tertiary_container)),
                 ),
@@ -247,7 +247,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
                         )),
                         Box::new(scale(Type::DisplaySmall, weather.temperature(), scheme.on_surface)),
                     ])
-                    .gap(2.0)
+                    .gap(2.0 * ui_scale)
                     .width(Parent)
                     .justify(Center),
                 ),
@@ -283,8 +283,8 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
         .width(330.0 * ui_scale)
         .height(154.0 * ui_scale)
         .fill(fade(scheme.surface_container, 224))
-        .radius(26.0)
-        .padding(18.0)
+        .radius(26.0 * ui_scale)
+        .padding(18.0 * ui_scale)
         .child(
             Column::new(vec![
                 Box::new(
@@ -305,13 +305,13 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
                                     1,
                                 )),
                             ])
-                            .gap(2.0)
+                            .gap(2.0 * ui_scale)
                             .width(Parent)
                             .justify(Center),
                         ),
                         Box::new(power_button),
                     ])
-                    .gap(12.0)
+                    .gap(12.0 * ui_scale)
                     .align(Center)
                     .width(Parent),
                 ),
@@ -323,11 +323,11 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
                                 Box::new(scale_label(Type::BodyMedium, track, scheme.on_surface, 1)),
                                 Box::new(scale_label(Type::LabelSmall, artist, scheme.on_surface_variant, 1)),
                             ])
-                            .gap(2.0)
+                            .gap(2.0 * ui_scale)
                             .width(Parent),
                         ),
                     ])
-                    .gap(12.0)
+                    .gap(12.0 * ui_scale)
                     .align(Center)
                     .width(Parent),
                 ),
@@ -387,8 +387,8 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
                 .height(Parent)
                 .padding(Padding {
                     top: 0.0,
-                    right: 40.0,
-                    bottom: 36.0,
+                    right: 40.0 * ui_scale,
+                    bottom: 36.0 * ui_scale,
                     left: 0.0,
                 })
                 .align_child(End, End)
@@ -403,7 +403,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
                 .height(Parent)
                 .padding(Padding {
                     top: 0.0,
-                    right: 40.0,
+                    right: 40.0 * ui_scale,
                     bottom: 210.0 * ui_scale,
                     left: 0.0,
                 })
@@ -499,7 +499,7 @@ fn power_menu(scheme: &crate::theme::Scheme, ui_scale: f32) -> Rectangle {
                     .width(Parent)
                     .height(44.0 * ui_scale)
                     .fill(fade(scheme.surface_container_highest, 210))
-                    .radius(14.0)
+                    .radius(14.0 * ui_scale)
                     .cursor(Pointer)
                     .on_click(move |_| {
                         POWER_MENU_OPEN.store(false, Ordering::Relaxed);
@@ -521,7 +521,7 @@ fn power_menu(scheme: &crate::theme::Scheme, ui_scale: f32) -> Rectangle {
                                 1,
                             )),
                         ])
-                        .gap(12.0)
+                        .gap(12.0 * ui_scale)
                         .align(Center)
                         .width(Parent)
                         .height(Parent),
@@ -534,7 +534,7 @@ fn power_menu(scheme: &crate::theme::Scheme, ui_scale: f32) -> Rectangle {
         .width(260.0 * ui_scale)
         .height(224.0 * ui_scale)
         .fill(fade(scheme.surface_container, 238))
-        .radius(24.0)
+        .radius(24.0 * ui_scale)
         .clip()
         .padding(14.0 * ui_scale)
         .child(
