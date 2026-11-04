@@ -369,6 +369,11 @@ fn app_row(app: &DesktopApp, scheme: &Scheme, index: usize, selected: bool) -> R
     };
 
     let (fill, color) = row_fill(&key, selected, scheme);
+    let pin_indicator: Box<dyn Widget> = if pinned {
+        boxed(crate::m3::icon(m3::PIN, 16.0, scheme.primary))
+    } else {
+        boxed(Rectangle::new().width(16.0).height(16.0))
+    };
     let container = if selected {
         scheme.secondary_container
     } else {
@@ -405,7 +410,7 @@ fn app_row(app: &DesktopApp, scheme: &Scheme, index: usize, selected: bool) -> R
                     boxed(scale_label(Type::BodyMedium, headline, color, 1)),
                     boxed(scale_label(Type::LabelSmall, supporting, fade(color, 190), 1)),
                 ]).gap(1.0).width(Parent)),
-                if pinned { boxed(crate::m3::icon(m3::PIN, 16.0, scheme.primary)) } else { boxed(crate::m3::icon("", 1.0, color)) },
+                pin_indicator,
             ])
             .gap(14.0)
             .align(Center)
