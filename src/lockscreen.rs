@@ -414,7 +414,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
 
     LayerWindow::new()
         .width(Full)
-        .height(monitor.height as f32)
+        .height(Full)
         .anchor_vertical(Vertical::Middle)
         .anchor_horizontal(Horizontal::Middle)
         .layer(Layer::Top)
