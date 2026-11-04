@@ -43,8 +43,8 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
     let grid: Box<dyn Widget> = if rows.is_empty() {
         boxed(m3::empty_state(
             m3::APPS,
-            "Nenhum app instalado",
-            "Os programas aparecem depois da primeira varredura",
+            crate::lang::text("Nenhum app instalado", "No apps installed"),
+            crate::lang::text("Os programas aparecem depois da primeira varredura", "Apps will appear after the first scan"),
             Parent,
             220.0,
             scheme,
@@ -58,7 +58,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
     };
 
     let header = Row::new(vec![
-        boxed(scale(Type::HeadlineSmall, "Aplicativos", scheme.on_surface)),
+        boxed(scale(Type::HeadlineSmall, crate::lang::text("Aplicativos", "Applications"), scheme.on_surface)),
         boxed(Rectangle::new().width(Parent).height(1.0)),
         boxed(m3::icon_button(
             "apps:spotlight",
