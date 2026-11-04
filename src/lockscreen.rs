@@ -467,14 +467,14 @@ fn analogue_clock(clock: &Clock, scheme: &crate::theme::Scheme, ui_scale: f32) -
     shapes.push(Box::new(
         Line::new()
             .from(center, center)
-            .to(center + 31.0 * ui_scale * hour_angle.cos(), center + 31.0 * hour_angle.sin())
+            .to(center + 31.0 * ui_scale * hour_angle.cos(), center + 31.0 * ui_scale * hour_angle.sin())
             .stroke(5.0 * ui_scale, scheme.on_surface)
             .cap(Cap::Round),
     ));
     shapes.push(Box::new(
         Line::new()
             .from(center, center)
-            .to(center + 49.0 * ui_scale * minute_angle.cos(), center + 49.0 * minute_angle.sin())
+            .to(center + 49.0 * ui_scale * minute_angle.cos(), center + 49.0 * ui_scale * minute_angle.sin())
             .stroke(2.8 * ui_scale, scheme.primary)
             .cap(Cap::Round),
     ));
