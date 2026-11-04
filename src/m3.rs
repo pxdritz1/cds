@@ -350,9 +350,10 @@ pub fn cookie(lobes: f32, size: f32, fill: Color) -> Canvas {
 pub fn rotating_cookie(size: f32, fill: Color) -> Canvas {
     static START: OnceLock<Instant> = OnceLock::new();
     let elapsed = START.get_or_init(Instant::now).elapsed();
-    request_frame();
+    motion::request_frame_at_most(30);
 
-    const STEPS: usize = 144;
+    // Half the vertices are enough for a 26 px icon and reduce path work.
+    const STEPS: usize = 72;
     let radius = size / 2.0;
     let depth = radius * 0.09;
     let rotation = elapsed.as_secs_f32() * 0.75;
