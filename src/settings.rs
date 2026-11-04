@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 use std::fs;
 use std::path::PathBuf;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use amane::Service;
 
@@ -31,6 +31,7 @@ pub struct Settings {
     flags: BTreeMap<String, bool>,
     hover_delay_ms: u64,
     scan_requested: bool,
+    last_scan: Instant,
 }
 
 fn default_flag(name: &str) -> bool {
@@ -49,6 +50,7 @@ impl Service for Settings {
             flags: BTreeMap::new(),
             hover_delay_ms: 500,
             scan_requested: true,
+            last_scan: Instant::now(),
         };
 
         settings.load();
@@ -66,12 +68,17 @@ impl Service for Settings {
     }
 
     fn update(&mut self) -> bool {
-        if !self.scan_requested {
+        // Rescan after a directory change immediately, otherwise only once
+        // per minute so external wallpaper changes still appear without
+        // walking the folder on every service tick.
+        if !self.scan_requested && self.last_scan.elapsed() < Duration::from_secs(60) {
             return false;
         }
 
         self.scan_requested = false;
-        self.scan()
+        let changed = self.scan();
+        self.last_scan = Instant::now();
+        changed
     }
 }
 
