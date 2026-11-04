@@ -7,7 +7,7 @@
 use std::cell::{Cell, RefCell};
 
 use amane::{
-    Battery, Bluetooth, Brightness, Button, Center, Column, Key, LayerWindow, Media, Monitor,
+    Bluetooth, Brightness, Button, Center, Column, Key, LayerWindow, Media, Monitor,
     Network, Notification, Notifications, Padding, Parent, Rectangle, Row, Scroll, ScrollArea, Service,
     Widget,
 };
@@ -274,20 +274,6 @@ fn toggles(scheme: &Scheme) -> Column {
     let dark = Settings::read().dark();
     let dnd = Settings::read().flag("dnd");
 
-    let (battery_percent, charging, present) = {
-        let battery = Battery::read();
-
-        (battery.percent(), battery.charging(), battery.present())
-    };
-
-    let battery_subtitle = if !present {
-        String::from("Sem bateria")
-    } else if charging {
-        format!("{battery_percent}% · carregando")
-    } else {
-        format!("{battery_percent}%")
-    };
-
     let wifi = tile(
         Tile {
             key: "ctl:wifi",
@@ -427,6 +413,9 @@ fn audio_devices_page(scheme: &Scheme, output: bool) -> Box<dyn Widget> {
                     let mut fields = line.split_whitespace();
                     let _index = fields.next()?;
                     let name = fields.next()?.to_string();
+                    if !output && name.ends_with(\".monitor\") {
+                        return None;
+                    }
                     Some(name)
                 })
                 .collect::<Vec<_>>()
@@ -442,7 +431,7 @@ fn audio_devices_page(scheme: &Scheme, output: bool) -> Box<dyn Widget> {
         .align(Center),
     )];
 
-    for (index, device) in devices.iter().enumerate() {
+    for device in &devices {
         let selected = *device == default;
         let label = if selected { format!("✓  {device}") } else { device.clone() };
         let device_name = device.clone();
@@ -461,7 +450,6 @@ fn audio_devices_page(scheme: &Scheme, output: bool) -> Box<dyn Widget> {
                 .align_child(amane::Start, Center)
                 .child(scale(Type::LabelMedium, label, if selected { scheme.on_secondary_container } else { scheme.on_surface })),
         ));
-        let _ = index;
     }
 
     if devices.is_empty() {
