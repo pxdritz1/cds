@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -35,6 +35,7 @@ pub struct Settings {
     flags: BTreeMap<String, bool>,
     hover_delay_ms: u64,
     language: String,
+    pinned_apps: BTreeSet<String>,
 }
 
 fn default_flag(name: &str) -> bool {
@@ -53,6 +54,7 @@ impl Service for Settings {
             flags: BTreeMap::new(),
             hover_delay_ms: 500,
             language: String::from("pt-BR"),
+            pinned_apps: BTreeSet::new(),
         };
 
         settings.load();
@@ -119,6 +121,18 @@ impl Settings {
 
     pub fn language(&self) -> &str {
         &self.language
+    }
+
+    pub fn is_pinned(&self, exec: &str) -> bool {
+        self.pinned_apps.contains(exec)
+    }
+
+    pub fn toggle_pinned(exec: &str) {
+        let mut settings = Self::write();
+        if !settings.pinned_apps.remove(exec) {
+            settings.pinned_apps.insert(String::from(exec));
+        }
+        settings.save();
     }
 
     pub fn set_language(language: &str) {
@@ -379,6 +393,7 @@ impl Settings {
                 "directory" => self.directory = expand_home_path(value),
                 "location" => self.location = String::from(value),
                 "language" => self.language = if value == "en" { String::from("en") } else { String::from("pt-BR") },
+                "pinned_app" => { self.pinned_apps.insert(String::from(value)); },
                 "hover_delay_ms" => {
                     self.hover_delay_ms = value.parse::<u64>().unwrap_or(500).clamp(100, 2000)
                 },
@@ -411,6 +426,10 @@ impl Settings {
 
         for (name, value) in &self.flags {
             text.push_str(&format!("flag.{name}={value}\n"));
+        }
+
+        for exec in &self.pinned_apps {
+            text.push_str(&format!("pinned_app={exec}\n"));
         }
 
         // Publish settings atomically: a crash or power loss must not leave
