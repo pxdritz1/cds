@@ -3,9 +3,7 @@ use amane::{
     Service, SpaceBetween, Widget,
 };
 
-use crate::island::widgets::{
-    CHECK, LOCK, LOGOUT, POWER, RESTART, boxed, icon, label, text,
-};
+use crate::island::widgets::{CHECK, LOCK, LOGOUT, POWER, RESTART, boxed, icon, label, text};
 use crate::m3;
 use crate::overlay::{self, Overlay, Panel, row_fill};
 use crate::theme::{Scheme, Theme, fade};
@@ -44,21 +42,21 @@ impl Action {
 
     fn label(self) -> &'static str {
         match self {
-            Action::Lock => "Lock screen",
-            Action::Logout => "Log out",
-            Action::Suspend => "Suspend",
-            Action::Reboot => "Restart",
-            Action::Shutdown => "Shut down",
+            Action::Lock => crate::lang::text("Bloquear tela", "Lock screen"),
+            Action::Logout => crate::lang::text("Sair da sessão", "Log out"),
+            Action::Suspend => crate::lang::text("Suspender", "Suspend"),
+            Action::Reboot => crate::lang::text("Reiniciar", "Restart"),
+            Action::Shutdown => crate::lang::text("Desligar", "Shut down"),
         }
     }
 
     fn hint(self) -> &'static str {
         match self {
-            Action::Lock => "Keep the session running",
-            Action::Logout => "Close the niri session",
-            Action::Suspend => "Sleep until woken",
-            Action::Reboot => "Restart the machine",
-            Action::Shutdown => "Power the machine off",
+            Action::Lock => crate::lang::text("Manter a sessão ativa", "Keep the session running"),
+            Action::Logout => crate::lang::text("Encerrar a sessão do niri", "Close the niri session"),
+            Action::Suspend => crate::lang::text("Suspender até ser reativado", "Sleep until woken"),
+            Action::Reboot => crate::lang::text("Reiniciar o computador", "Restart the machine"),
+            Action::Shutdown => crate::lang::text("Desligar o computador", "Power the machine off"),
         }
     }
 
@@ -167,7 +165,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
                 .child(icon(POWER, 18.0, scheme.on_primary_container)),
         ),
         boxed(text(
-            "Power",
+            crate::lang::text("Energia", "Power"),
             18.0,
             scheme.on_surface,
             amane::Weight::SemiBold,
@@ -185,13 +183,13 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
 
     let footer = Row::new(vec![
         boxed(text(
-            "↑↓ choose  ·  Enter runs",
+            crate::lang::text("↑↓ selecionar  ·  Enter executar", "↑↓ choose  ·  Enter runs"),
             11.5,
             scheme.on_surface_variant,
             amane::Weight::Medium,
         )),
         boxed(text(
-            "Esc closes",
+            crate::lang::text("Esc fecha", "Esc closes"),
             11.5,
             fade(scheme.on_surface_variant, 170),
             amane::Weight::Regular,
@@ -212,12 +210,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
         .child(
             Column::new(vec![
                 boxed(header),
-                boxed(
-                    Column::new(rows)
-                        .gap(4.0)
-                        .width(Parent)
-                        .height(Parent),
-                ),
+                boxed(Column::new(rows).gap(4.0).width(Parent).height(Parent)),
                 boxed(footer),
             ])
             .width(Parent)

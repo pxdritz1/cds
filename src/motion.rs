@@ -1,22 +1,77 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
-use std::time::Duration;
+use std::sync::mpsc;
+use std::sync::OnceLock;
+use std::thread;
+use std::time::{Duration, Instant};
 
 use amane::{Animation, Blend, Color, Easing};
 
+static FRAME_TIMER: OnceLock<Option<mpsc::Sender<u64>>> = OnceLock::new();
+
+/// Coalesce continuous animation redraws without running faster than requested.
+pub fn request_frame_at_most(fps: u64) {
+    let interval_ms = (1000 / fps.clamp(1, 60)).max(1);
+
+    let sender = FRAME_TIMER.get_or_init(|| {
+        let (sender, receiver) = mpsc::channel::<u64>();
+
+        match thread::Builder::new()
+            .name(String::from("cds-frame-timer"))
+            .spawn(move || {
+                let mut last_frame = Instant::now();
+
+                while let Ok(mut interval_ms) = receiver.recv() {
+                    let mut interval = Duration::from_millis(interval_ms);
+                    let mut deadline = last_frame + interval;
+
+                    loop {
+                        match receiver.recv_timeout(deadline.saturating_duration_since(Instant::now())) {
+                            Ok(next_interval) => {
+                                interval_ms = interval_ms.min(next_interval);
+                                interval = Duration::from_millis(interval_ms);
+                                deadline = last_frame + interval;
+                            }
+                            Err(mpsc::RecvTimeoutError::Timeout) => break,
+                            Err(mpsc::RecvTimeoutError::Disconnected) => return,
+                        }
+                    }
+
+                    amane::request_frame();
+                    last_frame = Instant::now();
+                }
+            })
+        {
+            Ok(_) => Some(sender),
+            Err(error) => {
+                eprintln!("CDS: não foi possível iniciar o temporizador de frames: {error}");
+                None
+            }
+        }
+    });
+
+    if let Some(sender) = sender {
+        if sender.send(interval_ms).is_err() {
+            amane::request_frame();
+        }
+    } else {
+        amane::request_frame();
+    }
+}
+
 /*
- * material 3 motion: things enter quickly and settle softly, so the
- * decelerate curve is the default. durations stay short enough that
- * the shell still feels immediate.
+ * Material 3 Expressive motion: things enter quickly and settle softly,
+ * using the decelerate curve by default. Durations follow Material 3
+ * Expressive specifications for smooth, natural animations.
  */
-const EXPAND: Duration = Duration::from_millis(420);
-const COLLAPSE: Duration = Duration::from_millis(280);
-const FADE: Duration = Duration::from_millis(220);
+const EXPAND: Duration = Duration::from_millis(400);
+const COLLAPSE: Duration = Duration::from_millis(300);
+const FADE: Duration = Duration::from_millis(200);
 const STATE: Duration = Duration::from_millis(150);
-const WORKSPACE: Duration = Duration::from_millis(260);
-const SELECT: Duration = Duration::from_millis(240);
-const OVERLAY_IN: Duration = Duration::from_millis(220);
-const OVERLAY_OUT: Duration = Duration::from_millis(150);
+const WORKSPACE: Duration = Duration::from_millis(250);
+const SELECT: Duration = Duration::from_millis(200);
+const OVERLAY_IN: Duration = Duration::from_millis(300);
+const OVERLAY_OUT: Duration = Duration::from_millis(200);
 
 /*
  * one value moving toward a target. retargeting only happens when the

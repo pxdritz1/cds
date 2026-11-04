@@ -24,7 +24,8 @@ impl Service for Clock {
 
     fn listen() {
         loop {
-            thread::sleep(Duration::from_secs(1));
+            // The UI displays minutes, so polling every five seconds is sufficient.
+            thread::sleep(Duration::from_secs(5));
 
             let Some(fresh) = read() else {
                 continue;
@@ -79,16 +80,20 @@ impl Clock {
 
 fn greeting(hour: u32) -> &'static str {
     match hour {
-        5..=11 => "Bom dia",
-        12..=17 => "Boa tarde",
-        _ => "Boa noite",
+        5..=11 => crate::lang::text("Bom dia", "Good morning"),
+        12..=17 => crate::lang::text("Boa tarde", "Good afternoon"),
+        _ => crate::lang::text("Boa noite", "Good evening"),
     }
 }
 
 fn read() -> Option<Clock> {
     let output = ["date", "/usr/bin/date"].iter().find_map(|program| {
-        Command::new(program)
-            .arg("+%H:%M%n%I:%M %p%n%A, %d de %B%n%a, %d %b%n%H%n%Y %m %d %w")
+        let mut command = Command::new(program);
+        if crate::settings::Settings::read().language() == "en" {
+            command.env("LC_TIME", "C");
+        }
+        command
+            .arg(if crate::settings::Settings::read().language() == "en" { "+%H:%M%n%I:%M %p%n%A, %B %d%n%a, %b %d%n%H%n%Y %m %d %w" } else { "+%H:%M%n%I:%M %p%n%A, %d de %B%n%a, %d %b%n%H%n%Y %m %d %w" })
             .output()
             .ok()
             .filter(|output| output.status.success())

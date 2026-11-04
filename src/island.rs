@@ -3,41 +3,101 @@ mod dash;
 mod peek;
 pub(crate) mod widgets;
 
-use std::time::Duration;
+use std::collections::HashMap;
+use std::sync::{Mutex, OnceLock};
+use std::time::{Duration, Instant, SystemTime};
 
 use amane::{
-    Button, Center, Full, InputArea, Key, Keyboard, Layer, LayerWindow, Margin, Media, Monitor,
-    Notification, Notifications, Parent, Rectangle, Service, Shadow, Stack, Start, Vertical,
-    Widget, Zone, request_frame,
+    Button, Center, Column, End, Full, Horizontal, InputArea, Key, Keyboard, Layer, LayerWindow,
+    Margin, Media, Monitor, Notification, Notifications, Padding, Parent, Pointer, Rectangle,
+    Service, Shadow, Stack, Start, Vertical, Widget, Zone,
 };
 
 use crate::motion;
-use crate::theme::{Theme, fade};
+use crate::overlay::{Overlay, Panel};
+use crate::theme::{Scheme, Theme, fade};
 use crate::tray::{self, Tray};
-use crate::ui::Ui;
+use crate::ui::{Tab, Ui};
 
-const WINDOW_WIDTH: f32 = 760.0;
-const WINDOW_HEIGHT: f32 = 480.0;
+const RESERVED: f32 = 52.0;
+const BAR_HEIGHT: f32 = 40.0;
 const MARGIN: i32 = 10;
-const RESERVED: f32 = 44.0;
-const COMPACT_HEIGHT: f32 = 40.0;
-// the tray sheet rounds like a card, not like the pill the bar uses
-const TRAY_RADIUS: f32 = 26.0;
 const NOTICE_TIME: Duration = Duration::from_secs(5);
 
-// what the island is showing, which decides its size and how content fades
+struct NoticeTimer {
+    remaining: Duration,
+    last_tick: Instant,
+    hovered: bool,
+    received: SystemTime,
+}
+
+static NOTICE_TIMERS: OnceLock<Mutex<HashMap<u32, NoticeTimer>>> = OnceLock::new();
+
+fn notice_timers() -> &'static Mutex<HashMap<u32, NoticeTimer>> {
+    NOTICE_TIMERS.get_or_init(|| Mutex::new(HashMap::new()))
+}
+
+pub(crate) fn set_notice_hover(id: u32, inside: bool) {
+    let mut timers = notice_timers().lock().unwrap_or_else(|error| error.into_inner());
+    if let Some(timer) = timers.get_mut(&id) {
+        timer.hovered = inside;
+        timer.last_tick = Instant::now();
+    }
+}
+
+pub(crate) fn notification_preview_active() -> bool {
+    let notifications = Notifications::read();
+    let ids: Vec<u32> = notifications.list().iter().map(Notification::id).collect();
+    let timers = notice_timers().lock().unwrap_or_else(|error| error.into_inner());
+
+    timers.iter().any(|(id, timer)| {
+        ids.contains(id) && timer.remaining > Duration::ZERO
+    })
+}
+
+// the tray sheet rounds like a card, not like the pill the bar uses
+const CENTER_WIDTH: f32 = 760.0;
+const CENTER_HEIGHT: f32 = 480.0;
+
+const LEFT_WIDTH: f32 = 340.0;
+const LEFT_HEIGHT: f32 = 400.0;
+
+const RIGHT_WIDTH: f32 = 340.0;
+const RIGHT_HEIGHT: f32 = 400.0;
+
+const TRAY_RADIUS: f32 = 26.0;
+const TRAY_PADDING: f32 = 8.0;
+
+// what the center island is showing, which decides its size and how content fades
 #[derive(Clone, Copy, PartialEq, Eq)]
-enum Mode {
-    Compact = 0,
-    Media = 1,
-    Notice = 2,
-    Dash = 3,
+enum IslandMode {
+    Compact = 0,       // the clock
+    Media = 1,         // the player-and-clock sheet
+    NoticeCompact = 2, // a notification arriving
+    Notice = 3,        // an expanded notification preview
+    Dash = 4,          // the full dash
 }
 
 pub fn reserve(_: &Monitor) -> LayerWindow {
+    let ui = Ui::read();
+    let media_visible = Media::read().playing()
+        && !ui.media_sheet()
+        && !ui.dash()
+        && !notification_preview_active();
+    let notice_active = notification_preview_active() && !ui.dash();
+    let reserved_height = if media_visible {
+        peek::MEDIA_HEIGHT + 6.0
+    } else if notice_active && ui.hover() {
+        peek::NOTICE_HEIGHT + 6.0
+    } else if notice_active {
+        peek::NOTICE_COMPACT_HEIGHT + 6.0
+    } else {
+        RESERVED
+    };
+
     LayerWindow::new()
         .width(Full)
-        .height(RESERVED)
+        .height(reserved_height)
         .anchor_vertical(Vertical::Top)
         .layer(Layer::Bottom)
         .space(Zone::Reserve)
@@ -46,102 +106,12 @@ pub fn reserve(_: &Monitor) -> LayerWindow {
         .child(Rectangle::new().width(Parent).height(Parent))
 }
 
-pub fn view(monitor: &Monitor) -> LayerWindow {
-    let theme = Theme::read();
-    let scheme = theme.scheme();
-    let ui = Ui::read();
-    let notifications = Notifications::read();
-    let has_media = Media::read().active().is_some();
-
-    let notice = recent(&notifications);
-
-    /*
-     * the tray keeps the island in its compact shape: with the menu open
-     * the hover media peek would fight the drawn menu for space, so the
-     * compact bar stays put while apps are chosen
-     */
-    let tray_open = {
-        let tray = Tray::read();
-
-        tray.open()
-    };
-
-    let mode = if ui.dash() {
-        Mode::Dash
-    } else if tray_open {
-        Mode::Compact
-    } else if notice.is_some() {
-        Mode::Notice
-    } else if ui.hover() && has_media {
-        Mode::Media
-    } else {
-        Mode::Compact
-    };
-
-    if mode == Mode::Notice {
-        request_frame();
-    }
-
-    // content fades in when the island changes what it shows
-    let alpha = motion::fade("island", mode as u64);
-
-    let (content, width, height, radius): (Box<dyn Widget>, f32, f32, f32) = match mode {
-        Mode::Dash => (
-            Box::new(dash::view(scheme, ui.tab(), alpha)),
-            dash::WIDTH,
-            dash::HEIGHT,
-            dash::RADIUS,
-        ),
-
-        Mode::Notice => {
-            let notification = notice.expect("the notice mode only starts with a notice");
-
-            (
-                peek::notice(scheme, notification, alpha),
-                peek::NOTICE_WIDTH,
-                peek::NOTICE_HEIGHT,
-                peek::NOTICE_HEIGHT / 2.0,
-            )
-        }
-
-        Mode::Media => (
-            peek::media(scheme, alpha),
-            peek::MEDIA_WIDTH,
-            peek::MEDIA_HEIGHT,
-            peek::MEDIA_HEIGHT / 2.0,
-        ),
-
-        Mode::Compact if tray_open => {
-            let (bar, bar_width) = compact::view(monitor, scheme, alpha);
-
-            let (menu, menu_width, menu_height) = tray::menu(scheme);
-
-            (
-                Box::new(
-                    amane::Column::new(vec![bar, menu])
-                        .align(amane::Center)
-                        .gap(8.0),
-                ),
-                // wider of the bar and the menu, so one morphs out of the other
-                f32::max(bar_width, menu_width),
-                COMPACT_HEIGHT + 8.0 + menu_height,
-                TRAY_RADIUS,
-            )
-        }
-
-        Mode::Compact => {
-            let (content, width) = compact::view(monitor, scheme, alpha);
-
-            (content, width, COMPACT_HEIGHT, COMPACT_HEIGHT / 2.0)
-        }
-    };
-
-    let (width, height, radius) = motion::follow(&monitor.name, width, height, radius);
-
-    let mut island = Rectangle::new()
+// the surface every island shares: fill, soft border and the drop shadow
+fn surface(width: f32, height: f32, radius: f32, fill: amane::Color, scheme: &Scheme) -> Rectangle {
+    Rectangle::new()
         .width(width)
         .height(height)
-        .fill(scheme.surface_container_high)
+        .fill(fill)
         .radius(radius)
         .clip()
         .shadow(
@@ -151,23 +121,281 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
                 .offset(0.0, 8.0),
         )
         .border(1.0, fade(scheme.outline_variant, 80))
-        .on_hover(Ui::set_hover);
+}
 
-    // clicking the island itself: close the dash, settle the tray or toggle it
-    if ui.dash() {
-        // keeps a click inside the surface from reaching the backdrop below
-        island = island.on_click(|_| {});
-    } else if tray_open {
-        island = island.on_click(|_| Tray::close());
+pub fn left(monitor: &Monitor) -> LayerWindow {
+    let theme = Theme::read();
+    let scheme = theme.scheme();
+
+    let (bar, bar_width) = compact::workspaces(monitor, scheme);
+
+    let bar_row = Rectangle::new()
+        .width(Parent)
+        .height(BAR_HEIGHT)
+        .child(Stack::new(vec![bar]).width(Parent).height(Parent));
+
+    let (width, height, radius) =
+        motion::follow(&format!("left:{}", monitor.name), bar_width, BAR_HEIGHT, BAR_HEIGHT / 2.0);
+
+    let island = surface(width, height, radius, compact::base_fill(scheme), scheme)
+        .child(Stack::new(vec![Box::new(bar_row)]).width(Parent).height(Parent));
+
+    LayerWindow::new()
+        .width(LEFT_WIDTH)
+        .height(LEFT_HEIGHT)
+        .anchor_vertical(Vertical::Top)
+        .anchor_horizontal(Horizontal::Left)
+        .layer(Layer::Top)
+        .space(Zone::Ignore)
+        .margin(Margin {
+            top: MARGIN,
+            left: MARGIN,
+            ..Margin::default()
+        })
+        .namespace("cds-left")
+        .input_region(vec![InputArea {
+            x: 0,
+            y: 0,
+            width: width.ceil() as i32,
+            height: height.ceil() as i32,
+        }])
+        .child(
+            Rectangle::new()
+                .width(Parent)
+                .height(Parent)
+                .align_child(Start, Start)
+                .child(island),
+        )
+}
+
+pub fn right(monitor: &Monitor) -> LayerWindow {
+    let theme = Theme::read();
+    let scheme = theme.scheme();
+
+    let tray_open = Tray::read().open();
+    let tray_count = Tray::read().items().len();
+    let (status, status_width) = compact::status(scheme);
+
+    let (content, width, height, radius): (Box<dyn Widget>, f32, f32, f32) = if tray_open {
+        let (menu, menu_width, menu_height) = tray::menu(scheme);
+
+        // Center the single icon; keep a multi-icon tray aligned to the right.
+        let menu_slot = Rectangle::new()
+            .width(Parent)
+            .height(menu_height);
+        let menu_slot = if tray_count == 1 {
+            menu_slot.align_child(Center, Center)
+        } else {
+            menu_slot.align_child(End, Center)
+        }
+        .child(Stack::new(vec![menu]));
+
+        let column = Column::new(vec![status, Box::new(menu_slot)])
+            .align(End)
+            .gap(TRAY_PADDING)
+            .width(Parent)
+            .height(Parent);
+
+        (
+            Box::new(
+                Rectangle::new()
+                    .width(Parent)
+                    .height(Parent)
+                    .padding(Padding {
+                        top: 0.0,
+                        right: TRAY_PADDING,
+                        bottom: TRAY_PADDING,
+                        left: TRAY_PADDING,
+                    })
+                    .child(column),
+            ),
+            f32::max(status_width, menu_width + TRAY_PADDING * 2.0),
+            BAR_HEIGHT + TRAY_PADDING + menu_height + TRAY_PADDING,
+            TRAY_RADIUS,
+        )
     } else {
+        (status, status_width, BAR_HEIGHT, BAR_HEIGHT / 2.0)
+    };
+
+    let (width, height, radius) = motion::follow(&format!("right:{}", monitor.name), width, height, radius);
+
+    let island = surface(
+        width,
+        height,
+        radius,
+        compact::status_fill(scheme),
+        scheme,
+    )
+    .cursor(Pointer)
+    .on_hover(|inside| motion::set_hover("status-island", inside))
+    .on_click(|button| {
+        if button == Button::Left {
+            Overlay::toggle(Panel::Control);
+        }
+    })
+    .child(Stack::new(vec![content]).width(Parent).height(Parent));
+
+    let (region, keyboard) = (
+        vec![InputArea {
+            x: (RIGHT_WIDTH - width).max(0.0) as i32,
+            y: 0,
+            width: width.ceil() as i32,
+            height: height.ceil() as i32,
+        }],
+        if tray_open { Keyboard::OnDemand } else { Keyboard::None },
+    );
+
+    LayerWindow::new()
+        .width(RIGHT_WIDTH)
+        .height(RIGHT_HEIGHT)
+        .anchor_vertical(Vertical::Top)
+        .anchor_horizontal(Horizontal::Right)
+        .layer(Layer::Top)
+        .space(Zone::Ignore)
+        .margin(Margin {
+            top: MARGIN,
+            right: MARGIN,
+            ..Margin::default()
+        })
+        .keyboard(keyboard)
+        .namespace("cds-right")
+        .input_region(region)
+        .on_key(|key| {
+            if key == Key::Escape {
+                Tray::close();
+            }
+        })
+        .child(
+            Rectangle::new()
+                .width(Parent)
+                .height(Parent)
+                // Leaving the tray's input area dismisses it. This does not
+                // open the tray on hover; it only observes pointer departure.
+                .on_hover(move |inside| {
+                    if tray_open && !inside {
+                        Tray::close();
+                    }
+                })
+                .on_click(move |_| {
+                    if tray_open {
+                        Tray::close();
+                    }
+                })
+                .align_child(End, Start)
+                .child(island),
+        )
+}
+
+pub fn view(monitor: &Monitor) -> LayerWindow {
+    let theme = Theme::read();
+    let scheme = theme.scheme();
+    let notifications = Notifications::read();
+    let has_media = Media::read().playing();
+    if !has_media {
+        Ui::reset_media_sheet();
+    }
+    let ui = Ui::read();
+
+    let notice = recent(&notifications);
+
+    let mode = if ui.dash() {
+        IslandMode::Dash
+    } else if notice.is_some() && ui.hover() {
+        IslandMode::Notice
+    } else if notice.is_some() {
+        IslandMode::NoticeCompact
+    } else if has_media && !ui.media_sheet() {
+        IslandMode::Media
+    } else {
+        IslandMode::Compact
+    };
+
+    if matches!(mode, IslandMode::NoticeCompact | IslandMode::Notice) {
+        motion::request_frame_at_most(20);
+    }
+
+    // content fades in when the island changes what it shows
+    let alpha = motion::fade("island", mode as u64);
+
+    let (content, width, height, radius): (Box<dyn Widget>, f32, f32, f32) = match mode {
+        IslandMode::Dash => (
+            Box::new(dash::view(scheme, ui.tab(), alpha)),
+            dash::WIDTH,
+            dash::HEIGHT,
+            dash::RADIUS,
+        ),
+
+        IslandMode::NoticeCompact => match notice {
+            Some(notification) => (
+                peek::notice_compact(scheme, notification, alpha),
+                peek::NOTICE_COMPACT_WIDTH,
+                peek::NOTICE_COMPACT_HEIGHT,
+                peek::NOTICE_COMPACT_HEIGHT / 2.0,
+            ),
+            None => {
+                let (content, width) = compact::clock(scheme, alpha);
+                (content, width, BAR_HEIGHT, crate::m3::shape::ISLAND_COMPACT)
+            }
+        },
+
+        IslandMode::Notice => match notice {
+            Some(notification) => (
+                peek::notice(scheme, notification, alpha),
+                peek::NOTICE_WIDTH,
+                peek::NOTICE_HEIGHT,
+                peek::NOTICE_HEIGHT / 2.0,
+            ),
+            None => {
+                let (content, width) = compact::clock(scheme, alpha);
+                (content, width, BAR_HEIGHT, crate::m3::shape::ISLAND_COMPACT)
+            }
+        },
+
+        IslandMode::Media => (
+            peek::media(scheme, alpha),
+            peek::MEDIA_WIDTH,
+            peek::MEDIA_HEIGHT,
+            crate::m3::shape::ISLAND_EXPANDED,
+        ),
+
+        IslandMode::Compact => {
+            let (content, width) = compact::clock(scheme, alpha);
+
+            (content, width, BAR_HEIGHT, crate::m3::shape::ISLAND_COMPACT)
+        }
+    };
+
+    let (width, height, radius) = motion::follow(&monitor.name, width, height, radius);
+
+    let target = if mode == IslandMode::Dash {
+        scheme.surface_container
+    } else {
+        scheme.surface_container_high
+    };
+
+    let fill = motion::color("island-fill", target, motion::SELECT_DURATION);
+
+    let mut island = surface(width, height, radius, fill, scheme);
+
+    // The media sheet is click-only: hovering it never reveals the dash.
+    if mode == IslandMode::Media {
+        if ui.hover() {
+            Ui::set_hover(false);
+        }
+    } else {
+        island = island.on_hover(Ui::set_hover);
+    }
+
+    // The player sheet has its own clock and transport controls.
+    // Do not attach a parent click handler: it would swallow the clock's
+    // action for switching back to the compact island.
+    if ui.dash() {
+        island = island.on_click(|_| {});
+    } else if mode != IslandMode::Media {
         island = island.on_click(|_| Ui::toggle());
     }
 
-    let island = island.child(
-        Stack::new(vec![content])
-            .width(Parent)
-            .height(Parent),
-    );
+    let island = island.child(Stack::new(vec![content]).width(Parent).height(Parent));
 
     /*
      * the dash takes the keyboard outright: a keybind opens it without a
@@ -181,22 +409,27 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
     };
 
     // the dash takes the whole window so a click outside the island closes it
-    let (region_x, region_width) = if ui.dash() {
-        (0.0, WINDOW_WIDTH)
+    let overlay_open = ui.dash();
+
+    let (region_x, region_width) = if overlay_open {
+        (0.0, CENTER_WIDTH)
     } else {
-        (((WINDOW_WIDTH - width) / 2.0).max(0.0), width)
+        (((CENTER_WIDTH - width) / 2.0).max(0.0), width)
     };
 
-    let region_height = if ui.dash() { WINDOW_HEIGHT } else { height };
+    let region_height = if overlay_open { CENTER_HEIGHT } else { height };
 
     LayerWindow::new()
-        .width(WINDOW_WIDTH)
-        .height(WINDOW_HEIGHT)
+        .width(CENTER_WIDTH)
+        .height(CENTER_HEIGHT)
         .anchor_vertical(Vertical::Top)
         .layer(Layer::Top)
+        // The separate reserve surface keeps windows below the island.
+        // Ignore its exclusive zone here so the island stays on the same
+        // top baseline as the left and right islands.
         .space(Zone::Ignore)
         .margin(Margin {
-            top: MARGIN,
+            top: 3,
             ..Margin::default()
         })
         .keyboard(keyboard)
@@ -210,7 +443,6 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
         .on_key(|key| {
             if key == Key::Escape {
                 Ui::close();
-                Tray::close();
             }
         })
         .child(
@@ -221,7 +453,6 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
                 .on_click(|button| {
                     if button == Button::Left {
                         Ui::close();
-                        Tray::close();
                     }
                 })
                 .child(island),
@@ -229,10 +460,44 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
 }
 
 fn recent(notifications: &Notifications) -> Option<&Notification> {
-    notifications.list().iter().rfind(|notification| {
-        notification
-            .received()
-            .elapsed()
-            .is_ok_and(|age| age < NOTICE_TIME)
-    })
+    let now = Instant::now();
+    let mut timers = notice_timers().lock().unwrap_or_else(|error| error.into_inner());
+
+    timers.retain(|known_id, _| {
+        notifications.list().iter().any(|item| item.id() == *known_id)
+    });
+
+    for notification in notifications.list().iter().rev() {
+        let id = notification.id();
+        let received = notification.received();
+        let timer = timers.entry(id).or_insert_with(|| NoticeTimer {
+            remaining: NOTICE_TIME.saturating_sub(
+                received.elapsed().unwrap_or(Duration::ZERO),
+            ),
+            last_tick: now,
+            hovered: false,
+            received,
+        });
+
+        if timer.received != received {
+            timer.remaining = NOTICE_TIME.saturating_sub(
+                received.elapsed().unwrap_or(Duration::ZERO),
+            );
+            timer.last_tick = now;
+            timer.hovered = false;
+            timer.received = received;
+        }
+
+        let elapsed = now.saturating_duration_since(timer.last_tick);
+        if !timer.hovered {
+            timer.remaining = timer.remaining.saturating_sub(elapsed);
+        }
+        timer.last_tick = now;
+
+        if timer.remaining > Duration::ZERO {
+            return Some(notification);
+        }
+    }
+
+    None
 }

@@ -1,4 +1,62 @@
 use amane::Service;
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::{mpsc, OnceLock};
+use std::thread;
+use std::time::{Duration, Instant};
+
+static HOVER_GENERATION: AtomicU64 = AtomicU64::new(0);
+static HOVER_TIMER: OnceLock<mpsc::Sender<(u64, u64)>> = OnceLock::new();
+
+fn hover_timer() -> &'static mpsc::Sender<(u64, u64)> {
+    HOVER_TIMER.get_or_init(|| {
+        let (sender, receiver) = mpsc::channel();
+
+        if let Err(error) = thread::Builder::new()
+            .name(String::from("cds-hover-timer"))
+            .spawn(move || {
+                while let Ok((mut generation, mut delay)) = receiver.recv() {
+                    let mut deadline = Instant::now() + Duration::from_millis(delay);
+
+                    loop {
+                        match receiver.recv_timeout(deadline.saturating_duration_since(Instant::now())) {
+                            Ok((next_generation, next_delay)) => {
+                                generation = next_generation;
+                                delay = next_delay;
+                                deadline = Instant::now() + Duration::from_millis(delay);
+                            }
+                            Err(mpsc::RecvTimeoutError::Timeout) => {
+                                if HOVER_GENERATION.load(Ordering::Relaxed) == generation {
+                                    let should_open = {
+                                        let mut ui = Ui::write();
+
+                                        if ui.hover && !ui.dash {
+                                            ui.dash = true;
+                                            ui.hover_opened_dash = true;
+                                            true
+                                        } else {
+                                            false
+                                        }
+                                    };
+
+                                    if should_open {
+                                        crate::overlay::Overlay::close();
+                                    }
+                                }
+
+                                break;
+                            }
+                            Err(mpsc::RecvTimeoutError::Disconnected) => return,
+                        }
+                    }
+                }
+            })
+        {
+            eprintln!("CDS: não foi possível iniciar o temporizador de hover: {error}");
+        }
+
+        sender
+    })
+}
 
 #[derive(Clone, Copy, PartialEq, Eq, Default)]
 pub enum Tab {
@@ -37,7 +95,8 @@ pub struct Ui {
     dash: bool,
     tab: Tab,
     hover: bool,
-    month: i32,
+    hover_opened_dash: bool,
+    media_sheet: bool,
 }
 
 impl Service for Ui {
@@ -61,8 +120,21 @@ impl Ui {
         self.hover
     }
 
-    pub fn month(&self) -> i32 {
-        self.month
+    pub fn media_sheet(&self) -> bool {
+        self.media_sheet
+    }
+
+    pub fn toggle_media_sheet() {
+        {
+            let mut ui = Self::write();
+            ui.media_sheet = !ui.media_sheet;
+        }
+        Self::refresh();
+    }
+
+    pub fn reset_media_sheet() {
+        let mut ui = Self::write();
+        ui.media_sheet = false;
     }
 
     pub fn watch() {
@@ -71,11 +143,12 @@ impl Ui {
     }
 
     pub fn toggle() {
+        HOVER_GENERATION.fetch_add(1, Ordering::Relaxed);
         let dash = {
             let mut ui = Self::write();
 
             ui.dash = !ui.dash;
-            ui.month = 0;
+            ui.hover_opened_dash = false;
 
             ui.dash
         };
@@ -86,45 +159,60 @@ impl Ui {
     }
 
     pub fn open(tab: Tab) {
+        HOVER_GENERATION.fetch_add(1, Ordering::Relaxed);
         {
             let mut ui = Self::write();
 
             ui.dash = true;
             ui.tab = tab;
-            ui.month = 0;
+            ui.hover_opened_dash = false;
         }
 
         crate::overlay::Overlay::close();
     }
 
     pub fn close() {
+        HOVER_GENERATION.fetch_add(1, Ordering::Relaxed);
         if !Self::read().dash {
             return;
         }
 
-        Self::write().dash = false;
+        let mut ui = Self::write();
+        ui.dash = false;
+        ui.hover_opened_dash = false;
     }
 
     pub fn select(tab: Tab) {
         Self::write().tab = tab;
     }
 
-    pub fn shift_month(delta: i32) {
-        let mut ui = Self::write();
-
-        ui.month += delta;
-    }
-
-    pub fn reset_month() {
-        Self::write().month = 0;
-    }
-
     pub fn set_hover(hover: bool) {
-        if Self::read().hover == hover {
-            return;
+        let auto_open = hover
+            && crate::settings::Settings::read().flag("hover_dash")
+            && !crate::island::notification_preview_active();
+        let generation = HOVER_GENERATION.fetch_add(1, Ordering::Relaxed) + 1;
+
+        {
+            let mut ui = Self::write();
+
+            if ui.hover == hover && (!auto_open || ui.dash) {
+                return;
+            }
+
+            ui.hover = hover;
+
+            if !hover && ui.hover_opened_dash {
+                ui.dash = false;
+                ui.hover_opened_dash = false;
+            }
         }
 
-        Self::write().hover = hover;
+        if auto_open {
+            let delay = crate::settings::Settings::read().hover_delay_ms();
+            // One reusable worker debounces pointer movement. Rapid enter/leave
+            // events replace the pending deadline instead of spawning sleeping threads.
+            let _ = hover_timer().send((generation, delay));
+        }
     }
 
     pub fn refresh() {

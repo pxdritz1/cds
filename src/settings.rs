@@ -1,13 +1,18 @@
 use std::collections::BTreeMap;
 use std::fs;
-use std::path::PathBuf;
-use std::time::Duration;
+use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::thread;
+use std::time::{Duration, Instant};
 
 use amane::Service;
 
 use crate::theme::{self, config_home, home_directory};
 
 const EXTENSIONS: [&str; 3] = ["png", "jpg", "jpeg"];
+const MAX_WALLPAPERS: usize = 2000;
+
+static SCAN_GENERATION: AtomicU64 = AtomicU64::new(1);
 
 pub const SCHEMES: [(&str, &str); 8] = [
     ("scheme-tonal-spot", "Tonal"),
@@ -28,6 +33,8 @@ pub struct Settings {
     location: String,
     wallpapers: Vec<String>,
     flags: BTreeMap<String, bool>,
+    hover_delay_ms: u64,
+    language: String,
 }
 
 fn default_flag(name: &str) -> bool {
@@ -44,20 +51,51 @@ impl Service for Settings {
             location: String::new(),
             wallpapers: Vec::new(),
             flags: BTreeMap::new(),
+            hover_delay_ms: 500,
+            language: String::from("pt-BR"),
         };
 
         settings.load();
-        settings.scan();
+
+        // Create the default folder only when it is still the configured default.
+        if settings.directory == home_directory("HOME", "").join("Pictures/Wallpapers") {
+            let _ = fs::create_dir_all(&settings.directory);
+        }
 
         settings
     }
 
-    fn interval() -> Duration {
-        Duration::from_secs(5)
-    }
+    fn listen() {
+        let mut scanned_generation = 0;
+        let mut last_scan: Option<Instant> = None;
 
-    fn update(&mut self) -> bool {
-        self.scan()
+        loop {
+            let generation = SCAN_GENERATION.load(Ordering::Relaxed);
+            let due = generation != scanned_generation
+                || last_scan.is_none_or(|last| last.elapsed() >= Duration::from_secs(60));
+
+            if due {
+                let directory = Self::read().directory.clone();
+
+                // Directory I/O happens without holding the shared service lock.
+                let found = scan_directory(&directory);
+
+                if generation == SCAN_GENERATION.load(Ordering::Relaxed) {
+                    if let Some(found) = found {
+                        let mut settings = Self::write();
+
+                        if settings.directory == directory && settings.wallpapers != found {
+                            settings.wallpapers = found;
+                        }
+                    }
+
+                    scanned_generation = generation;
+                    last_scan = Some(Instant::now());
+                }
+            }
+
+            thread::sleep(Duration::from_secs(1));
+        }
     }
 }
 
@@ -72,6 +110,26 @@ impl Settings {
 
     pub fn dark(&self) -> bool {
         self.dark
+    }
+
+    pub fn hover_delay_ms(&self) -> u64 {
+        self.hover_delay_ms
+    }
+
+    pub fn language(&self) -> &str {
+        &self.language
+    }
+
+    pub fn set_language(language: &str) {
+        let mut settings = Self::write();
+        settings.language = if language == "en" { String::from("en") } else { String::from("pt-BR") };
+        settings.save();
+    }
+
+    pub fn set_hover_delay_ms(value: u64) {
+        let mut settings = Self::write();
+        settings.hover_delay_ms = value.clamp(100, 2000);
+        settings.save();
     }
 
     pub fn flag(&self, name: &str) -> bool {
@@ -117,8 +175,8 @@ impl Settings {
     }
 
     // where the wallpaper tab reads its images from
-    pub fn directory_path(&self) -> &str {
-        self.directory.to_str().unwrap_or("")
+    pub fn directory_path(&self) -> String {
+        display_path(&self.directory)
     }
 
     // the weather coordinates, empty when the ip decides where we are
@@ -130,25 +188,34 @@ impl Settings {
     pub fn coordinates(&self) -> Option<(f32, f32)> {
         let (latitude, longitude) = self.location.trim().split_once(',')?;
 
-        Some((
-            latitude.trim().parse().ok()?,
-            longitude.trim().parse().ok()?,
-        ))
+        let latitude = latitude.trim().parse::<f32>().ok()?;
+        let longitude = longitude.trim().parse::<f32>().ok()?;
+
+        if !(-90.0..=90.0).contains(&latitude)
+            || !(-180.0..=180.0).contains(&longitude)
+        {
+            return None;
+        }
+
+        Some((latitude, longitude))
     }
 
-    // moves the wallpaper source directory, rescanning right away
+    // changes the wallpaper source directory; the gallery refreshes in the background
     pub fn set_directory(path: &str) -> String {
-        if fs::metadata(path).is_err() {
-            return format!("failed: no directory at {path}");
+        let path = expand_home_path(path);
+
+        if !path.is_dir() {
+            return format!("failed: no directory at {}", display_path(&path));
         }
 
         let mut settings = Self::write();
 
-        settings.directory = PathBuf::from(path);
+        settings.directory = path;
+        SCAN_GENERATION.fetch_add(1, Ordering::Relaxed);
         settings.save();
 
-        settings.scan();
-
+        // The service refreshes the gallery on its next background scan.
+        // Never walk a user-selected directory from the input callback.
         String::from("ok")
     }
 
@@ -161,10 +228,17 @@ impl Settings {
                 return "failed: use latitude,longitude like -20.44,-54.65".into();
             };
 
-            if latitude.trim().parse::<f32>().is_err()
-                || longitude.trim().parse::<f32>().is_err()
-            {
+            let (Ok(latitude), Ok(longitude)) = (
+                latitude.trim().parse::<f32>(),
+                longitude.trim().parse::<f32>(),
+            ) else {
                 return "failed: latitude and longitude are numbers".into();
+            };
+
+            if !(-90.0..=90.0).contains(&latitude)
+                || !(-180.0..=180.0).contains(&longitude)
+            {
+                return "failed: latitude must be between -90 and 90 and longitude between -180 and 180".into();
             }
         }
 
@@ -177,15 +251,19 @@ impl Settings {
     }
 
     pub fn set_wallpaper(path: &str) -> String {
-        if !PathBuf::from(path).is_file() {
-            return format!("failed: no image at {path}");
+        let path = expand_home_path(path);
+
+        if !path.is_file() {
+            return format!("failed: no image at {}", display_path(&path));
         }
+
+        let path = path.to_string_lossy().into_owned();
 
         // the lock is released before matugen runs, so drawing never waits on it
         let (wallpaper, scheme, dark) = {
             let mut settings = Self::write();
 
-            settings.wallpaper = String::from(path);
+            settings.wallpaper = path.clone();
             settings.save();
 
             (
@@ -195,10 +273,36 @@ impl Settings {
             )
         };
 
-        theme::apply("image", &wallpaper, &scheme, dark)
+        regenerate(&wallpaper, &scheme, dark, true)
     }
 
-    pub fn set_dark(dark: bool) {
+    // the views call this so the click never waits on a whole matugen run
+    pub fn set_wallpaper_live(path: &str) {
+        let path = expand_home_path(path);
+
+        if !path.is_file() {
+            return;
+        }
+
+        let path = path.to_string_lossy().into_owned();
+
+        let (wallpaper, scheme, dark) = {
+            let mut settings = Self::write();
+
+            settings.wallpaper = path.clone();
+            settings.save();
+
+            (
+                settings.wallpaper.clone(),
+                settings.scheme.clone(),
+                settings.dark,
+            )
+        };
+
+        regenerate(&wallpaper, &scheme, dark, false);
+    }
+
+    pub fn set_dark(dark: bool) -> String {
         let (wallpaper, scheme) = {
             let mut settings = Self::write();
 
@@ -208,11 +312,20 @@ impl Settings {
             (settings.wallpaper.clone(), settings.scheme.clone())
         };
 
-        if wallpaper.is_empty() {
-            return;
-        }
+        regenerate(&wallpaper, &scheme, dark, true)
+    }
 
-        theme::apply("image", &wallpaper, &scheme, dark);
+    pub fn set_dark_live(dark: bool) {
+        let (wallpaper, scheme) = {
+            let mut settings = Self::write();
+
+            settings.dark = dark;
+            settings.save();
+
+            (settings.wallpaper.clone(), settings.scheme.clone())
+        };
+
+        regenerate(&wallpaper, &scheme, dark, false);
     }
 
     // changes the matugen scheme and regenerates everything with it
@@ -226,11 +339,20 @@ impl Settings {
             (settings.wallpaper.clone(), settings.dark)
         };
 
-        if wallpaper.is_empty() {
-            return String::from("failed: set a wallpaper first");
-        }
+        regenerate(&wallpaper, scheme, dark, true)
+    }
 
-        theme::apply("image", &wallpaper, scheme, dark)
+    pub fn set_scheme_live(scheme: &str) {
+        let (wallpaper, dark) = {
+            let mut settings = Self::write();
+
+            settings.scheme = String::from(scheme);
+            settings.save();
+
+            (settings.wallpaper.clone(), settings.dark)
+        };
+
+        regenerate(&wallpaper, scheme, dark, false);
     }
 
     fn file() -> PathBuf {
@@ -253,8 +375,12 @@ impl Settings {
                 "wallpaper" => self.wallpaper = String::from(value),
                 "scheme" => self.scheme = String::from(value),
                 "dark" => self.dark = value != "false",
-                "directory" => self.directory = PathBuf::from(value),
+                "directory" => self.directory = expand_home_path(value),
                 "location" => self.location = String::from(value),
+                "language" => self.language = if value == "en" { String::from("en") } else { String::from("pt-BR") },
+                "hover_delay_ms" => {
+                    self.hover_delay_ms = value.parse::<u64>().unwrap_or(500).clamp(100, 2000)
+                },
                 other => {
                     if let Some(name) = other.strip_prefix("flag.") {
                         self.flags.insert(String::from(name), value == "true");
@@ -272,45 +398,89 @@ impl Settings {
         }
 
         let mut text = format!(
-            "wallpaper={}\nscheme={}\ndark={}\ndirectory={}\nlocation={}\n",
+            "wallpaper={}\nscheme={}\ndark={}\ndirectory={}\nlocation={}\nhover_delay_ms={}\nlanguage={}\n",
             self.wallpaper,
             self.scheme,
             self.dark,
             self.directory.display(),
             self.location,
+            self.hover_delay_ms,
+            self.language,
         );
 
         for (name, value) in &self.flags {
             text.push_str(&format!("flag.{name}={value}\n"));
         }
 
-        let _ = fs::write(file, text);
+        // Publish settings atomically: a crash or power loss must not leave
+        // a truncated config that resets the shell to its defaults.
+        let staged = file.with_extension("conf.tmp");
+
+        if fs::write(&staged, text).is_ok() {
+            if fs::rename(&staged, &file).is_err() {
+                let _ = fs::remove_file(staged);
+            }
+        }
     }
 
-    fn scan(&mut self) -> bool {
-        let mut found: Vec<String> = fs::read_dir(&self.directory)
-            .map(|entries| {
-                entries
-                    .flatten()
-                    .map(|entry| entry.path())
-                    .filter(|path| {
-                        path.extension()
-                            .and_then(|extension| extension.to_str())
-                            .is_some_and(|extension| {
-                                EXTENSIONS.contains(&extension.to_lowercase().as_str())
-                            })
+}
+
+fn scan_directory(directory: &Path) -> Option<Vec<String>> {
+    let mut found: Vec<String> = fs::read_dir(directory)
+        .ok()?
+        .flatten()
+        .take(MAX_WALLPAPERS)
+        .map(|entry| entry.path())
+        .filter(|path| {
+            path.is_file()
+                && path.extension()
+                    .and_then(|extension| extension.to_str())
+                    .is_some_and(|extension| {
+                        EXTENSIONS.contains(&extension.to_ascii_lowercase().as_str())
                     })
-                    .map(|path| path.to_string_lossy().into_owned())
-                    .collect()
-            })
-            .unwrap_or_default();
+        })
+        .map(|path| path.to_string_lossy().into_owned())
+        .collect();
 
-        found.sort();
+    found.sort();
+    Some(found)
+}
 
-        let changed = found != self.wallpapers;
+/*
+ * one place decides whether a matugen run waits. the ipc answers only
+ * after the colors exist, while the views spawn it and stay responsive.
+ */
+fn expand_home_path(path: &str) -> PathBuf {
+    if path == "~" {
+        return home_directory("HOME", "");
+    }
+    if let Some(rest) = path.strip_prefix("~/") {
+        return home_directory("HOME", "").join(rest);
+    }
+    PathBuf::from(path)
+}
 
-        self.wallpapers = found;
+fn display_path(path: &std::path::Path) -> String {
+    let home = home_directory("HOME", "");
+    if let Ok(relative) = path.strip_prefix(&home) {
+        if relative.as_os_str().is_empty() {
+            return String::from("~");
+        }
+        return format!("~/{}", relative.display());
+    }
+    path.to_string_lossy().into_owned()
+}
 
-        changed
+fn regenerate(wallpaper: &str, scheme: &str, dark: bool, wait: bool) -> String {
+    if wallpaper.is_empty() {
+        return String::from("failed: set a wallpaper first");
+    }
+
+    if wait {
+        theme::apply("image", wallpaper, scheme, dark)
+    } else {
+        theme::apply_async("image", wallpaper, scheme, dark);
+
+        String::from("ok")
     }
 }

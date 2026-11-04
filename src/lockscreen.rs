@@ -1,112 +1,623 @@
 /*
- * the lock screen: a fullscreen lock with the clock, the date, and one
- * input asking for the pam password. enter submits, nothing else moves.
+ * a layered lock screen: blurred wallpaper, a centered digital clock and
+ * password field, with the analogue clock, weather and session controls
+ * held to the corners so the composition adapts to each output.
  */
+use std::f32::consts::TAU;
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+use std::sync::OnceLock;
+use std::time::{Duration, Instant};
+
 use amane::{
-    Center, Column, Full, Keyboard, Layer, LayerWindow, Monitor, Padding, Parent, Rectangle, Row,
-    Service, Stack, TextInput, Widget,
+    Arc, Canvas, Cap, Center, Column, End, Full, Horizontal, Image, Keyboard, Layer,
+    Key, LayerWindow, Line, Lock, Media, Monitor, Notifications, Padding, Parent, Pointer,
+    Rectangle, Row, Service, Shape, Stack, TextInput, Vertical,
 };
 
-use crate::m3::{self, boxed, scale, scale_label, Type};
 use crate::clock::Clock;
-use crate::theme::{Scheme, Theme};
+use crate::m3::{self, Type, scale, scale_label};
+use crate::power::Power;
+use crate::settings::Settings;
+use crate::theme::{Theme, fade};
+use crate::weather::Weather;
 
 const PASSWORD: &str = "cds-lockscreen-password";
+
+static PASSWORD_LENGTH: AtomicUsize = AtomicUsize::new(0);
+static POWER_MENU_OPEN: AtomicBool = AtomicBool::new(false);
+static LOCKSCREEN_INTRO: OnceLock<Instant> = OnceLock::new();
+
+fn entrance(delay_ms: u64) -> f32 {
+    let elapsed = LOCKSCREEN_INTRO
+        .get_or_init(Instant::now)
+        .elapsed()
+        .as_millis() as u64;
+
+    let progress = (elapsed.saturating_sub(delay_ms) as f32 / 460.0).clamp(0.0, 1.0);
+    1.0 - (1.0 - progress).powi(3)
+}
 
 pub fn view(monitor: &Monitor) -> LayerWindow {
     let theme = Theme::read();
     let scheme = theme.scheme();
+    let shortest = monitor.width.min(monitor.height) as f32;
+    let ui_scale = (shortest / 900.0).clamp(0.76, 1.12);
+
+    // Stagger the corner widgets so the lock screen settles in layers rather
+    // than popping into place all at once. The shared clock schedules frames
+    // only for this short entrance sequence.
+    let clock_intro = entrance(0);
+    let center_intro = entrance(70);
+    let analog_intro = entrance(150);
+    let weather_intro = entrance(220);
+    let user_intro = entrance(290);
+    let notification_intro = entrance(190);
+    let password_intro = entrance(270);
+
+    if clock_intro < 0.999
+        || center_intro < 0.999
+        || analog_intro < 0.999
+        || weather_intro < 0.999
+        || user_intro < 0.999
+        || notification_intro < 0.999
+        || password_intro < 0.999
+    {
+        crate::motion::request_frame_at_most(60);
+    }
 
     let clock = Clock::read();
+    let lock = Lock::read();
+    let failed = lock.failed();
+    let checking = lock.checking();
+    drop(lock);
 
-    let state = amane::Lock::read();
+    let settings = Settings::read();
+    let wallpaper = settings.wallpaper().to_owned();
+    drop(settings);
 
-    let failed = state.failed();
+    let user = std::env::var("USER").unwrap_or_else(|_| String::from("Usuária"));
+    let initial = user
+        .chars()
+        .next()
+        .map(|letter| letter.to_uppercase().to_string())
+        .unwrap_or_else(|| String::from("C"));
 
-    let checking = state.checking();
+    let background = Rectangle::new()
+        .width(Parent)
+        .height(Parent);
 
-    drop(state);
-
-    let user = std::env::var("USER").unwrap_or_else(|_| String::from("você"));
-
-    // the big cookie badge with a lock glyph, the m3 expressive touch
-    let badge = Rectangle::new()
-        .width(150.0)
-        .height(150.0)
-        .align_child(Center, Center)
-        .child(
-            Stack::new(vec![
-                Box::new(m3::cookie(7.0, 150.0, scheme.primary_container)) as Box<dyn Widget>,
-                Box::new(m3::icon(m3::LOCK, 64.0, scheme.on_primary_container)) as Box<dyn Widget>,
-            ]),
-        );
-
-    let field = Rectangle::new()
-        .width(280.0)
-        .height(48.0)
-        .fill(scheme.surface_container_highest)
-        .radius(16.0)
-        .padding(Padding {
-            top: 0.0,
-            right: 12.0,
-            bottom: 0.0,
-            left: 12.0,
-        })
-        .align_child(Center, Center)
-        .child(
-            TextInput::new(PASSWORD)
-                .size(17.0)
-                .color(scheme.on_surface)
-                .placeholder("digite a senha…")
-                .password()
-                .on_submit(move |password| {
-                    amane::Lock::unlock(&password);
-
-                    TextInput::set_text(PASSWORD, "");
-                })
-                .focused(),
-        );
-
-    let feedback = if failed {
-        scale_label(Type::LabelMedium, "senha incorreta", scheme.error, 1)
-    } else if checking {
-        scale_label(Type::LabelMedium, "verificando…", scheme.on_surface_variant, 1)
+    let background = if wallpaper.is_empty() {
+        background.fill(scheme.surface)
     } else {
-        scale_label(
-            Type::LabelMedium,
-            "enter pra desbloquear",
-            scheme.on_surface_variant,
-            1,
+        background.fill(
+            Image::cover(wallpaper.as_str())
+                .thumbnail(64, 36)
+                .blurred(9),
         )
     };
 
-    let body = Column::new(vec![
-        Box::new(badge),
-        Box::new(scale(Type::DisplayMedium, clock.time(true), scheme.on_surface)),
-        Box::new(scale(
-            Type::TitleSmall,
-            format!("{} · {}", clock.date(), user),
+    let scrim = Rectangle::new()
+        .width(Parent)
+        .height(Parent)
+        .fill(fade(scheme.scrim, 112));
+
+    let password_target = (PASSWORD_LENGTH.load(Ordering::Relaxed) as f32 * 13.0 * ui_scale).min(260.0 * ui_scale);
+    let password_width = crate::motion::number(
+        "lockscreen-password-progress",
+        password_target,
+        Duration::from_millis(190),
+    );
+    if (password_width - password_target).abs() > 0.5 {
+        crate::motion::request_frame_at_most(60);
+    }
+
+    let (field_border, feedback_color, feedback_text) = if failed {
+        (scheme.error, scheme.error, crate::lang::text("senha incorreta", "Incorrect password"))
+    } else if checking {
+        (scheme.primary, scheme.on_surface, crate::lang::text("verificando…", "Checking…"))
+    } else {
+        (
+            fade(scheme.outline_variant, 210),
             scheme.on_surface_variant,
-        )),
-        Box::new(field),
-        Box::new(feedback),
-    ])
-    .gap(12.0)
-    .width(Parent)
-    .align(Center);
+            crate::lang::text("enter pra desbloquear", "press enter to unlock"),
+        )
+    };
+
+    let password = Rectangle::new()
+        .width(340.0 * ui_scale)
+        .height(58.0 * ui_scale)
+        .fill(fade(scheme.surface_container_highest, 238))
+        .radius(20.0 * ui_scale)
+        .border(1.5, field_border)
+        .padding(Padding {
+            top: 0.0,
+            right: 18.0 * ui_scale,
+            bottom: 0.0,
+            left: 18.0 * ui_scale,
+        })
+        .align_child(Center, Center)
+        .opacity(password_intro)
+        .translate(0.0, 8.0 * (1.0 - password_intro))
+        .child(
+            TextInput::new(PASSWORD)
+                .size(17.0 * ui_scale)
+                .color(scheme.on_surface)
+                .placeholder(crate::lang::text("Digite sua senha", "Enter your password"))
+                .password()
+                .focused()
+                .on_change(|value| {
+                    PASSWORD_LENGTH.store(value.chars().count(), Ordering::Relaxed);
+                    crate::motion::request_frame_at_most(60);
+                })
+                .on_submit(|password| {
+                    Lock::unlock(&password);
+                    POWER_MENU_OPEN.store(false, Ordering::Relaxed);
+                    TextInput::set_text(PASSWORD, "");
+                    PASSWORD_LENGTH.store(0, Ordering::Relaxed);
+                    crate::motion::request_frame_at_most(60);
+                }),
+        );
+
+    let password_progress = Rectangle::new()
+        .width(340.0 * ui_scale)
+        .height(4.0 * ui_scale)
+        .fill(fade(scheme.on_surface, 36))
+        .radius(2.0 * ui_scale)
+        .child(
+            Rectangle::new()
+                .width(password_width)
+                .height(4.0 * ui_scale)
+                .fill(if failed { scheme.error } else { scheme.primary })
+                .radius(2.0 * ui_scale),
+        );
+
+    let notifications = Notifications::read();
+    let app_name = notifications
+        .list()
+        .last()
+        .map(|notification| notification.app_name().to_owned())
+        .filter(|name| !name.is_empty())
+        .unwrap_or_else(|| String::from("Sem notificações"));
+    drop(notifications);
+
+    let notification_chip = Rectangle::new()
+        .width(340.0 * ui_scale)
+        .height(54.0 * ui_scale)
+        .fill(fade(scheme.surface_container_highest, 220))
+        .radius(18.0 * ui_scale)
+        .padding(Padding {
+            top: 0.0,
+            right: 16.0 * ui_scale,
+            bottom: 0.0,
+            left: 16.0 * ui_scale,
+        })
+        .child(
+            Row::new(vec![
+                Box::new(m3::icon(m3::BELL, 21.0 * ui_scale, scheme.primary)),
+                Box::new(scale_label(
+                    Type::BodyMedium,
+                    app_name,
+                    scheme.on_surface,
+                    1,
+                )),
+            ])
+            .gap(12.0 * ui_scale)
+            .align(Center)
+            .width(Parent)
+            .height(Parent),
+        )
+        .opacity(notification_intro)
+        .translate(0.0, 8.0 * (1.0 - notification_intro));
+
+    let center_panel = Rectangle::new()
+        .width(440.0 * ui_scale)
+        .height(390.0 * ui_scale)
+        .fill(fade(scheme.surface_container, 224))
+        .radius(34.0 * ui_scale)
+        .clip()
+        .padding(28.0 * ui_scale)
+        .child(
+            Column::new(vec![
+                Box::new(
+                    Rectangle::new()
+                        .width(Parent)
+                        .height(96.0 * ui_scale)
+                        .opacity(clock_intro)
+                        .translate(0.0, 14.0 * (1.0 - clock_intro))
+                        .align_child(Center, Center)
+                        .child(scale(
+                            Type::DisplayLarge,
+                            clock.time(true),
+                            scheme.on_surface,
+                        ).size(82.0 * ui_scale)),
+                ),
+                Box::new(scale_label(
+                    Type::TitleMedium,
+                    clock.date(),
+                    scheme.on_surface_variant,
+                    1,
+                )),
+                Box::new(notification_chip),
+                Box::new(password),
+                Box::new(password_progress),
+                Box::new(
+                    Rectangle::new()
+                        .width(340.0 * ui_scale)
+                        .height(22.0 * ui_scale)
+                        .align_child(Center, Center)
+                        .child(scale_label(
+                            Type::LabelMedium,
+                            feedback_text,
+                            feedback_color,
+                            1,
+                        )),
+                ),
+            ])
+            .gap(12.0 * ui_scale)
+            .width(Parent)
+            .height(Parent)
+            .align(Center)
+            .justify(Center),
+        );
+
+    let analog = analogue_clock(&clock, scheme, ui_scale);
+    let analog_panel = Rectangle::new()
+        .width(172.0 * ui_scale)
+        .height(172.0 * ui_scale)
+        .fill(fade(scheme.surface_container, 224))
+        .radius(86.0 * ui_scale)
+        .align_child(Center, Center)
+        .child(analog);
+
+    let weather = Weather::read();
+    let weather_panel = Rectangle::new()
+        .width(270.0 * ui_scale)
+        .height(104.0 * ui_scale)
+        .fill(fade(scheme.surface_container, 224))
+        .radius(26.0 * ui_scale)
+        .padding(18.0 * ui_scale)
+        .child(
+            Row::new(vec![
+                Box::new(
+                    Rectangle::new()
+                        .width(54.0 * ui_scale)
+                        .height(54.0 * ui_scale)
+                        .fill(scheme.tertiary_container)
+                        .radius(18.0 * ui_scale)
+                        .align_child(Center, Center)
+                        .child(m3::icon(weather.glyph(), 30.0 * ui_scale, scheme.on_tertiary_container)),
+                ),
+                Box::new(
+                    Column::new(vec![
+                        Box::new(scale_label(
+                            Type::TitleSmall,
+                            weather.condition(),
+                            scheme.on_surface,
+                            1,
+                        )),
+                        Box::new(scale(Type::DisplaySmall, weather.temperature(), scheme.on_surface)),
+                    ])
+                    .gap(2.0 * ui_scale)
+                    .width(Parent)
+                    .justify(Center),
+                ),
+            ])
+            .gap(14.0 * ui_scale)
+            .align(Center)
+            .width(Parent)
+            .height(Parent),
+        );
+
+    let media = Media::read();
+    let (track, artist) = crate::art::media_labels(&media);
+    let media_active = media.active().is_some();
+    let track = if media_active { track } else { String::from("Nada tocando") };
+    let artist = if media_active { artist } else { String::from("Abra um player para ouvir música") };
+    drop(media);
+
+    let power_button = Rectangle::new()
+        .width(42.0 * ui_scale)
+        .height(42.0 * ui_scale)
+        .fill(scheme.primary_container)
+        .radius(21.0 * ui_scale)
+        .cursor(Pointer)
+        .on_click(|_| {
+            let open = !POWER_MENU_OPEN.load(Ordering::Relaxed);
+            POWER_MENU_OPEN.store(open, Ordering::Relaxed);
+            crate::motion::request_frame_at_most(60);
+        })
+        .align_child(Center, Center)
+        .child(m3::icon(m3::POWER, 21.0 * ui_scale, scheme.on_primary_container));
+
+    let user_media_panel = Rectangle::new()
+        .width(330.0 * ui_scale)
+        .height(154.0 * ui_scale)
+        .fill(fade(scheme.surface_container, 224))
+        .radius(26.0 * ui_scale)
+        .padding(18.0 * ui_scale)
+        .child(
+            Column::new(vec![
+                Box::new(
+                    Row::new(vec![
+                        Box::new(m3::avatar(&initial, 42.0 * ui_scale, scheme)),
+                        Box::new(
+                            Column::new(vec![
+                                Box::new(scale_label(
+                                    Type::TitleSmall,
+                                    user,
+                                    scheme.on_surface,
+                                    1,
+                                )),
+                                Box::new(scale_label(
+                                    Type::LabelSmall,
+                                    crate::lang::text("Sessão atual", "Current session"),
+                                    scheme.on_surface_variant,
+                                    1,
+                                )),
+                            ])
+                            .gap(2.0 * ui_scale)
+                            .width(Parent)
+                            .justify(Center),
+                        ),
+                        Box::new(power_button),
+                    ])
+                    .gap(12.0 * ui_scale)
+                    .align(Center)
+                    .width(Parent),
+                ),
+                Box::new(
+                    Row::new(vec![
+                        Box::new(m3::icon(m3::MUSIC, 20.0 * ui_scale, scheme.primary)),
+                        Box::new(
+                            Column::new(vec![
+                                Box::new(scale_label(Type::BodyMedium, track, scheme.on_surface, 1)),
+                                Box::new(scale_label(Type::LabelSmall, artist, scheme.on_surface_variant, 1)),
+                            ])
+                            .gap(2.0 * ui_scale)
+                            .width(Parent),
+                        ),
+                    ])
+                    .gap(12.0 * ui_scale)
+                    .align(Center)
+                    .width(Parent),
+                ),
+            ])
+            .gap(16.0 * ui_scale)
+            .width(Parent)
+            .height(Parent)
+            .justify(Center),
+        );
+
+    let power_menu_open = POWER_MENU_OPEN.load(Ordering::Relaxed);
+    let power_intro = crate::motion::fade("lockscreen:power-menu", if power_menu_open { 1 } else { 0 });
+
+    if power_menu_open && power_intro < 0.999 {
+        crate::motion::request_frame_at_most(60);
+    }
+
+    let power_menu = if power_menu_open {
+        Some(power_menu(scheme, ui_scale))
+    } else {
+        None
+    };
+
+    let mut layers: Vec<Box<dyn amane::Widget>> = vec![
+        Box::new(background),
+        Box::new(scrim),
+        Box::new(
+            Rectangle::new()
+                .width(Parent)
+                .height(Parent)
+                .opacity(center_intro)
+                .scale(0.94 + 0.06 * center_intro)
+                .translate(0.0, 24.0 * (1.0 - center_intro))
+                .align_child(Center, Center)
+                .child(center_panel),
+        ),
+        Box::new(
+            Rectangle::new()
+                .width(Parent)
+                .height(Parent)
+                .padding(Padding {
+                    top: 32.0 * ui_scale,
+                    right: 40.0 * ui_scale,
+                    bottom: 0.0,
+                    left: 0.0,
+                })
+                .opacity(analog_intro)
+                .scale(0.94 + 0.06 * analog_intro)
+                .translate(22.0 * (1.0 - analog_intro), 0.0)
+                .align_child(End, amane::Start)
+                .child(analog_panel),
+        ),
+        Box::new(
+            Rectangle::new()
+                .width(Parent)
+                .height(Parent)
+                .padding(Padding {
+                    top: 0.0,
+                    right: 0.0,
+                    bottom: 36.0 * ui_scale,
+                    left: 40.0 * ui_scale,
+                })
+                .opacity(weather_intro)
+                .scale(0.94 + 0.06 * weather_intro)
+                .translate(-22.0 * (1.0 - weather_intro), 0.0)
+                .align_child(amane::Start, End)
+                .child(weather_panel),
+        ),
+        Box::new(
+            Rectangle::new()
+                .width(Parent)
+                .height(Parent)
+                .padding(Padding {
+                    top: 0.0,
+                    right: 40.0 * ui_scale,
+                    bottom: 36.0 * ui_scale,
+                    left: 0.0,
+                })
+                .opacity(user_intro)
+                .scale(0.94 + 0.06 * user_intro)
+                .translate(0.0, 20.0 * (1.0 - user_intro))
+                .align_child(End, End)
+                .child(user_media_panel),
+        ),
+    ];
+
+    if let Some(menu) = power_menu {
+        layers.push(Box::new(
+            Rectangle::new()
+                .width(Parent)
+                .height(Parent)
+                .padding(Padding {
+                    top: 0.0,
+                    right: 40.0 * ui_scale,
+                    bottom: 210.0 * ui_scale,
+                    left: 0.0,
+                })
+                .opacity(power_intro)
+                .scale(0.96 + 0.04 * power_intro)
+                .translate(0.0, 12.0 * (1.0 - power_intro))
+                .align_child(End, End)
+                .child(menu),
+        ));
+    }
 
     LayerWindow::new()
         .width(Full)
         .height(Full)
+        .anchor_vertical(Vertical::Middle)
+        .anchor_horizontal(Horizontal::Middle)
         .layer(Layer::Top)
         .keyboard(Keyboard::Exclusive)
+        .on_key(|key| {
+            if key == Key::Escape && POWER_MENU_OPEN.swap(false, Ordering::Relaxed) {
+                crate::motion::request_frame_at_most(60);
+            }
+        })
         .namespace("cds-lockscreen")
         .child(
             Rectangle::new()
                 .width(Parent)
                 .height(Parent)
-                .fill(scheme.surface)
-                .align_child(Center, Center)
-                .child(body),
+                .child(Stack::new(layers).width(Parent).height(Parent)),
+        )
+}
+
+fn analogue_clock(clock: &Clock, scheme: &crate::theme::Scheme, ui_scale: f32) -> Canvas {
+    let size = 144.0 * ui_scale;
+    let center = size / 2.0;
+    let radius = 64.0 * ui_scale;
+
+    let mut shapes: Vec<Box<dyn Shape>> = vec![Box::new(
+        Arc::new().stroke(2.0 * ui_scale, fade(scheme.on_surface, 170)),
+    )];
+
+    for tick in 0..12 {
+        let angle = TAU * tick as f32 / 12.0 - std::f32::consts::FRAC_PI_2;
+        let outer_x = center + radius * angle.cos();
+        let outer_y = center + radius * angle.sin();
+        let inner_radius = if tick % 3 == 0 { radius - 11.0 * ui_scale } else { radius - 6.0 * ui_scale };
+        let inner_x = center + inner_radius * angle.cos();
+        let inner_y = center + inner_radius * angle.sin();
+
+        shapes.push(Box::new(
+            Line::new()
+                .from(inner_x, inner_y)
+                .to(outer_x, outer_y)
+                .stroke(if tick % 3 == 0 { 2.6 * ui_scale } else { 1.4 * ui_scale }, scheme.on_surface_variant)
+                .cap(Cap::Round),
+        ));
+    }
+
+    let (hour, minute) = clock
+        .time(true)
+        .split_once(':')
+        .and_then(|(hour, minute)| Some((hour.parse::<u32>().ok()?, minute.parse::<u32>().ok()?)))
+        .unwrap_or((0, 0));
+
+    let hour_angle = TAU * ((hour % 12) as f32 + minute as f32 / 60.0) / 12.0
+        - std::f32::consts::FRAC_PI_2;
+    let minute_angle = TAU * minute as f32 / 60.0 - std::f32::consts::FRAC_PI_2;
+
+    shapes.push(Box::new(
+        Line::new()
+            .from(center, center)
+            .to(center + 31.0 * ui_scale * hour_angle.cos(), center + 31.0 * ui_scale * hour_angle.sin())
+            .stroke(5.0 * ui_scale, scheme.on_surface)
+            .cap(Cap::Round),
+    ));
+    shapes.push(Box::new(
+        Line::new()
+            .from(center, center)
+            .to(center + 49.0 * ui_scale * minute_angle.cos(), center + 49.0 * ui_scale * minute_angle.sin())
+            .stroke(2.8 * ui_scale, scheme.primary)
+            .cap(Cap::Round),
+    ));
+
+    Canvas::new().width(size).height(size).shapes(shapes)
+}
+
+fn power_menu(scheme: &crate::theme::Scheme, ui_scale: f32) -> Rectangle {
+    let actions = [
+        (1, m3::LOGOUT, crate::lang::text("Sair da sessão", "Log out")),
+        (2, m3::POWER, crate::lang::text("Suspender", "Suspend")),
+        (3, m3::RESTART, crate::lang::text("Reiniciar", "Restart")),
+        (4, m3::POWER, crate::lang::text("Desligar", "Shut down")),
+    ];
+
+    let rows: Vec<Box<dyn amane::Widget>> = actions
+        .iter()
+        .map(|(index, glyph, label)| {
+            let index = *index;
+            Box::new(
+                Rectangle::new()
+                    .width(Parent)
+                    .height(44.0 * ui_scale)
+                    .fill(fade(scheme.surface_container_highest, 210))
+                    .radius(14.0 * ui_scale)
+                    .cursor(Pointer)
+                    .on_click(move |_| {
+                        POWER_MENU_OPEN.store(false, Ordering::Relaxed);
+                        Power::activate(index);
+                    })
+                    .padding(Padding {
+                        top: 0.0,
+                        right: 12.0 * ui_scale,
+                        bottom: 0.0,
+                        left: 12.0 * ui_scale,
+                    })
+                    .child(
+                        Row::new(vec![
+                            Box::new(m3::icon(glyph, 19.0 * ui_scale, scheme.on_surface_variant)),
+                            Box::new(scale_label(
+                                Type::BodyMedium,
+                                *label,
+                                scheme.on_surface,
+                                1,
+                            )),
+                        ])
+                        .gap(12.0 * ui_scale)
+                        .align(Center)
+                        .width(Parent)
+                        .height(Parent),
+                    ),
+            ) as Box<dyn amane::Widget>
+        })
+        .collect();
+
+    Rectangle::new()
+        .width(260.0 * ui_scale)
+        .height(224.0 * ui_scale)
+        .fill(fade(scheme.surface_container, 238))
+        .radius(24.0 * ui_scale)
+        .clip()
+        .padding(14.0 * ui_scale)
+        .child(
+            Column::new(rows)
+                .gap(6.0 * ui_scale)
+                .width(Parent)
+                .height(Parent)
+                .justify(Center),
         )
 }

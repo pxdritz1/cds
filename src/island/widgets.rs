@@ -1,30 +1,21 @@
 use std::time::Duration;
 
-use amane::{
-    Canvas, Color, Parent, Path, Rectangle, Service, Shape, Stack, Text, Widget,
-};
+use amane::{Color, Parent, Rectangle, Service, Stack, Text, Widget};
 
 use crate::motion;
-use crate::theme::{mix, Scheme, Theme};
+use crate::theme::{Scheme, Theme, mix};
 
 // material symbols rounded codepoints
 pub const BELL: &str = "\u{e7f4}";
-pub const BRIGHTNESS: &str = "\u{e3ab}";
 pub const CLOSE: &str = "\u{e5cd}";
-pub const MUTED: &str = "\u{e04f}";
-pub const VOLUME: &str = "\u{e050}";
 pub const NEXT: &str = "\u{e044}";
-pub const PREVIOUS: &str = "\u{e045}";
 pub const PLAY: &str = "\u{e037}";
 pub const PAUSE: &str = "\u{e034}";
-pub const BATTERY: &str = "\u{e1a4}";
 pub const MUSIC: &str = "\u{e405}";
-pub const WALLPAPER: &str = "\u{e1bc}";
 pub const APPS: &str = "\u{e5c3}";
 pub const SEARCH: &str = "\u{e8b6}";
 pub const PASTE: &str = "\u{e14f}";
 pub const COPY: &str = "\u{e14d}";
-pub const DELETE: &str = "\u{e872}";
 pub const POWER: &str = "\u{e8ac}";
 pub const LOCK: &str = "\u{e88d}";
 pub const LOGOUT: &str = "\u{e9ba}";
@@ -47,8 +38,6 @@ pub const FOGGY: &str = "\u{e818}";
 pub const RAINY: &str = "\u{f176}";
 pub const STORM: &str = "\u{ebdb}";
 pub const CLOUDY: &str = "\u{f15c}";
-pub const AIR: &str = "\u{efd8}";
-pub const DROP: &str = "\u{e798}";
 pub const SNOWING: &str = "\u{e80f}";
 
 const PROGRESS: Duration = Duration::from_millis(180);
@@ -68,12 +57,7 @@ pub fn icon(glyph: &str, size: f32, color: Color) -> Text {
         .tight()
 }
 
-pub fn text(
-    content: impl Into<String>,
-    size: f32,
-    color: Color,
-    weight: amane::Weight,
-) -> Text {
+pub fn text(content: impl Into<String>, size: f32, color: Color, weight: amane::Weight) -> Text {
     let theme = Theme::read();
     let typography = theme.typography();
 
@@ -105,48 +89,6 @@ pub fn card(width: f32, fill: Color) -> Rectangle {
         .padding(16.0)
 }
 
-/*
- * the material 3 expressive cookie shape: a circle whose edge scallops
- * `lobes` bumps around it, drawn as a closed path sampled in polar
- * coordinates. depth is how deep the notches between the bumps cut.
- */
-pub fn cookie(lobes: f32, size: f32, fill: Color) -> Canvas {
-    const STEPS: usize = 96;
-
-    let radius = size / 2.0;
-
-    // notches take about a twelfth of the radius, so bumps read but stay soft
-    let depth = radius * 0.09;
-
-    let sample = |angle: f32| {
-        let wave = (lobes * angle).cos();
-
-        radius - depth + depth * wave
-    };
-
-    let mut path = Path::new();
-
-    for step in 0..=STEPS {
-        let angle = std::f32::consts::TAU * step as f32 / STEPS as f32;
-
-        let (sin, cos) = angle.sin_cos();
-
-        let x = radius + radius * 0.0 + sample(angle) * cos;
-        let y = radius + sample(angle) * sin;
-
-        if step == 0 {
-            path = path.move_to(x, y);
-        } else {
-            path = path.line_to(x, y);
-        }
-    }
-
-    Canvas::new()
-        .width(size)
-        .height(size)
-        .shapes(vec![Box::new(path.fill(fill))])
-}
-
 // a material filter chip, animating its container and label between states
 pub fn chip(
     key: &str,
@@ -164,11 +106,7 @@ pub fn chip(
         Color::TRANSPARENT
     };
 
-    let fill = motion::color(
-        &format!("chip-fill:{key}"),
-        target,
-        motion::SELECT_DURATION,
-    );
+    let fill = motion::color(&format!("chip-fill:{key}"), target, motion::SELECT_DURATION);
 
     let fill = mix(fill, scheme.on_surface, 0.08 * state);
     let color = motion::color(
@@ -195,66 +133,13 @@ pub fn chip(
         .child(text(content, 14.0, color, amane::Weight::Medium))
 }
 
-// a material slider: a thin track with a round handle, dragged from anywhere
-pub fn slider(
-    key: &str,
-    percent: f32,
-    width: f32,
-    scheme: &Scheme,
-    on_change: impl Fn(f32) + 'static,
-) -> Stack {
-    let state = motion::hover(key);
-    let percent = motion::number(&format!("slider:{key}"), percent.clamp(0.0, 1.0), PROGRESS);
-
-    let track = mix(scheme.surface_container_highest, scheme.primary, 0.25 * state);
-    let thumb = 16.0 + 4.0 * state;
-    let center = (width * percent).clamp(thumb / 2.0, width - thumb / 2.0);
-
-    let owned = String::from(key);
-    let seek = move |point: amane::Point| on_change((point.x / width).clamp(0.0, 1.0));
-
-    Stack::new(vec![
-        boxed(
-            Rectangle::new()
-                .width(width)
-                .height(4.0)
-                .fill(track)
-                .radius(2.0)
-                .translate(0.0, 6.0),
-        ),
-        boxed(
-            Rectangle::new()
-                .width(width * percent)
-                .height(4.0)
-                .fill(scheme.primary)
-                .radius(2.0)
-                .translate(0.0, 6.0),
-        ),
-        boxed(
-            Rectangle::new()
-                .width(thumb)
-                .height(thumb)
-                .fill(scheme.primary)
-                .radius(thumb / 2.0)
-                .translate(center - thumb / 2.0, (16.0 - thumb) / 2.0),
-        ),
-        boxed(
-            Rectangle::new()
-                .width(width)
-                .height(16.0)
-                .fill(Color::TRANSPARENT)
-                .cursor(amane::Pointer)
-                .on_hover(move |inside| motion::set_hover(owned.clone(), inside))
-                .on_drag(seek),
-        ),
-    ])
-    .width(width)
-    .height(16.0)
-}
-
 // a read-only progress bar, for playback position and other values
 pub fn progress(key: &str, percent: f32, width: f32, scheme: &Scheme) -> Stack {
-    let percent = motion::number(&format!("progress:{key}"), percent.clamp(0.0, 1.0), PROGRESS);
+    let percent = motion::number(
+        &format!("progress:{key}"),
+        percent.clamp(0.0, 1.0),
+        PROGRESS,
+    );
 
     Stack::new(vec![
         boxed(

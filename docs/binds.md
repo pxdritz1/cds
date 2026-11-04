@@ -1,71 +1,52 @@
-# Binds do teclado (niri)
+# niri keybindings
 
-O shell não registra atalhos por si só: quem dispara tudo é o niri,
-via `amane ipc call <serviço> <ação>`. Adicione os blocos abaixo na
-seção `binds { }` do `~/.config/niri/config.kdl`.
+The shell does not register shortcuts. Add the commands you want to use to the binds section of ~/.config/niri/config.kdl.
 
-## Aba de comandos sugeridos
+## Suggested shortcuts
 
 ```kdl
-    // dash do shell (o painel grande)
-    Mod+Space        { spawn "sh" "-c" "amane ipc call dash"; }
+Mod+Space       { spawn "sh" "-c" "amane ipc call dash"; }
+Mod+O           { spawn "sh" "-c" "amane ipc call dash home"; }
+Mod+M           { spawn "sh" "-c" "amane ipc call dash media"; }
+Mod+W           { spawn "sh" "-c" "amane ipc call dash wallpapers"; }
+Mod+A           { spawn "sh" "-c" "amane ipc call dash alerts"; }
+Mod+G           { spawn "sh" "-c" "amane ipc call dash weather"; }
 
-    // abrir o dash direto em uma aba
-    Mod+O            { spawn "sh" "-c" "amane ipc call dash home"; }
-    Mod+M            { spawn "sh" "-c" "amane ipc call dash media"; }
-    Mod+W            { spawn "sh" "-c" "amane ipc call dash papeis"; }
-    Mod+A            { spawn "sh" "-c" "amane ipc call dash alertas"; }
-    Mod+G            { spawn "sh" "-c" "amane ipc call dash clima"; }
+Mod+T           { spawn "sh" "-c" "amane ipc call tray toggle"; }
+Mod+D           { spawn "sh" "-c" "amane ipc call open launcher"; }
+Mod+V           { spawn "sh" "-c" "amane ipc call open clipboard"; }
+Mod+Shift+E     { spawn "sh" "-c" "amane ipc call open power"; }
+Mod+S           { spawn "sh" "-c" "amane ipc call open control"; }
+Mod+Shift+D     { spawn "sh" "-c" "amane ipc call open spotlight"; }
+Mod+Shift+L     { spawn "sh" "-c" "amane ipc call lock"; }
 
-    // tray de apps em segundo plano (o mesmo chevron da barra)
-    Mod+T            { spawn "sh" "-c" "amane ipc call island tray"; }
-
-    // painéis estilo ilha
-    Mod+D            { spawn "sh" "-c" "amane ipc call open launcher"; }
-    Mod+V            { spawn "sh" "-c" "amane ipc call open clipboard"; }
-    Mod+Shift+E      { spawn "sh" "-c" "amane ipc call open power"; }
-    Mod+S            { spawn "sh" "-c" "amane ipc call open control"; }
-
-    // o lock screen real (ext-session-lock + PAM)
-    Mod+Shift+L      { spawn "sh" "-c" "amane ipc call lock"; }
-
-    // o spotlight: busca central de apps e ações
-    Mod+Shift+D      { spawn "sh" "-c" "amane ipc call open spotlight"; }
-
-    // fechar qualquer ilha aberta (dash, tray, launcher, painéis…)
-    Escape           { spawn "sh" "-c" "amane ipc call closed"; }
-
-    // tema: trocar wallpaper / alternar claro e escuro / regenerar tudo
-    Mod+N            { spawn "sh" "-c" "amane ipc call settings dark toggle"; }
-    Mod+Shift+N      { spawn "sh" "-c" "amane ipc call settings refresh"; }
-    Mod+Shift+W      { spawn "sh" "-c" "amane ipc call settings wallpaper $(ls ~/Pictures/Wallpapers/* | shuf -n1)"; }
+Escape          { spawn "sh" "-c" "amane ipc call closed"; }
+Mod+N           { spawn "sh" "-c" "amane ipc call settings dark toggle"; }
+Mod+Shift+N     { spawn "sh" "-c" "amane ipc call settings refresh"; }
 ```
 
-> **Dica:** o `spawn "sh" "-c"` existe porque pipelines e substituições
-> de comando ($(…)) não são interpretadas pelo niri sozinhas.
-> Para comandos simples, `spawn "amane" "ipc" "call" "island" "toggle"`
-> também funciona.
+Use sh -c for shell features such as pipes and command substitution.
 
-## Navegação dentro das ilhas (sem bind, já vem de fábrica)
+## Keyboard navigation
 
-| Lugar            | Teclas                       |
-|------------------|------------------------------|
-| Launcher         | ↑/↓ escolhe, Enter abre, Tab desce, Esc fecha |
-| Spotlight        | ↑/↓ escolhe, Enter executa, Esc fecha |
-| Grade de apps    | clique abre, Esc fecha |
-| Clipboard        | ↑/↓ escolhe, Enter copia, Esc fecha |
-| Power            | ↑/↓ escolhe, Enter executa, Esc fecha |
-| Ajustes          | campos aceitam Enter pra aplicar, Esc fecha |
-| Central de controle | clique ativa/desativa, sliders arrastáveis, Esc fecha |
-| Dash             | Esc fecha (o foco de teclado é exclusivo) |
-| Tray             | clique fora do menu fecha; Esc fecha se a janela tiver foco |
+| Panel | Keys |
+| --- | --- |
+| Launcher | Up/Down to select, Enter to launch, Esc to close |
+| Spotlight | Up/Down to select, Enter to run, Esc to close |
+| Application grid | Click to launch, Esc to close |
+| Clipboard | Up/Down to select, Enter to copy, Esc to close |
+| Power menu | Up/Down to select, Enter to run, Esc to close |
+| Settings | Enter applies the focused field, Esc closes |
+| Control center | Click toggles controls; sliders can be dragged |
+| Dash | Esc closes |
+| Tray | Esc closes when focused; clicking outside closes its menu |
 
 ## Mouse
 
-| Lugar                    | Esquerdo         | Direito                             |
-|--------------------------|------------------|-------------------------------------|
-| App na tray              | levanta a janela | abre o menu de contexto (Abrir / Fechar) |
-| Resultado do launcher    | abre o app       | —                                   |
-| Entrada do clipboard     | copia de volta   | —                                   |
-| Chevron da barra         | abre/fecha a tray| —                                   |
-| Fora de qualquer ilha    | fecha a ilha     | —                                   |
+| Element | Left click | Right click |
+| --- | --- | --- |
+| Tray item | Focus the window | Open its context menu |
+| Launcher result | Launch the app | — |
+| Clipboard entry | Copy the item | — |
+| Island tray chevron | Toggle the tray | — |
+| Outside an open panel | Close the panel | — |

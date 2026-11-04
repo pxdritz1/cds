@@ -4,12 +4,12 @@
  * type, arrows, enter.
  */
 use amane::{
-    Center, Service,
-    Apps, Button, Column, DesktopApp, Key, LayerWindow, Monitor, Padding, Parent, Pointer,
-    Rectangle, Row, TextInput, Widget,
+    Apps, Button, Center, Column, DesktopApp, Key, LayerWindow, Monitor, Padding, Parent, Pointer,
+    Rectangle, Row, Service, TextInput, Widget,
 };
 
-use crate::m3::{self, boxed, leading_icon, scale_label, Type};use crate::motion;
+use crate::m3::{self, Type, boxed, leading_icon, scale_label};
+use crate::motion;
 use crate::overlay::{self, Overlay, Panel, row_fill};
 use crate::settings::Settings;
 use crate::theme::{Scheme, Theme, fade};
@@ -26,46 +26,48 @@ const INPUT: &str = "cds-spotlight";
  */
 struct Spot {
     action: &'static str,
-    label: &'static str,
-    hint: &'static str,
+    label_pt: &'static str,
+    label_en: &'static str,
+    hint_pt: &'static str,
+    hint_en: &'static str,
     glyph: &'static str,
 }
 
 const ACTIONS: [Spot; 6] = [
     Spot {
         action: "dash",
-        label: "Dash do sistema",
-        hint: "relógio, clima, medidores",
+        label_pt: "Dash do sistema", label_en: "System dashboard",
+        hint_pt: "relógio, clima, medidores", hint_en: "clock, weather and system meters",
         glyph: m3::WIDGETS,
     },
     Spot {
         action: "apps",
-        label: "Grade de aplicativos",
-        hint: "todos os programas instalados",
+        label_pt: "Grade de aplicativos", label_en: "Application grid",
+        hint_pt: "todos os programas instalados", hint_en: "all installed applications",
         glyph: m3::APPS,
     },
     Spot {
         action: "config",
-        label: "Ajustes do shell",
-        hint: "aparência, wallpapers, clima",
+        label_pt: "Ajustes do shell", label_en: "Shell settings",
+        hint_pt: "aparência, wallpapers, clima", hint_en: "appearance, wallpapers and weather",
         glyph: m3::TUNE,
     },
     Spot {
         action: "wallpaper",
-        label: "Trocar o wallpaper",
-        hint: "um aleatório da pasta, na hora",
+        label_pt: "Trocar o wallpaper", label_en: "Change wallpaper",
+        hint_pt: "um aleatório da pasta, na hora", hint_en: "pick a random image from the folder",
         glyph: m3::WALLPAPER,
     },
     Spot {
         action: "light",
-        label: "Alternar claro / escuro",
-        hint: "regenera as cores do matugen",
+        label_pt: "Alternar claro / escuro", label_en: "Toggle light / dark mode",
+        hint_pt: "regenera as cores do matugen", hint_en: "regenerate the Matugen palette",
         glyph: m3::DARK_MODE,
     },
     Spot {
         action: "clipboard",
-        label: "Clipboard",
-        hint: "histórico de cópias",
+        label_pt: "Clipboard", label_en: "Clipboard",
+        hint_pt: "histórico de cópias", hint_en: "copied items history",
         glyph: m3::PASTE,
     },
 ];
@@ -160,8 +162,8 @@ fn matched_actions(query: &str) -> Vec<&'static Spot> {
         .iter()
         .filter(|spot| {
             needle.is_empty()
-                || spot.label.to_lowercase().contains(&needle)
-                || spot.hint.to_lowercase().contains(&needle)
+                || crate::lang::text(spot.label_pt, spot.label_en).to_lowercase().contains(&needle)
+                || crate::lang::text(spot.hint_pt, spot.hint_en).to_lowercase().contains(&needle)
         })
         .take(5)
         .collect()
@@ -185,7 +187,7 @@ fn run_action(action: &str) {
         "light" => {
             let dark = Settings::read().dark();
 
-            Settings::set_dark(!dark);
+            Settings::set_dark_live(!dark);
         }
         _ => {}
     }
@@ -205,7 +207,7 @@ fn spot_light_wallpapers(wallpapers: Vec<String>) {
 
     let index = (seconds % wallpapers.len() as u64) as usize;
 
-    Settings::set_wallpaper(&wallpapers[index]);
+    Settings::set_wallpaper_live(&wallpapers[index]);
 }
 
 pub fn view(monitor: &Monitor) -> LayerWindow {
@@ -251,8 +253,8 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
     let list: Box<dyn Widget> = if items.is_empty() {
         boxed(m3::empty_state(
             m3::SEARCH,
-            "Nada encontrado",
-            "Ações do shell e programas instalados respondem aqui",
+            crate::lang::text("Nada encontrado", "Nothing found"),
+            crate::lang::text("Ações do shell e programas instalados respondem aqui", "Search shell actions and installed apps here"),
             Parent,
             150.0,
             scheme,
@@ -265,7 +267,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
         "spotlight",
         INPUT,
         m3::SEARCH,
-        "Buscar ações e programas…",
+        crate::lang::text("Buscar ações e programas…", "Search actions and apps…"),
         open,
         scheme,
         move |text| {
@@ -277,13 +279,13 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
     let footer = Row::new(vec![
         boxed(scale_label(
             Type::LabelMedium,
-            "↑↓ navega · Enter executa",
+            crate::lang::text("↑↓ navega · Enter executa", "↑↓ navigate · Enter run"),
             scheme.on_surface_variant,
             1,
         )),
         boxed(scale_label(
             Type::LabelMedium,
-            "Esc fecha",
+            crate::lang::text("Esc fecha", "Esc closes"),
             scheme.on_surface_variant,
             1,
         )),
@@ -333,32 +335,69 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
 
 fn app_row(app: &DesktopApp, scheme: &Scheme, index: usize, selected: bool) -> Rectangle {
     let key = format!("spot-app:{index}");
-
     let headline = String::from(app.name());
-
-    let supporting = String::from(app.description().unwrap_or("Programa"));
-
-    let glyph = m3::APPS; // the icon image comes in the list; the glyph is the fallback
-
+    let supporting = String::from(app.description().unwrap_or(crate::lang::text("Programa", "Application")));
+    let icon_path = app.icon_path().map(|path| path.to_path_buf());
     let app = app.clone();
 
     let launch = move |button: Button| {
         if button == Button::Left {
             app.launch();
-
             Overlay::close();
         }
     };
 
-    row(&key, glyph, &headline, &supporting, scheme, selected, launch)
+    let (fill, color) = row_fill(&key, selected, scheme);
+    let container = if selected {
+        scheme.secondary_container
+    } else {
+        scheme.surface_container_highest
+    };
+    let icon_box = Rectangle::new()
+        .width(38.0)
+        .height(38.0)
+        .fill(container)
+        .radius(m3::shape::MD)
+        .align_child(Center, Center);
+
+    let icon_box = match icon_path.as_deref() {
+        Some(path) => icon_box.child(
+            Rectangle::new()
+                .width(28.0)
+                .height(28.0)
+                .fill(amane::Image::contain(path).thumbnail(56, 56)),
+        ),
+        None => icon_box.child(crate::m3::icon(m3::APPS, 22.0, color)),
+    };
+
+    Rectangle::new()
+        .width(Parent)
+        .height(52.0)
+        .fill(fill)
+        .radius(m3::shape::MD)
+        .cursor(Pointer)
+        .on_click(launch)
+        .child(
+            Row::new(vec![
+                boxed(icon_box),
+                boxed(Column::new(vec![
+                    boxed(scale_label(Type::BodyMedium, headline, color, 1)),
+                    boxed(scale_label(Type::LabelSmall, supporting, fade(color, 190), 1)),
+                ]).gap(1.0).width(Parent)),
+            ])
+            .gap(14.0)
+            .align(Center)
+            .width(Parent)
+            .height(Parent),
+        )
 }
 
 fn action_row(spot: &'static Spot, scheme: &Scheme, index: usize, selected: bool) -> Rectangle {
     let key = format!("spot-action:{index}");
 
-    let headline = String::from(spot.label);
+    let headline = String::from(crate::lang::text(spot.label_pt, spot.label_en));
 
-    let supporting = String::from(spot.hint);
+    let supporting = String::from(crate::lang::text(spot.hint_pt, spot.hint_en));
 
     let action = spot.action;
 
@@ -368,7 +407,15 @@ fn action_row(spot: &'static Spot, scheme: &Scheme, index: usize, selected: bool
         }
     };
 
-    row(&key, spot.glyph, &headline, &supporting, scheme, selected, run)
+    row(
+        &key,
+        spot.glyph,
+        &headline,
+        &supporting,
+        scheme,
+        selected,
+        run,
+    )
 }
 
 /*

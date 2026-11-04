@@ -7,12 +7,15 @@ mod art;
 mod clipboard;
 mod clock;
 mod control;
-mod island;
+mod glyphs;
 mod ipc;
-mod m3;
+mod island;
 mod launcher;
+mod lang;
 mod lockscreen;
+mod m3;
 mod motion;
+mod osd;
 mod overlay;
 mod power;
 mod settings;
@@ -30,15 +33,18 @@ fn main() {
     App::new()
         .font("Google Sans Flex")
         .window_per_monitor(wallpaper::view)
+        .normal_window("cds-settings", settingsview::window)
         .window_per_monitor(island::reserve)
+        .window_per_monitor(island::left)
         .window_per_monitor(island::view)
+        .window_per_monitor(island::right)
         .window_per_monitor(apps::view)
         .window_per_monitor(spotlight::view)
         .window_per_monitor(launcher::view)
         .window_per_monitor(clipboard::view)
         .window_per_monitor(power::view)
         .window_per_monitor(control::view)
-        .window_per_monitor(settingsview::view)
+        .window_per_monitor(osd::view)
         .lock(lockscreen::view)
         .ipc("open", ipc::open)
         .ipc("closed", ipc::closed)

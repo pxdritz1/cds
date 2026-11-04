@@ -1,6 +1,6 @@
 use amane::{
-    Apps, Center, Column, DesktopApp, Image, Key, LayerWindow, Monitor, Padding, Parent,
-    Pointer, Rectangle, Row, ScrollArea, Service, SpaceBetween, TextInput, Widget,
+    Apps, Center, Column, DesktopApp, Image, Key, LayerWindow, Monitor, Padding, Parent, Pointer,
+    Rectangle, Row, ScrollArea, Service, SpaceBetween, TextInput, Widget,
 };
 
 use crate::island::widgets::{APPS, FORWARD, SEARCH, boxed, icon, label, text};
@@ -159,7 +159,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
         "launcher",
         INPUT,
         SEARCH,
-        "Search applications",
+        crate::lang::text("Buscar aplicativos", "Search applications"),
         open,
         scheme,
         Launcher::set_query,
@@ -177,22 +177,18 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
         boxed(empty(scheme))
     } else {
         boxed(
-            ScrollArea::new(
-                "launcher-results",
-                Column::new(rows).gap(4.0).width(Parent),
-            )
-            .width(Parent)
-            .height(RESULTS),
+            ScrollArea::new("launcher-results", Column::new(rows).gap(4.0).width(Parent))
+                .width(Parent)
+                .height(RESULTS),
         )
     };
 
     let hint = if count == 0 {
-        String::from("No applications match")
+        String::from(crate::lang::text("Nenhum aplicativo encontrado", "No applications match"))
+    } else if crate::settings::Settings::read().language() == "en" {
+        format!("{count} applications  ·  ↑↓ choose  ·  Enter opens")
     } else {
-        format!(
-            "{count} application{}  ·  ↑↓ choose  ·  Enter opens",
-            if count == 1 { "" } else { "s" }
-        )
+        format!("{count} aplicativos  ·  ↑↓ selecionar  ·  Enter abrir")
     };
 
     let footer = Row::new(vec![
@@ -203,7 +199,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
             amane::Weight::Medium,
         )),
         boxed(text(
-            "Esc closes",
+            crate::lang::text("Esc fecha", "Esc closes"),
             11.5,
             fade(scheme.on_surface_variant, 170),
             amane::Weight::Regular,
@@ -277,15 +273,9 @@ fn result_row(scheme: &Scheme, app: &DesktopApp, index: usize, selected: bool) -
     };
 
     let info = Column::new(vec![
+        boxed(label(app.name(), 13.5, color, amane::Weight::Medium, 1)),
         boxed(label(
-            app.name(),
-            13.5,
-            color,
-            amane::Weight::Medium,
-            1,
-        )),
-        boxed(label(
-            app.description().unwrap_or("Application"),
+            app.description().unwrap_or(crate::lang::text("Aplicativo", "Application")),
             11.0,
             if selected {
                 fade(color, 200)
@@ -302,11 +292,7 @@ fn result_row(scheme: &Scheme, app: &DesktopApp, index: usize, selected: bool) -
     let mut children: Vec<Box<dyn Widget>> = vec![icon_box, boxed(info)];
 
     if selected {
-        children.push(boxed(icon(
-            FORWARD,
-            18.0,
-            scheme.on_secondary_container,
-        )));
+        children.push(boxed(icon(FORWARD, 18.0, scheme.on_secondary_container)));
     }
 
     let owned = key.clone();
@@ -354,7 +340,7 @@ fn empty(scheme: &Scheme) -> Rectangle {
                 boxed(Row::new(vec![boxed(circle)]).width(Parent).justify(Center)),
                 boxed(
                     Row::new(vec![boxed(text(
-                        "Nothing found",
+                        crate::lang::text("Nada encontrado", "Nothing found"),
                         15.0,
                         scheme.on_surface,
                         amane::Weight::Medium,
@@ -364,7 +350,7 @@ fn empty(scheme: &Scheme) -> Rectangle {
                 ),
                 boxed(
                     Row::new(vec![boxed(text(
-                        "Try another name",
+                        crate::lang::text("Tente outro nome", "Try another name"),
                         12.0,
                         mix(scheme.on_surface_variant, scheme.on_surface, 0.1),
                         amane::Weight::Regular,

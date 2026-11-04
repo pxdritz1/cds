@@ -5,8 +5,8 @@ use std::thread;
 use std::time::Duration;
 
 use amane::{
-    Center, Column, Key, LayerWindow, Monitor, Padding, Parent, Pointer, Rectangle, Row, ScrollArea,
-    Service, SpaceBetween, TextInput, Widget,
+    Center, Column, Key, LayerWindow, Monitor, Padding, Parent, Pointer, Rectangle, Row,
+    ScrollArea, Service, SpaceBetween, TextInput, Widget,
 };
 
 use crate::island::widgets::{COPY, PASTE, SEARCH, boxed, chip, icon, icon_button, label, text};
@@ -53,7 +53,8 @@ impl Service for Clipboard {
      */
     fn listen() {
         loop {
-            thread::sleep(Duration::from_millis(900));
+            // Keep clipboard updates responsive without launching wl-paste almost every frame.
+            thread::sleep(Duration::from_millis(1500));
 
             let Some(text) = current() else {
                 continue;
@@ -188,9 +189,7 @@ impl Clipboard {
         self.history
             .iter()
             .enumerate()
-            .filter(|(_, entry)| {
-                needle.is_empty() || entry.text.to_lowercase().contains(&needle)
-            })
+            .filter(|(_, entry)| needle.is_empty() || entry.text.to_lowercase().contains(&needle))
             .map(|(index, _)| index)
             .collect()
     }
@@ -326,7 +325,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
         "clipboard",
         INPUT,
         SEARCH,
-        "Search the clipboard",
+        crate::lang::text("Buscar no clipboard", "Search the clipboard"),
         open,
         scheme,
         Clipboard::set_query,
@@ -335,14 +334,14 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
 
     let header = Row::new(vec![
         boxed(text(
-            "Clipboard",
+            crate::lang::text("Área de transferência", "Clipboard"),
             20.0,
             scheme.on_surface,
             amane::Weight::SemiBold,
         )),
         boxed(chip(
             "clipboard-clear",
-            "Clear",
+            crate::lang::text("Limpar", "Clear"),
             84.0,
             false,
             scheme,
@@ -370,28 +369,30 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
         boxed(empty(scheme))
     } else {
         boxed(
-            ScrollArea::new("clipboard-results", Column::new(rows).gap(4.0).width(Parent))
-                .width(Parent)
-                .height(LIST),
+            ScrollArea::new(
+                "clipboard-results",
+                Column::new(rows).gap(4.0).width(Parent),
+            )
+            .width(Parent)
+            .height(LIST),
         )
     };
 
     let footer = Row::new(vec![
         boxed(text(
             if count == 0 {
-                String::from("Nothing copied yet")
+                String::from(crate::lang::text("Nada copiado ainda", "Nothing copied yet"))
+            } else if crate::settings::Settings::read().language() == "en" {
+                format!("{count} items  ·  ↑↓ choose  ·  Enter copies")
             } else {
-                format!(
-                    "{count} item{}  ·  ↑↓ choose  ·  Enter copies",
-                    if count == 1 { "" } else { "s" }
-                )
+                format!("{count} itens  ·  ↑↓ selecionar  ·  Enter copiar")
             },
             11.5,
             scheme.on_surface_variant,
             amane::Weight::Medium,
         )),
         boxed(text(
-            "Esc closes",
+            crate::lang::text("Esc fecha", "Esc closes"),
             11.5,
             fade(scheme.on_surface_variant, 170),
             amane::Weight::Regular,
@@ -410,15 +411,10 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
             left: PADDING,
         })
         .child(
-            Column::new(vec![
-                boxed(header),
-                boxed(search),
-                list,
-                boxed(footer),
-            ])
-            .width(Parent)
-            .height(Parent)
-            .gap(12.0),
+            Column::new(vec![boxed(header), boxed(search), list, boxed(footer)])
+                .width(Parent)
+                .height(Parent)
+                .gap(12.0),
         );
 
     overlay::layer(
@@ -456,13 +452,7 @@ fn entry_row(scheme: &Scheme, text: &str, position: usize, selected: bool) -> Re
         .child(icon(PASTE, 19.0, scheme.on_primary_container));
 
     let info = Column::new(vec![
-        boxed(label(
-            preview(text),
-            13.0,
-            color,
-            amane::Weight::Medium,
-            1,
-        )),
+        boxed(label(preview(text), 13.0, color, amane::Weight::Medium, 1)),
         boxed(label(
             meta(text),
             11.0,
@@ -537,9 +527,9 @@ fn meta(text: &str) -> String {
     let lines = text.lines().count().max(1);
 
     if lines > 1 {
-        format!("{characters} characters · {lines} lines")
+        if crate::settings::Settings::read().language() == "en" { format!("{characters} characters · {lines} lines") } else { format!("{characters} caracteres · {lines} linhas") }
     } else {
-        format!("{characters} characters")
+        if crate::settings::Settings::read().language() == "en" { format!("{characters} characters") } else { format!("{characters} caracteres") }
     }
 }
 
@@ -561,7 +551,7 @@ fn empty(scheme: &Scheme) -> Rectangle {
                 boxed(Row::new(vec![boxed(circle)]).width(Parent).justify(Center)),
                 boxed(
                     Row::new(vec![boxed(text(
-                        "The clipboard is empty",
+                        crate::lang::text("O clipboard está vazio", "The clipboard is empty"),
                         15.0,
                         scheme.on_surface,
                         amane::Weight::Medium,
@@ -571,7 +561,7 @@ fn empty(scheme: &Scheme) -> Rectangle {
                 ),
                 boxed(
                     Row::new(vec![boxed(text(
-                        "Copy something and it shows up here",
+                        crate::lang::text("Copie algo para aparecer aqui", "Copy something and it will show up here"),
                         12.0,
                         scheme.on_surface_variant,
                         amane::Weight::Regular,

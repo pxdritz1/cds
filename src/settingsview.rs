@@ -1,22 +1,30 @@
 use amane::{
-    Center, Column, Key, LayerWindow, Monitor, Padding, Parent, Rectangle, Row, ScrollArea,
-    Service, Start, TextInput, Widget,
+    Center, Column, Key, Padding, Parent, Rectangle, Row, ScrollArea, Service, Start, TextInput,
+    Widget, Window,
 };
 
 use crate::island::widgets::{
-    DARK_MODE, LIGHT_MODE, OPEN_NEW, SUNNY, TUNE, boxed, card, chip, icon, label, text,
+    DARK_MODE, LIGHT_MODE, OPEN_NEW, SUNNY, TUNE, boxed, chip, icon, label, text,
 };
-use crate::m3;
-use crate::overlay::{self, Overlay, Panel};
 use crate::settings::Settings;
 use crate::theme::{Scheme, Theme};
 
 const WIDTH: f32 = 620.0;
-const HEIGHT: f32 = 470.0;
+const HEIGHT: f32 = 560.0;
 const PADDING: f32 = 16.0;
 
 const DIRECTORY_INPUT: &str = "cds-settings-directory";
 const LOCATION_INPUT: &str = "cds-settings-location";
+
+fn settings_card(width: f32, height: f32, fill: amane::Color) -> Rectangle {
+    Rectangle::new()
+        .width(width)
+        .height(height)
+        .fill(fill)
+        .radius(24.0)
+        .clip()
+        .padding(16.0)
+}
 
 #[derive(Default)]
 pub struct SettingsView {
@@ -58,16 +66,10 @@ impl SettingsView {
     }
 
     pub fn toggle() {
-        let showing = Overlay::read().panel() == Panel::Config;
-
-        if showing {
-            Overlay::close();
-
-            return;
-        }
-
+        // Amane keeps one instance per name, so repeated requests do not
+        // create duplicate settings windows.
         Self::reset();
-        Overlay::open(Panel::Config);
+        amane::open_window("cds-settings", window);
     }
 }
 
@@ -75,7 +77,13 @@ impl SettingsView {
 fn section(glyph: &'static str, name: &str, scheme: &Scheme) -> Row {
     Row::new(vec![
         Box::new(icon(glyph, 20.0, scheme.primary)),
-        Box::new(label(name, 15.0, scheme.on_surface, amane::Weight::SemiBold, 1)),
+        Box::new(label(
+            name,
+            15.0,
+            scheme.on_surface,
+            amane::Weight::SemiBold,
+            1,
+        )),
     ])
     .gap(10.0)
     .align(Center)
@@ -99,7 +107,13 @@ fn field(
         .width(Parent);
 
     Column::new(vec![
-        Box::new(label(name, 12.0, scheme.on_surface_variant, amane::Weight::Medium, 1)),
+        Box::new(label(
+            name,
+            12.0,
+            scheme.on_surface_variant,
+            amane::Weight::Medium,
+            1,
+        )),
         Box::new(
             Rectangle::new()
                 .width(Parent)
@@ -120,15 +134,16 @@ fn field(
     .width(Parent)
 }
 
-pub fn view(monitor: &Monitor) -> LayerWindow {
+pub fn window() -> Window {
     let theme = Theme::read();
     let scheme = theme.scheme();
 
-    let open = Overlay::read().panel() == Panel::Config;
-
     let settings = Settings::read();
 
+    let language = String::from(settings.language());
     let dark = settings.dark();
+    let hover_dash = settings.flag("hover_dash");
+    let hover_delay_ms = settings.hover_delay_ms();
 
     let current = String::from(settings.scheme_name());
 
@@ -165,7 +180,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
                                 current == *name,
                                 scheme,
                                 move || {
-                                    Settings::set_scheme(name);
+                                    Settings::set_scheme_live(name);
                                 },
                             ))
                         })
@@ -176,27 +191,51 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
         })
         .collect();
 
-    let appearance = card(WIDTH - PADDING * 2.0, scheme.surface_container_low).child(
+    let behavior = settings_card(WIDTH - PADDING * 2.0, 174.0, scheme.surface_container_low).child(
         Column::new(vec![
-            Box::new(section(TUNE, "Aparência", scheme)),
+            Box::new(section(TUNE, crate::lang::text("Comportamento", "Behavior"), scheme)),
+            Box::new(chip(
+                "sv:hover-dash",
+                if hover_dash {
+                    crate::lang::text("Abrir Dash ao passar o mouse: ligado", "Open Dash on hover: on")
+                } else {
+                    crate::lang::text("Abrir Dash ao passar o mouse: desligado", "Open Dash on hover: off")
+                },
+                360.0,
+                hover_dash,
+                scheme,
+                || {
+                    Settings::toggle_flag("hover_dash");
+                    crate::ui::Ui::refresh();
+                },
+            )),
+            Box::new(section(TUNE, crate::lang::text("Atraso do hover", "Hover delay"), scheme)),
             Box::new(
                 Row::new(vec![
-                    boxed(chip(
-                        "sv:dark",
-                        "Escuro",
-                        118.0,
-                        dark,
-                        scheme,
-                        move || Settings::set_dark(true),
-                    )),
-                    boxed(chip(
-                        "sv:light",
-                        "Claro",
-                        118.0,
-                        !dark,
-                        scheme,
-                        move || Settings::set_dark(false),
-                    )),
+                    boxed(chip("sv:hover-delay-250", "250 ms", 88.0, hover_delay_ms == 250, scheme, || Settings::set_hover_delay_ms(250))),
+                    boxed(chip("sv:hover-delay-500", "500 ms", 88.0, hover_delay_ms == 500, scheme, || Settings::set_hover_delay_ms(500))),
+                    boxed(chip("sv:hover-delay-750", "750 ms", 88.0, hover_delay_ms == 750, scheme, || Settings::set_hover_delay_ms(750))),
+                    boxed(chip("sv:hover-delay-1000", "1 s", 88.0, hover_delay_ms == 1000, scheme, || Settings::set_hover_delay_ms(1000))),
+                ])
+                .gap(8.0)
+                .width(Parent),
+            ),
+        ])
+        .gap(10.0)
+        .width(Parent),
+    );
+
+    let appearance = settings_card(WIDTH - PADDING * 2.0, 330.0, scheme.surface_container_low).child(
+        Column::new(vec![
+            Box::new(section(TUNE, crate::lang::text("Aparência", "Appearance"), scheme)),
+            Box::new(
+                Row::new(vec![
+                    boxed(chip("sv:dark", crate::lang::text("Escuro", "Dark"), 118.0, dark, scheme, move || {
+                        Settings::set_dark_live(true)
+                    })),
+                    boxed(chip("sv:light", crate::lang::text("Claro", "Light"), 118.0, !dark, scheme, move || {
+                        Settings::set_dark_live(false)
+                    })),
                     boxed(
                         Rectangle::new()
                             .width(Parent)
@@ -212,9 +251,12 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
                 .gap(8.0)
                 .width(Parent),
             ),
-            Box::new(
-                Column::new(scheme_rows).gap(8.0).width(Parent),
-            ),
+            Box::new(Column::new(scheme_rows).gap(8.0).width(Parent)),
+            Box::new(section(TUNE, crate::lang::text("Idioma", "Language"), scheme)),
+            Box::new(Row::new(vec![
+                boxed(chip("sv:lang-pt", "Português (Brasil)", 150.0, language == "pt-BR", scheme, || Settings::set_language("pt-BR"))),
+                boxed(chip("sv:lang-en", "English", 110.0, language == "en", scheme, || Settings::set_language("en"))),
+            ]).gap(8.0).width(Parent)),
         ])
         .gap(12.0)
         .width(Parent),
@@ -224,28 +266,26 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
      * the wallpaper section: one input moves where the dash reads images
      * from, applying as soon as the path is submitted
      */
-    let wallpapers = card(WIDTH - PADDING * 2.0, scheme.surface_container_low).child(
+    let wallpapers = settings_card(WIDTH - PADDING * 2.0, 146.0, scheme.surface_container_low).child(
         Column::new(vec![
-            Box::new(section(OPEN_NEW, "Papéis de parede", scheme)),
+            Box::new(section(OPEN_NEW, crate::lang::text("Papéis de parede", "Wallpapers"), scheme)),
             Box::new(field(
-                "Diretório das imagens",
+                crate::lang::text("Diretório das imagens", "Image folder"),
                 DIRECTORY_INPUT,
                 &directory,
                 scheme,
-                {
-                    let current = directory.clone();
-
-                    move |_text| {
-                        // nothing while typing; the submit applies it
-                        let _ = current.clone();
-                    }
-                },
+                // The directory is applied only when the field is submitted.
+                move |_text| {},
                 move |path| {
                     Settings::set_directory(&path);
                 },
             )),
             Box::new(text(
-                &format!("{} imagens encontradas", Settings::read().wallpapers().len()),
+                &format!(
+                    "{} {}",
+                    Settings::read().wallpapers().len(),
+                    crate::lang::text("imagens encontradas", "images found")
+                ),
                 11.5,
                 scheme.on_surface_variant,
                 amane::Weight::Regular,
@@ -256,14 +296,14 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
     );
 
     // the weather section, where the dash reads its forecast spot from
-    let climate = card(WIDTH - PADDING * 2.0, scheme.surface_container_low).child(
+    let climate = settings_card(WIDTH - PADDING * 2.0, 122.0, scheme.surface_container_low).child(
         Column::new(vec![
-            Box::new(section(SUNNY, "Clima", scheme)),
+            Box::new(section(SUNNY, crate::lang::text("Clima", "Weather"), scheme)),
             Box::new(field(
-                "Coordenadas (latitude,longitude — vazio volta ao automático)",
+                crate::lang::text("Coordenadas (latitude,longitude — vazio volta ao automático)", "Coordinates (latitude,longitude — empty uses automatic location)"),
                 LOCATION_INPUT,
                 if location.is_empty() {
-                    "automático pelo ip"
+                    crate::lang::text("automático pelo ip", "automatic (IP)")
                 } else {
                     &location
                 },
@@ -280,14 +320,14 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
 
     let footer = Row::new(vec![
         boxed(text(
-            "As mudanças regeneram o matugen na hora",
+            crate::lang::text("As mudanças regeneram o matugen na hora", "Changes are applied with Matugen"),
             11.5,
             scheme.on_surface_variant,
             amane::Weight::Medium,
         )),
         boxed(chip(
             "sv:refresh",
-            "Regenerar",
+            crate::lang::text("Regenerar", "Regenerate"),
             108.0,
             false,
             scheme,
@@ -303,7 +343,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
                 drop(settings);
 
                 if !wallpaper.is_empty() {
-                    crate::theme::apply("image", &wallpaper, &scheme_name, dark);
+                    crate::theme::apply_async("image", &wallpaper, &scheme_name, dark);
                 }
             },
         )),
@@ -315,6 +355,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
     let content = Rectangle::new()
         .width(Parent)
         .height(Parent)
+        .fill(scheme.surface)
         .padding(Padding {
             top: PADDING,
             right: PADDING,
@@ -328,6 +369,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
                         "settings-panels",
                         Column::new(vec![
                             Box::new(appearance),
+                            Box::new(behavior),
                             Box::new(wallpapers),
                             Box::new(climate),
                         ])
@@ -335,7 +377,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
                         .width(Parent),
                     )
                     .width(Parent)
-                    .height(Parent),
+                    .height(HEIGHT - PADDING * 2.0 - 46.0),
                 ),
                 Box::new(footer),
             ])
@@ -344,25 +386,16 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
             .gap(10.0),
         );
 
-    overlay::layer(
-        "settingsview",
-        "cds-settingsview",
-        &monitor.name,
-        open,
-        scheme,
-        overlay::Frame {
-            width: WIDTH,
-            height: HEIGHT,
-            radius: m3::shape::XL,
-            place: overlay::Place::Under,
-        },
-        content,
-        |key| {
+    Window::new()
+        .title(crate::lang::text("Chloe Dynamic Shell — Configurações", "Chloe Dynamic Shell — Settings"))
+        .size(WIDTH, HEIGHT)
+        .resizable(true)
+        .child(content)
+        .on_key(|key| {
             if key == Key::Escape {
-                Overlay::close();
+                amane::close_window("cds-settings");
             }
-        },
-    )
+        })
 }
 
 // "scheme-tonal-spot" becomes "Tonal", for the chip labels

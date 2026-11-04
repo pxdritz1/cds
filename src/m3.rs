@@ -1,9 +1,10 @@
 use std::f32::consts::TAU;
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::sync::OnceLock;
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use amane::{
-    Arc, Button, Canvas, Cap, Center, Color, Column, Padding, Parent, Path, Pointer,
-    Rectangle, Row, Service, Shape, Size, Stack, Start, Text, Widget,
+    Arc, Button, Canvas, Cap, Center, Color, Column, Padding, Parent, Path, Pointer, Rectangle,
+    Row, Service, Shadow, Shape, Size, Stack, Start, Text, Widget,
 };
 
 use crate::motion;
@@ -82,32 +83,66 @@ pub const DROP: &str = "\u{e798}";
 pub const SNOWING: &str = "\u{e80f}";
 
 pub mod shape {
-    pub const XS: f32 = 4.0;
-    pub const SM: f32 = 8.0;
-    pub const MD: f32 = 12.0;
-    pub const LG: f32 = 16.0;
-    pub const LG_PLUS: f32 = 20.0;
-    pub const XL: f32 = 28.0;
-    pub const XL_PLUS: f32 = 32.0;
+    // Material 3 Expressive shape tokens
+    pub const NONE: f32 = 0.0;
+    pub const EXTRA_SMALL: f32 = 4.0;
+    pub const SMALL: f32 = 8.0;
+    pub const MEDIUM: f32 = 12.0;
+    pub const LARGE: f32 = 16.0;
+    pub const LARGE_PLUS: f32 = 20.0;
+    pub const EXTRA_LARGE: f32 = 28.0;
+    pub const EXTRA_LARGE_PLUS: f32 = 32.0;
+    pub const DOUBLE_EXTRA_LARGE: f32 = 48.0;
+
+    // Component-specific shape constants
+    pub const CORNER_SMALL: f32 = 8.0;
+    pub const CORNER_MEDIUM: f32 = 12.0;
+    pub const CORNER_LARGE: f32 = 16.0;
+    pub const CORNER_EXTRA_LARGE: f32 = 28.0;
+    pub const CORNER_FULL: f32 = 9999.0;
+
+    // Island and bar specific shapes
+    pub const ISLAND_COMPACT: f32 = 20.0;
+    pub const ISLAND_EXPANDED: f32 = 16.0;
+    pub const ISLAND_ACTIVE: f32 = 24.0;
+
+    // Legacy aliases for backward compatibility
+    pub const XS: f32 = EXTRA_SMALL;
+    pub const SM: f32 = SMALL;
+    pub const MD: f32 = MEDIUM;
+    pub const LG: f32 = LARGE;
+    pub const LG_PLUS: f32 = LARGE_PLUS;
+    pub const XL: f32 = EXTRA_LARGE;
+    pub const XL_PLUS: f32 = EXTRA_LARGE_PLUS;
+    pub const XXL: f32 = DOUBLE_EXTRA_LARGE;
 }
 
 #[derive(Clone, Copy)]
 pub enum Type {
+    // Display typography (Material 3 Expressive)
     DisplayLarge,
     DisplayMedium,
     DisplaySmall,
+
+    // Headline typography
     HeadlineLarge,
     HeadlineMedium,
     HeadlineSmall,
+
+    // Title typography
     TitleLarge,
     TitleMedium,
     TitleSmall,
-    LabelLarge,
-    LabelMedium,
-    LabelSmall,
+
+    // Body typography
     BodyLarge,
     BodyMedium,
     BodySmall,
+
+    // Label typography (for buttons, chips, etc.)
+    LabelLarge,
+    LabelMedium,
+    LabelSmall,
 }
 
 impl Type {
@@ -115,21 +150,71 @@ impl Type {
         use amane::Weight::{Medium, Regular};
 
         match self {
-            Type::DisplayLarge => (57.0, Regular),
-            Type::DisplayMedium => (45.0, Regular),
-            Type::DisplaySmall => (36.0, Regular),
-            Type::HeadlineLarge => (32.0, Regular),
-            Type::HeadlineMedium => (28.0, Regular),
-            Type::HeadlineSmall => (24.0, Regular),
-            Type::TitleLarge => (22.0, Regular),
-            Type::TitleMedium => (16.0, Medium),
-            Type::TitleSmall => (14.0, Medium),
-            Type::LabelLarge => (14.0, Medium),
-            Type::LabelMedium => (12.0, Medium),
-            Type::LabelSmall => (11.0, Medium),
-            Type::BodyLarge => (16.0, Regular),
-            Type::BodyMedium => (14.0, Regular),
-            Type::BodySmall => (12.0, Regular),
+            // Display typography (from Material 3 spec)
+            Type::DisplayLarge => (57.0, Regular), // 57sp, Regular weight
+            Type::DisplayMedium => (45.0, Regular), // 45sp, Regular weight
+            Type::DisplaySmall => (36.0, Regular), // 36sp, Regular weight
+
+            // Headline typography
+            Type::HeadlineLarge => (32.0, Regular), // 32sp, Regular weight
+            Type::HeadlineMedium => (28.0, Regular), // 28sp, Regular weight
+            Type::HeadlineSmall => (24.0, Regular), // 24sp, Regular weight
+
+            // Title typography
+            Type::TitleLarge => (22.0, Regular), // 22sp, Regular weight
+            Type::TitleMedium => (16.0, Medium), // 16sp, Medium weight
+            Type::TitleSmall => (14.0, Medium),  // 14sp, Medium weight
+
+            // Body typography
+            Type::BodyLarge => (16.0, Regular), // 16sp, Regular weight
+            Type::BodyMedium => (14.0, Regular), // 14sp, Regular weight
+            Type::BodySmall => (12.0, Regular), // 12sp, Regular weight
+
+            // Label typography (for buttons, chips, etc.)
+            Type::LabelLarge => (14.0, Medium), // 14sp, Medium weight
+            Type::LabelMedium => (12.0, Medium), // 12sp, Medium weight
+            Type::LabelSmall => (11.0, Medium), // 11sp, Medium weight
+        }
+    }
+
+    // Helper methods for Material 3 Expressive typographic scales
+    fn line_height(self) -> f32 {
+        match self {
+            Type::DisplayLarge => 64.0,
+            Type::DisplayMedium => 52.0,
+            Type::DisplaySmall => 44.0,
+            Type::HeadlineLarge => 40.0,
+            Type::HeadlineMedium => 36.0,
+            Type::HeadlineSmall => 32.0,
+            Type::TitleLarge => 28.0,
+            Type::TitleMedium => 24.0,
+            Type::TitleSmall => 20.0,
+            Type::BodyLarge => 24.0,
+            Type::BodyMedium => 20.0,
+            Type::BodySmall => 16.0,
+            Type::LabelLarge => 20.0,
+            Type::LabelMedium => 16.0,
+            Type::LabelSmall => 16.0,
+        }
+    }
+
+    fn tracking(self) -> f32 {
+        match self {
+            Type::DisplayLarge => -0.15,
+            Type::DisplayMedium => -0.15,
+            Type::DisplaySmall => -0.15,
+            Type::HeadlineLarge => -0.15,
+            Type::HeadlineMedium => -0.1,
+            Type::HeadlineSmall => -0.1,
+            Type::TitleLarge => -0.1,
+            Type::TitleMedium => 0.0,
+            Type::TitleSmall => 0.0,
+            Type::BodyLarge => 0.0,
+            Type::BodyMedium => 0.0,
+            Type::BodySmall => 0.0,
+            Type::LabelLarge => 0.0,
+            Type::LabelMedium => 0.0,
+            Type::LabelSmall => 0.0,
         }
     }
 }
@@ -149,12 +234,7 @@ pub fn icon(glyph: &str, size: f32, color: Color) -> Text {
         .tight()
 }
 
-pub fn text(
-    content: impl Into<String>,
-    size: f32,
-    color: Color,
-    weight: amane::Weight,
-) -> Text {
+pub fn text(content: impl Into<String>, size: f32, color: Color, weight: amane::Weight) -> Text {
     let theme = Theme::read();
     let typography = theme.typography();
 
@@ -267,6 +347,37 @@ pub fn cookie(lobes: f32, size: f32, fill: Color) -> Canvas {
     scallop(lobes, 0.09, size, fill)
 }
 
+pub fn rotating_cookie(size: f32, fill: Color) -> Canvas {
+    static START: OnceLock<Instant> = OnceLock::new();
+    let elapsed = START.get_or_init(Instant::now).elapsed();
+    motion::request_frame_at_most(30);
+
+    // Half the vertices are enough for a 26 px icon and reduce path work.
+    const STEPS: usize = 72;
+    let radius = size / 2.0;
+    let depth = radius * 0.09;
+    let rotation = elapsed.as_secs_f32() * 0.75;
+    let mut path = Path::new();
+
+    for step in 0..=STEPS {
+        let angle = TAU * step as f32 / STEPS as f32 + rotation;
+        let reach = radius - depth + depth * (12.0 * angle).cos();
+        let (sin, cos) = angle.sin_cos();
+        let x = radius + reach * cos;
+        let y = radius + reach * sin;
+        path = if step == 0 {
+            path.move_to(x, y)
+        } else {
+            path.line_to(x, y)
+        };
+    }
+
+    Canvas::new()
+        .width(size)
+        .height(size)
+        .shapes(vec![Box::new(path.fill(fill))])
+}
+
 pub fn badge_shape(glyph: &str, size: f32, lobes: f32, fill: Color, color: Color) -> Stack {
     Stack::new(vec![
         boxed(scallop(lobes, 0.08, size, fill)),
@@ -303,7 +414,11 @@ pub fn avatar(letter: &str, size: f32, scheme: &Scheme) -> Stack {
 }
 
 pub fn badge(count: usize, scheme: &Scheme) -> Rectangle {
-    let content = if count > 9 { String::from("9+") } else { count.to_string() };
+    let content = if count > 9 {
+        String::from("9+")
+    } else {
+        count.to_string()
+    };
     let width = if count > 9 { 20.0 } else { 16.0 };
 
     Rectangle::new()
@@ -312,7 +427,12 @@ pub fn badge(count: usize, scheme: &Scheme) -> Rectangle {
         .fill(scheme.error)
         .radius(8.0)
         .align_child(Center, Center)
-        .child(text(content, 10.0, scheme.on_error, amane::Weight::SemiBold))
+        .child(text(
+            content,
+            10.0,
+            scheme.on_error,
+            amane::Weight::SemiBold,
+        ))
 }
 
 pub fn chip(
@@ -350,7 +470,7 @@ pub fn chip(
         .width(width)
         .height(32.0)
         .fill(fill)
-        .radius(shape::SM)
+        .radius(shape::MEDIUM)
         .cursor(Pointer)
         .on_hover(move |inside| motion::set_hover(owned.clone(), inside))
         .on_click(move |_| on_click())
@@ -446,6 +566,7 @@ pub fn toggle_icon_button(
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum Kind {
+    Elevated,
     Filled,
     Tonal,
     Outlined,
@@ -461,6 +582,10 @@ pub fn button(
     on_click: impl Fn() + 'static,
 ) -> Rectangle {
     let (fill, color) = match kind {
+        Kind::Elevated => (
+            mix(scheme.surface_container_low, scheme.surface_tint, 0.05),
+            scheme.on_surface,
+        ),
         Kind::Filled => (scheme.primary, scheme.on_primary),
         Kind::Tonal => (scheme.secondary_container, scheme.on_secondary_container),
         Kind::Outlined | Kind::Text => (Color::TRANSPARENT, scheme.primary),
@@ -501,6 +626,13 @@ pub fn button(
 
     if kind == Kind::Outlined {
         button = button.border(1.0, scheme.outline);
+    } else if kind == Kind::Elevated {
+        button = button.shadow(
+            Shadow::drop(scheme.shadow)
+                .opacity(0.16)
+                .blur(2.0)
+                .offset(0.0, 1.0),
+        );
     }
 
     button
@@ -534,7 +666,11 @@ pub fn switch(
         .fill(thumb_color)
         .radius(size / 2.0)
         .align_child(Center, Center)
-        .child(icon(CHECK, 14.0, fade(scheme.primary, (255.0 * progress) as u8)))
+        .child(icon(
+            CHECK,
+            14.0,
+            fade(scheme.primary, (255.0 * progress) as u8),
+        ))
         .translate(left, 0.0);
 
     Rectangle::new()
@@ -598,16 +734,17 @@ pub fn slider(
 
     let track = |size: f32, fill: Color, left: f32, right: f32| {
         corners(
-            Rectangle::new().width(size.max(0.0)).height(HEIGHT).fill(fill),
+            Rectangle::new()
+                .width(size.max(0.0))
+                .height(HEIGHT)
+                .fill(fill),
             left,
             right,
         )
     };
 
     Stack::new(vec![
-        boxed(
-            track(inactive, scheme.secondary_container, 6.0, 22.0).translate(inactive_x, 0.0),
-        ),
+        boxed(track(inactive, scheme.secondary_container, 6.0, 22.0).translate(inactive_x, 0.0)),
         boxed(track(active, scheme.primary, 22.0, 6.0)),
         boxed(
             Rectangle::new()
@@ -637,13 +774,7 @@ pub fn slider(
     .height(HEIGHT)
 }
 
-pub fn wavy(
-    fraction: f32,
-    width: f32,
-    animated: bool,
-    color: Color,
-    track: Color,
-) -> Canvas {
+pub fn wavy(fraction: f32, width: f32, animated: bool, color: Color, track: Color) -> Canvas {
     const HEIGHT: f32 = 16.0;
     const AMPLITUDE: f32 = 2.6;
     const LENGTH: f32 = 22.0;
@@ -654,13 +785,16 @@ pub fn wavy(
     let middle = HEIGHT / 2.0;
 
     let phase = if animated {
-        amane::request_frame();
-
+        // CPU and RAM meters share one 30 FPS animation clock. This keeps the
+        // wave motion fluid without asking the compositor for a frame at 60+
+        // FPS or doing duplicate work for each meter.
         let millis = SystemTime::now()
             .duration_since(UNIX_EPOCH)
-            .map_or(0, |elapsed| elapsed.as_millis() % 1600);
+            .map_or(0, |elapsed| elapsed.as_millis() as u64);
 
-        TAU * millis as f32 / 1600.0
+        motion::request_frame_at_most(30);
+
+        TAU * (millis % 1600) as f32 / 1600.0
     } else {
         0.0
     };
@@ -686,7 +820,9 @@ pub fn wavy(
         let mut x = STROKE / 2.0;
 
         while x < active {
-            x = (x + 2.0).min(active);
+            // A slightly wider sampling interval cuts canvas path work in
+            // half while remaining visually smooth at this widget's height.
+            x = (x + 4.0).min(active);
             path = path.line_to(x, wave(x));
         }
 
@@ -710,8 +846,7 @@ pub fn ring(
         Duration::from_millis(360),
     );
 
-    let mut shapes: Vec<Box<dyn Shape>> =
-        vec![Box::new(Arc::new().stroke(thickness, track))];
+    let mut shapes: Vec<Box<dyn Shape>> = vec![Box::new(Arc::new().stroke(thickness, track))];
 
     if value > 0.004 {
         shapes.push(Box::new(
@@ -807,7 +942,13 @@ pub fn tile(
     on_click: impl Fn() + 'static,
     on_detail: Option<Box<dyn Fn()>>,
 ) -> Rectangle {
-    let Tile { key, glyph, title, subtitle, active } = spec;
+    let Tile {
+        key,
+        glyph,
+        title,
+        subtitle,
+        active,
+    } = spec;
 
     let state = motion::hover(key);
 
@@ -818,7 +959,11 @@ pub fn tile(
     );
 
     let fill = mix(scheme.surface_container_highest, scheme.primary, progress);
-    let fill = state_layer(fill, mix(scheme.on_surface, scheme.on_primary, progress), 0.08 * state);
+    let fill = state_layer(
+        fill,
+        mix(scheme.on_surface, scheme.on_primary, progress),
+        0.08 * state,
+    );
     let color = mix(scheme.on_surface, scheme.on_primary, progress);
     let soft = mix(scheme.on_surface_variant, scheme.on_primary, progress);
     let radius = 32.0 - 12.0 * progress;
@@ -858,14 +1003,25 @@ pub fn tile(
         .fill(fill)
         .radius(radius)
         .cursor(Pointer)
-        .padding(Padding { top: 0.0, right: 10.0, bottom: 0.0, left: 18.0 })
+        .padding(Padding {
+            top: 0.0,
+            right: 10.0,
+            bottom: 0.0,
+            left: 18.0,
+        })
         .on_hover(move |inside| motion::set_hover(owned.clone(), inside))
         .on_click(move |button| {
             if button == Button::Left {
                 on_click()
             }
         })
-        .child(Row::new(children).gap(12.0).align(Center).width(Parent).height(Parent))
+        .child(
+            Row::new(children)
+                .gap(12.0)
+                .align(Center)
+                .width(Parent)
+                .height(Parent),
+        )
 }
 
 pub struct Item<'a> {
@@ -884,13 +1040,23 @@ pub fn list_item(
     scheme: &Scheme,
     on_click: impl Fn(Button) + 'static,
 ) -> Rectangle {
-    let Item { key, headline, supporting, selected, height } = item;
+    let Item {
+        key,
+        headline,
+        supporting,
+        selected,
+        height,
+    } = item;
 
     let state = motion::hover(key);
 
     let base = motion::color(
         &format!("item:{key}"),
-        if selected { scheme.secondary_container } else { Color::TRANSPARENT },
+        if selected {
+            scheme.secondary_container
+        } else {
+            Color::TRANSPARENT
+        },
         motion::SELECT_DURATION,
     );
 
@@ -935,10 +1101,21 @@ pub fn list_item(
         .fill(fill)
         .radius(shape::LG)
         .cursor(Pointer)
-        .padding(Padding { top: 0.0, right: 12.0, bottom: 0.0, left: 12.0 })
+        .padding(Padding {
+            top: 0.0,
+            right: 12.0,
+            bottom: 0.0,
+            left: 12.0,
+        })
         .on_hover(move |inside| motion::set_hover(owned.clone(), inside))
         .on_click(on_click)
-        .child(Row::new(children).gap(14.0).align(Center).width(Parent).height(Parent))
+        .child(
+            Row::new(children)
+                .gap(14.0)
+                .align(Center)
+                .width(Parent)
+                .height(Parent),
+        )
 }
 
 pub fn leading_icon(glyph: &str, container: Color, color: Color) -> Rectangle {
@@ -977,7 +1154,11 @@ pub fn empty_state(
                     scheme.on_surface_variant,
                 ))),
                 boxed(centered(scale(Type::TitleMedium, title, scheme.on_surface))),
-                boxed(centered(scale(Type::BodyMedium, body, scheme.on_surface_variant))),
+                boxed(centered(scale(
+                    Type::BodyMedium,
+                    body,
+                    scheme.on_surface_variant,
+                ))),
             ])
             .gap(8.0)
             .width(Parent)
@@ -988,7 +1169,11 @@ pub fn empty_state(
 pub fn clip_image(path: &str, size: f32, radius: f32, fallback: Color) -> Rectangle {
     use amane::Image;
 
-    let base = Rectangle::new().width(size).height(size).radius(radius).clip();
+    let base = Rectangle::new()
+        .width(size)
+        .height(size)
+        .radius(radius)
+        .clip();
 
     if Image::loaded(path) {
         let pixels = (size * 2.0).round() as u32;

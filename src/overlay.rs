@@ -190,7 +190,11 @@ pub fn layer(
         .height(Full)
         .layer(Layer::Overlay)
         .space(Zone::Ignore)
-        .keyboard(if open { Keyboard::Exclusive } else { Keyboard::None })
+        .keyboard(if open {
+            Keyboard::Exclusive
+        } else {
+            Keyboard::None
+        })
         .visible(visible)
         .namespace(namespace)
         .on_key(move |key| {
@@ -218,7 +222,11 @@ pub fn search(
     let state = motion::hover(&format!("{key}:search"));
     let owned = String::from(key);
 
-    let fill = state_layer(scheme.surface_container_high, scheme.on_surface, 0.05 * state);
+    let fill = state_layer(
+        scheme.surface_container_high,
+        scheme.on_surface,
+        0.05 * state,
+    );
 
     let field = amane::TextInput::new(input)
         .size(16.0)
@@ -236,7 +244,12 @@ pub fn search(
         .radius(Full)
         .cursor(amane::Pointer)
         .on_hover(move |inside| motion::set_hover(format!("{owned}:search"), inside))
-        .padding(Padding { top: 0.0, right: 20.0, bottom: 0.0, left: 20.0 })
+        .padding(Padding {
+            top: 0.0,
+            right: 20.0,
+            bottom: 0.0,
+            left: 20.0,
+        })
         .child(
             amane::Row::new(vec![
                 boxed(icon(glyph, 22.0, scheme.on_surface_variant)),
@@ -271,7 +284,11 @@ pub fn row_fill(key: &str, selected: bool, scheme: &Scheme) -> (amane::Color, am
 
 pub fn hint_bar(left: &str, right: &str, scheme: &Scheme) -> amane::Row {
     amane::Row::new(vec![
-        boxed(m3::scale(m3::Type::LabelMedium, left, scheme.on_surface_variant)),
+        boxed(m3::scale(
+            m3::Type::LabelMedium,
+            left,
+            scheme.on_surface_variant,
+        )),
         boxed(m3::scale(
             m3::Type::LabelMedium,
             right,
