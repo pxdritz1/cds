@@ -1,7 +1,7 @@
 use std::cell::RefCell;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::mpsc;
-use std::sync::OnceLock;
+use std::sync::{Mutex, OnceLock};
 use std::thread;
 use std::time::{Duration, Instant};
 
@@ -10,7 +10,17 @@ use amane::{Animation, Blend, Color, Easing};
 static FRAME_TIMER: OnceLock<Option<mpsc::Sender<u64>>> = OnceLock::new();
 
 /// Coalesce continuous animation redraws without running faster than requested.
+#[track_caller]
 pub fn request_frame_at_most(fps: u64) {
+    if std::env::var_os("CDS_TRACE_FRAMES").is_some() {
+        static CALLERS: OnceLock<Mutex<HashSet<(&'static str, u32)>>> = OnceLock::new();
+        let location = std::panic::Location::caller();
+        let caller = (location.file(), location.line());
+        let mut callers = CALLERS.get_or_init(|| Mutex::new(HashSet::new())).lock().unwrap();
+        if callers.insert(caller) {
+            eprintln!("CDS frame request: {}:{} ({} FPS)", caller.0, caller.1, fps);
+        }
+    }
     let interval_ms = (1000 / fps.clamp(1, 60)).max(1);
 
     let sender = FRAME_TIMER.get_or_init(|| {
