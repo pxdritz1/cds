@@ -55,6 +55,8 @@ pub fn clock(scheme: &Scheme, alpha: f32) -> (Box<dyn Widget>, f32) {
     let weather_icon = icon(weather_glyph, ICON, scheme.on_surface_variant);
 
     let time_date = Rectangle::new()
+        .width(Parent)
+        .height(Parent)
         .cursor(Pointer)
         .on_click(|button| {
             if button == Button::Left && Media::read().playing() {
