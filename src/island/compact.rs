@@ -53,18 +53,31 @@ pub fn clock(scheme: &Scheme, alpha: f32) -> (Box<dyn Widget>, f32) {
     let media_playing = Media::read().playing();
     let weather = Weather::read();
     let weather_icon: Box<dyn Widget> = if media_playing {
-        boxed(Stack::new(vec![
-            boxed(m3::rotating_cookie(26.0, scheme.primary_container)),
-            boxed(
-                Rectangle::new()
+        boxed(
+            Rectangle::new()
+                .width(26.0)
+                .height(26.0)
+                .cursor(Pointer)
+                .on_click(|button| match button {
+                    Button::Left => crate::ui::Ui::toggle_media_sheet(),
+                    Button::Right => crate::ui::Ui::open(crate::ui::Tab::Media),
+                    _ => {}
+                })
+                .child(
+                    Stack::new(vec![
+                        boxed(m3::rotating_cookie(26.0, scheme.primary_container)),
+                        boxed(
+                            Rectangle::new()
+                                .width(26.0)
+                                .height(26.0)
+                                .align_child(Center, Center)
+                                .child(icon(MUSIC, 13.0, scheme.on_primary_container)),
+                        ),
+                    ])
                     .width(26.0)
-                    .height(26.0)
-                    .align_child(Center, Center)
-                    .child(icon(MUSIC, 13.0, scheme.on_primary_container)),
-            ),
-        ])
-        .width(26.0)
-        .height(26.0))
+                    .height(26.0),
+                ),
+        )
     } else {
         boxed(icon(weather.glyph(), ICON, scheme.on_surface_variant))
     };
