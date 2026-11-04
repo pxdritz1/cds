@@ -112,14 +112,14 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
     }
 
     let (field_border, feedback_color, feedback_text) = if failed {
-        (scheme.error, scheme.error, "senha incorreta")
+        (scheme.error, scheme.error, crate::lang::text("senha incorreta", "Incorrect password"))
     } else if checking {
-        (scheme.primary, scheme.on_surface, "verificando…")
+        (scheme.primary, scheme.on_surface, crate::lang::text("verificando…", "Checking…"))
     } else {
         (
             fade(scheme.outline_variant, 210),
             scheme.on_surface_variant,
-            "enter pra desbloquear",
+            crate::lang::text("enter pra desbloquear", "press enter to unlock"),
         )
     };
 
@@ -142,7 +142,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
             TextInput::new(PASSWORD)
                 .size(17.0 * ui_scale)
                 .color(scheme.on_surface)
-                .placeholder("Digite sua senha")
+                .placeholder(crate::lang::text("Digite sua senha", "Enter your password"))
                 .password()
                 .focused()
                 .on_change(|value| {
@@ -350,7 +350,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
                                 )),
                                 Box::new(scale_label(
                                     Type::LabelSmall,
-                                    "Sessão atual",
+                                    crate::lang::text("Sessão atual", "Current session"),
                                     scheme.on_surface_variant,
                                     1,
                                 )),
