@@ -85,6 +85,11 @@ impl Service for AudioDevices {
 
     fn update(&mut self) -> bool {
         let Some((output_default, outputs, input_default, inputs)) = scan_audio_devices() else {
+            if !self.loaded {
+                self.loaded = true;
+                return true;
+            }
+
             return false;
         };
 
