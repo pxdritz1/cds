@@ -66,7 +66,7 @@ pub fn view(scheme: &Scheme, tab: Tab, alpha: f32) -> Rectangle {
 
 fn rail(scheme: &Scheme, tab: Tab) -> Column {
     let items = [
-        (Tab::Home, m3::HOME, "Home", "home"),
+        (Tab::Home, m3::HOME, crate::lang::text("Início", "Home"), "home"),
         (Tab::Media, m3::MUSIC, crate::lang::text("Mídia", "Media"), "media"),
         (Tab::Weather, m3::CLOUDY, crate::lang::text("Clima", "Weather"), "weather"),
         (Tab::Wallpapers, m3::WALLPAPER, crate::lang::text("Papéis", "Wallpapers"), "wallpapers"),
