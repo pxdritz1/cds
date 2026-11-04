@@ -128,12 +128,6 @@ impl Service for TrayWatcher {
             }
         };
 
-        // Keep the KDE compatibility name on the same connection. A single
-        // watcher instance then serves both the Freedesktop and KDE names.
-        if let Err(error) = connection.request_name("org.kde.StatusNotifierWatcher") {
-            eprintln!("CDS: não foi possível registrar alias KDE do watcher: {error}");
-        }
-
         loop {
             thread::sleep(Duration::from_secs(3600));
         }
