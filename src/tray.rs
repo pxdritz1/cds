@@ -8,8 +8,8 @@ use std::thread;
 use std::time::Duration;
 
 use amane::{
-    Apps, Argument, Bus, Button, Center, Column, Image, Padding, Parent, Pointer, Rectangle, Row,
-    ScrollArea, Service, Stack, Value, Widget,
+    Apps, Argument, Bus, Button, Center, Image, Padding, Pointer, Rectangle, Row, Service, Stack,
+    Value, Widget,
 };
 
 use crate::island::widgets::{APPS, icon, label};
@@ -771,25 +771,24 @@ fn resolve_icon(icon_name: &str, id: &str) -> Option<String> {
         .map(|path| path.to_string_lossy().into_owned())
 }
 
-const ROW_HEIGHT: f32 = 46.0;
-const PAD: f32 = 10.0;
-const GAP: f32 = 6.0;
+const ICON_SIZE: f32 = 42.0;
+const ICON_GAP: f32 = 8.0;
+const TRAY_PAD: f32 = 10.0;
+const EMPTY_WIDTH: f32 = 220.0;
 const EMPTY_HEIGHT: f32 = 46.0;
-const MENU_WIDTH: f32 = 300.0;
-const SCROLL_ROWS: f32 = 5.0;
 
 /*
- * SNI items are listed in the expandable tray. Left click activates the
- * application; right click asks the item to display its own context menu.
+ * SNI items are presented as a compact row of icons. The surface grows with
+ * the number of registered items instead of reserving a fixed-width list.
  */
 pub fn menu(scheme: &Scheme) -> (Box<dyn Widget>, f32, f32) {
     let items = Tray::read().items().to_vec();
 
-    let (body, body_height) = if items.is_empty() {
+    let (body, width, body_height) = if items.is_empty() {
         (
             Box::new(
                 Rectangle::new()
-                    .width(MENU_WIDTH)
+                    .width(EMPTY_WIDTH)
                     .height(EMPTY_HEIGHT)
                     .align_child(Center, Center)
                     .child(label(
@@ -800,63 +799,57 @@ pub fn menu(scheme: &Scheme) -> (Box<dyn Widget>, f32, f32) {
                         1,
                     )),
             ) as Box<dyn Widget>,
+            EMPTY_WIDTH,
             EMPTY_HEIGHT,
         )
     } else {
-        let height = SCROLL_ROWS * ROW_HEIGHT + (SCROLL_ROWS - 1.0) * GAP;
-        let needs_scroll = items.len() as f32 > SCROLL_ROWS;
+        let icons = items
+            .iter()
+            .map(|item| boxed(item_icon(scheme, item)))
+            .collect();
 
-        let rows = Column::new(
-            items
-                .iter()
-                .map(|item| boxed(item_row(scheme, item)))
-                .collect(),
+        let width = items.len() as f32 * ICON_SIZE
+            + items.len().saturating_sub(1) as f32 * ICON_GAP;
+
+        (
+            Box::new(
+                Row::new(icons)
+                    .gap(ICON_GAP)
+                    .align(Center)
+                    .width(width)
+                    .height(ICON_SIZE),
+            ) as Box<dyn Widget>,
+            width,
+            ICON_SIZE,
         )
-        .gap(GAP)
-        .width(MENU_WIDTH);
-
-        if needs_scroll {
-            (
-                Box::new(
-                    ScrollArea::new("sni-tray-items", rows)
-                        .width(MENU_WIDTH)
-                        .height(height),
-                ) as Box<dyn Widget>,
-                height,
-            )
-        } else {
-            (
-                Box::new(rows) as Box<dyn Widget>,
-                items.len() as f32 * ROW_HEIGHT + (items.len() - 1) as f32 * GAP,
-            )
-        }
     };
 
-    let height = body_height + PAD;
+    let width = width + TRAY_PAD * 2.0;
+    let height = body_height + TRAY_PAD * 2.0;
 
     (
         Box::new(
             Rectangle::new()
-                .width(MENU_WIDTH)
+                .width(width)
                 .height(height)
                 .fill(scheme.surface_container_highest)
                 .radius(20.0)
                 .clip()
                 .padding(Padding {
-                    top: PAD / 2.0,
-                    right: 0.0,
-                    bottom: PAD / 2.0,
-                    left: 0.0,
+                    top: TRAY_PAD,
+                    right: TRAY_PAD,
+                    bottom: TRAY_PAD,
+                    left: TRAY_PAD,
                 })
                 .align_child(Center, Center)
                 .child(Stack::new(vec![body])),
         ) as Box<dyn Widget>,
-        MENU_WIDTH,
+        width,
         height,
     )
 }
 
-fn item_row(scheme: &Scheme, item: &TrayItem) -> Rectangle {
+fn item_icon(scheme: &Scheme, item: &TrayItem) -> Rectangle {
     let key = format!("tray-sni:{}:{}", item.service, item.id);
     let state = crate::motion::hover(&key);
     let owned = key;
@@ -866,7 +859,7 @@ fn item_row(scheme: &Scheme, item: &TrayItem) -> Rectangle {
             Rectangle::new()
                 .width(26.0)
                 .height(26.0)
-                .radius(8.0)
+                .radius(7.0)
                 .clip()
                 .fill(Image::cover(path).thumbnail(64, 64)),
         ),
@@ -874,25 +867,17 @@ fn item_row(scheme: &Scheme, item: &TrayItem) -> Rectangle {
     };
 
     let item = item.clone();
-    let title = item.display_name().to_string();
-    let status = item.status.clone();
 
     Rectangle::new()
-        .width(MENU_WIDTH - GAP)
-        .height(ROW_HEIGHT)
+        .width(ICON_SIZE)
+        .height(ICON_SIZE)
         .fill(mix(
             scheme.surface_container_highest,
             scheme.on_surface,
-            0.08 * state,
+            0.10 * state,
         ))
-        .radius(14.0)
+        .radius(13.0)
         .cursor(Pointer)
-        .padding(Padding {
-            top: 0.0,
-            right: 10.0,
-            bottom: 0.0,
-            left: 10.0,
-        })
         .on_hover(move |inside| crate::motion::set_hover(owned.clone(), inside))
         .on_click(move |button| match button {
             Button::Left => {
@@ -905,33 +890,8 @@ fn item_row(scheme: &Scheme, item: &TrayItem) -> Rectangle {
             }
             _ => {}
         })
-        .child(
-            Row::new(vec![
-                Box::new(Stack::new(vec![icon_widget])),
-                Box::new(
-                    Column::new(vec![
-                        Box::new(label(
-                            title,
-                            12.5,
-                            scheme.on_surface,
-                            amane::Weight::Medium,
-                            1,
-                        )),
-                        Box::new(label(
-                            status,
-                            11.0,
-                            scheme.on_surface_variant,
-                            amane::Weight::Regular,
-                            1,
-                        )),
-                    ])
-                    .gap(1.0),
-                ),
-            ])
-            .gap(10.0)
-            .align(Center)
-            .width(Parent),
-        )
+        .align_child(Center, Center)
+        .child(Stack::new(vec![icon_widget]))
 }
 
 fn boxed(widget: impl Widget + 'static) -> Box<dyn Widget> {
