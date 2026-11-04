@@ -28,6 +28,7 @@ pub struct Settings {
     location: String,
     wallpapers: Vec<String>,
     flags: BTreeMap<String, bool>,
+    hover_delay_ms: u64,
 }
 
 fn default_flag(name: &str) -> bool {
@@ -44,6 +45,7 @@ impl Service for Settings {
             location: String::new(),
             wallpapers: Vec::new(),
             flags: BTreeMap::new(),
+            hover_delay_ms: 500,
         };
 
         settings.load();
@@ -78,6 +80,16 @@ impl Settings {
 
     pub fn dark(&self) -> bool {
         self.dark
+    }
+
+    pub fn hover_delay_ms(&self) -> u64 {
+        self.hover_delay_ms
+    }
+
+    pub fn set_hover_delay_ms(value: u64) {
+        let mut settings = Self::write();
+        settings.hover_delay_ms = value.clamp(100, 2000);
+        settings.save();
     }
 
     pub fn flag(&self, name: &str) -> bool {
@@ -309,6 +321,9 @@ impl Settings {
                 "dark" => self.dark = value != "false",
                 "directory" => self.directory = expand_home_path(value),
                 "location" => self.location = String::from(value),
+                "hover_delay_ms" => {
+                    self.hover_delay_ms = value.parse::<u64>().unwrap_or(500).clamp(100, 2000)
+                },
                 other => {
                     if let Some(name) = other.strip_prefix("flag.") {
                         self.flags.insert(String::from(name), value == "true");
@@ -326,7 +341,7 @@ impl Settings {
         }
 
         let mut text = format!(
-            "wallpaper={}\nscheme={}\ndark={}\ndirectory={}\nlocation={}\n",
+            "wallpaper={}\nscheme={}\ndark={}\ndirectory={}\nlocation={}\nhover_delay_ms={}\n",
             self.wallpaper,
             self.scheme,
             self.dark,
