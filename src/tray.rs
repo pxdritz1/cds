@@ -83,23 +83,20 @@ impl Service for Tray {
         Self::default()
     }
 
-    fn interval() -> Duration {
-        Duration::from_secs(5)
-    }
+    fn listen() {
+        loop {
+            // D-Bus property calls can wait on other processes. Keep them out
+            // of the shared Tray write lock so a slow item cannot stall views.
+            if let Some(items) = scan_items() {
+                let mut tray = Self::write();
 
-    fn update(&mut self) -> bool {
-        let Some(items) = scan_items() else {
-            // A missing watcher or a temporary D-Bus failure must not erase
-            // the last valid tray contents.
-            return false;
-        };
+                if tray.items != items {
+                    tray.items = items;
+                }
+            }
 
-        if self.items == items {
-            return false;
+            thread::sleep(Duration::from_secs(5));
         }
-
-        self.items = items;
-        true
     }
 }
 
