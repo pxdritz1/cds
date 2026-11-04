@@ -367,7 +367,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
         );
 
     let power_menu_open = POWER_MENU_OPEN.load(Ordering::Relaxed);
-    let power_intro = crate::motion::fade("lockscreen:power-menu", u64::from(power_menu_open));
+    let power_intro = crate::motion::fade("lockscreen:power-menu", if power_menu_open { 1 } else { 0 });
 
     if power_menu_open && power_intro < 0.999 {
         request_frame();
