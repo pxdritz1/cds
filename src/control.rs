@@ -6,6 +6,7 @@
  */
 use std::cell::{Cell, RefCell};
 use std::process::Command;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
 use amane::{
@@ -65,6 +66,8 @@ thread_local! {
     static PASSWORD: RefCell<String> = const { RefCell::new(String::new()) };
 }
 
+static AUDIO_REFRESH_REQUESTED: AtomicBool = AtomicBool::new(false);
+
 #[derive(Default, PartialEq)]
 struct AudioDevices {
     output_default: String,
@@ -84,6 +87,10 @@ impl Service for AudioDevices {
     }
 
     fn update(&mut self) -> bool {
+        if !AUDIO_REFRESH_REQUESTED.swap(false, Ordering::Relaxed) {
+            return false;
+        }
+
         let Some((output_default, outputs, input_default, inputs)) = scan_audio_devices() else {
             if !self.loaded {
                 self.loaded = true;
@@ -472,6 +479,7 @@ fn audio_devices_page(scheme: &Scheme, output: bool) -> Box<dyn Widget> {
     let title = if output { "Saídas de som" } else { "Entradas de som" };
 
     let (default, devices, loaded) = {
+        AUDIO_REFRESH_REQUESTED.store(true, Ordering::Relaxed);
         let audio = AudioDevices::read();
 
         if output {
