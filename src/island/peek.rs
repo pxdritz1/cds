@@ -3,20 +3,19 @@ use std::sync::OnceLock;
 use std::time::Instant;
 
 use amane::{
-    Apps, Center, Column, Image, Media, Notification, Notifications, Padding, Parent, Rectangle,
-    Row, Service, Widget, request_frame,
+    Apps, Canvas, Cap, Center, Column, Image, Media, Notification, Notifications, Padding,
+    Parent, Path, Rectangle, Row, Service, Shape, Widget, request_frame,
 };
 
 use crate::art::{artwork, media_labels};
-use crate::m3::{self, Type};
 use crate::clock::Clock;
 use crate::theme::Scheme;
 use super::widgets::{
-    BELL, CLOSE, NEXT, PAUSE, PLAY, boxed, icon, icon_button, label, progress, round_button,
+    BELL, CLOSE, NEXT, PAUSE, PLAY, boxed, icon, icon_button, label, round_button,
 };
 
 pub const MEDIA_WIDTH: f32 = 344.0;
-pub const MEDIA_HEIGHT: f32 = 104.0;
+pub const MEDIA_HEIGHT: f32 = 90.0;
 pub const NOTICE_COMPACT_WIDTH: f32 = 260.0;
 pub const NOTICE_COMPACT_HEIGHT: f32 = 52.0;
 pub const NOTICE_WIDTH: f32 = 364.0;
@@ -98,29 +97,17 @@ pub fn media(scheme: &Scheme, alpha: f32) -> Box<dyn Widget> {
 
     let position = media.position().as_secs();
     let length = media.length().as_secs();
-    let progress_fraction = if length > 0 {
-        position as f32 / length as f32
-    } else {
-        0.0
-    };
 
     let timeline = Row::new(vec![
         boxed(label(format_time(position), 9.0, scheme.on_surface_variant, amane::Weight::Medium, 1)),
-        boxed(Rectangle::new()
-            .width(244.0)
-            .height(14.0)
-            .align_child(Center, Center)
-            .child(animated_wave(playing, scheme.primary))),
+        boxed(animated_wave(playing, scheme.primary)),
         boxed(label(format_time(length), 9.0, scheme.on_surface_variant, amane::Weight::Medium, 1)),
     ])
-    .gap(5.0)
+    .gap(7.0)
     .align(Center)
-    .width(Parent);
-
-    let progress_bar = progress("island-media", progress_fraction, 244.0, scheme);
-    let timeline = Column::new(vec![boxed(timeline), boxed(progress_bar)])
-        .gap(0.0)
-        .width(Parent);
+    .justify(Center)
+    .width(Parent)
+    .height(22.0);
 
     let content = Column::new(vec![boxed(row), boxed(timeline)])
         .gap(1.0)
@@ -133,9 +120,9 @@ pub fn media(scheme: &Scheme, alpha: f32) -> Box<dyn Widget> {
             .height(Parent)
             .opacity(alpha)
             .padding(Padding {
-                top: 5.0,
+                top: 4.0,
                 right: 12.0,
-                bottom: 5.0,
+                bottom: 4.0,
                 left: 10.0,
             })
             .child(content),
@@ -337,22 +324,44 @@ fn format_time(seconds: u64) -> String {
     format!("{:02}:{:02}", seconds / 60, seconds % 60)
 }
 
-fn animated_wave(playing: bool, color: amane::Color) -> amane::Text {
+fn animated_wave(playing: bool, color: amane::Color) -> Canvas {
     static START: OnceLock<Instant> = OnceLock::new();
+    const WIDTH: f32 = 214.0;
+    const HEIGHT: f32 = 18.0;
+    const STEPS: usize = 160;
+
     let elapsed = START.get_or_init(Instant::now).elapsed();
     if playing {
         request_frame();
     }
 
-    const LEVELS: [&str; 9] = ["▁", "▂", "▃", "▅", "▇", "▆", "▄", "▃", "▂"];
-    let phase = if playing { (elapsed.as_millis() / 110) as usize } else { 0 };
-    let wave = (0..31)
-        .map(|index| LEVELS[(index * 2 + phase) % LEVELS.len()])
-        .collect::<String>();
+    let phase = if playing {
+        elapsed.as_secs_f32() * 4.2
+    } else {
+        0.0
+    };
 
-    m3::scale(Type::LabelSmall, wave, color)
+    let mut path = Path::new();
+    for step in 0..=STEPS {
+        let x = WIDTH * step as f32 / STEPS as f32;
+        let normalized = step as f32 / STEPS as f32;
+        let envelope = 0.35 + 0.65 * (normalized * std::f32::consts::PI).sin().abs();
+        let modulation = (x * 0.045 + phase * 0.35).sin() * 0.35 + 0.65;
+        let amplitude = 5.2 * envelope * modulation;
+        let y = HEIGHT / 2.0 + (x * 0.105 + phase).sin() * amplitude;
+
+        path = if step == 0 {
+            path.move_to(x, y)
+        } else {
+            path.line_to(x, y)
+        };
+    }
+
+    Canvas::new()
+        .width(WIDTH)
+        .height(HEIGHT)
+        .shapes(vec![Box::new(path.stroke(1.7, color).cap(Cap::Round))])
 }
-
 
 fn marquee_label(
     content: String,
