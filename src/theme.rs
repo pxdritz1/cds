@@ -303,7 +303,7 @@ pub fn apply_async(source: &str, value: &str, scheme: &str, dark: bool) {
                 }
             })
         {
-            eprintln!("CDS: não foi possível iniciar o worker do matugen: {error}");
+            eprintln!("CDS: could not start the Matugen worker: {error}");
         }
 
         sender
@@ -317,7 +317,7 @@ pub fn apply_async(source: &str, value: &str, scheme: &str, dark: bool) {
     );
 
     if sender.send(job).is_err() {
-        eprintln!("CDS: worker do matugen indisponível; alteração de aparência ignorada");
+        eprintln!("CDS: Matugen worker unavailable; appearance change skipped");
     }
 }
 
