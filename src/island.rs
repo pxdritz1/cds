@@ -5,7 +5,7 @@ pub(crate) mod widgets;
 
 use std::collections::HashMap;
 use std::sync::{Mutex, OnceLock};
-use std::time::{Duration, Instant};
+use std::time::{Duration, Instant, SystemTime};
 
 use amane::{
     Button, Center, Column, End, Full, Horizontal, InputArea, Key, Keyboard, Layer, LayerWindow,
@@ -28,6 +28,7 @@ struct NoticeTimer {
     remaining: Duration,
     last_tick: Instant,
     hovered: bool,
+    received: SystemTime,
 }
 
 static NOTICE_TIMERS: OnceLock<Mutex<HashMap<u32, NoticeTimer>>> = OnceLock::new();
@@ -45,8 +46,13 @@ pub(crate) fn set_notice_hover(id: u32, inside: bool) {
 }
 
 pub(crate) fn notification_preview_active() -> bool {
+    let notifications = Notifications::read();
+    let ids: Vec<u32> = notifications.list().iter().map(Notification::id).collect();
     let timers = notice_timers().lock().unwrap_or_else(|error| error.into_inner());
-    timers.values().any(|timer| timer.remaining > Duration::ZERO)
+
+    timers.iter().any(|(id, timer)| {
+        ids.contains(id) && timer.remaining > Duration::ZERO
+    })
 }
 
 // the tray sheet rounds like a card, not like the pill the bar uses
@@ -420,24 +426,44 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
 }
 
 fn recent(notifications: &Notifications) -> Option<&Notification> {
-    let notification = notifications.list().last()?;
-    let id = notification.id();
     let now = Instant::now();
-
     let mut timers = notice_timers().lock().unwrap_or_else(|error| error.into_inner());
-    timers.retain(|known_id, _| notifications.list().iter().any(|item| item.id() == *known_id));
 
-    let timer = timers.entry(id).or_insert_with(|| NoticeTimer {
-        remaining: NOTICE_TIME,
-        last_tick: now,
-        hovered: false,
+    timers.retain(|known_id, _| {
+        notifications.list().iter().any(|item| item.id() == *known_id)
     });
 
-    let elapsed = now.saturating_duration_since(timer.last_tick);
-    if !timer.hovered {
-        timer.remaining = timer.remaining.saturating_sub(elapsed);
-    }
-    timer.last_tick = now;
+    for notification in notifications.list().iter().rev() {
+        let id = notification.id();
+        let received = notification.received();
+        let timer = timers.entry(id).or_insert_with(|| NoticeTimer {
+            remaining: NOTICE_TIME.saturating_sub(
+                received.elapsed().unwrap_or(Duration::ZERO),
+            ),
+            last_tick: now,
+            hovered: false,
+            received,
+        });
 
-    (timer.remaining > Duration::ZERO).then_some(notification)
+        if timer.received != received {
+            timer.remaining = NOTICE_TIME.saturating_sub(
+                received.elapsed().unwrap_or(Duration::ZERO),
+            );
+            timer.last_tick = now;
+            timer.hovered = false;
+            timer.received = received;
+        }
+
+        let elapsed = now.saturating_duration_since(timer.last_tick);
+        if !timer.hovered {
+            timer.remaining = timer.remaining.saturating_sub(elapsed);
+        }
+        timer.last_tick = now;
+
+        if timer.remaining > Duration::ZERO {
+            return Some(notification);
+        }
+    }
+
+    None
 }
