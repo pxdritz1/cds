@@ -66,6 +66,7 @@ pub fn clock(scheme: &Scheme, alpha: f32) -> (Box<dyn Widget>, f32) {
                     Button::Right => crate::ui::Ui::open(crate::ui::Tab::Media),
                     _ => {}
                 })
+                .align_child(Center, Center)
                 .child(
                     Stack::new(vec![
                         boxed(m3::cookie(12.0, 26.0, scheme.primary_container)),
