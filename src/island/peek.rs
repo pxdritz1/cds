@@ -98,7 +98,7 @@ pub fn media(scheme: &Scheme, alpha: f32) -> Box<dyn Widget> {
 
     let position = media.position().as_secs();
     let length = media.length().as_secs();
-    let progress = if length > 0 {
+    let progress_fraction = if length > 0 {
         position as f32 / length as f32
     } else {
         0.0
@@ -117,7 +117,7 @@ pub fn media(scheme: &Scheme, alpha: f32) -> Box<dyn Widget> {
     .align(Center)
     .width(Parent);
 
-    let progress_bar = progress("island-media", progress, 244.0, scheme);
+    let progress_bar = progress("island-media", progress_fraction, 244.0, scheme);
     let timeline = Column::new(vec![boxed(timeline), boxed(progress_bar)])
         .gap(0.0)
         .width(Parent);
