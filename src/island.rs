@@ -380,16 +380,12 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
         island = island.on_hover(Ui::set_hover);
     }
 
-    // On the player sheet, mouse buttons choose which dash tab to open.
+    // The player sheet has its own clock and transport controls.
+    // Do not attach a parent click handler: it would swallow the clock's
+    // action for switching back to the compact island.
     if ui.dash() {
         island = island.on_click(|_| {});
-    } else if mode == IslandMode::Media {
-        island = island.on_click(|button| match button {
-            Button::Left => Ui::open(Tab::Media),
-            Button::Right => Ui::open(Tab::Home),
-            _ => {}
-        });
-    } else {
+    } else if mode != IslandMode::Media {
         island = island.on_click(|_| Ui::toggle());
     }
 
