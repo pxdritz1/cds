@@ -347,7 +347,7 @@ fn animated_wave(playing: bool, color: amane::Color) -> amane::Text {
     const LEVELS: [&str; 9] = ["▁", "▂", "▃", "▅", "▇", "▆", "▄", "▃", "▂"];
     let phase = if playing { (elapsed.as_millis() / 110) as usize } else { 0 };
     let wave = (0..31)
-        .map(|index| LEVELS[(index * 3 + phase) % LEVELS.len()])
+        .map(|index| LEVELS[(index * 2 + phase) % LEVELS.len()])
         .collect::<String>();
 
     m3::scale(Type::LabelSmall, wave, color)
