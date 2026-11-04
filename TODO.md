@@ -29,7 +29,7 @@
 
 ## Dash
 
-- [ ] Replace animated usage meters with static colored bars; provide standard and transgender-flag palettes in Settings.
+- [x] Replace animated usage meters with static colored bars; provide standard and transgender-flag palettes in Settings.
 - [x] Open the weather tab when its card is clicked.
 - [ ] Allow switching the clock card between digital and analog.
 
@@ -37,7 +37,7 @@
 
 - [x] Use desktop application icons with a Material Symbols fallback.
 - [ ] Improve icon fallback for apps without a GTK icon.
-- [ ] Make Enter activate the selected Spotlight result.
+- [x] Make Enter activate the selected Spotlight result.
 - [ ] Add pin/unpin support for objects in Spotlight and Launcher.
 - [ ] Add a full-screen app-grid launcher with an app-grid button in the shell.
 
