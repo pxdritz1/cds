@@ -408,9 +408,9 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
         .height(CENTER_HEIGHT)
         .anchor_vertical(Vertical::Top)
         .layer(Layer::Top)
-        .space(Zone::Ignore)
+        .space(Zone::Respect)
         .margin(Margin {
-            top: MARGIN,
+            top: 3,
             ..Margin::default()
         })
         .keyboard(keyboard)
