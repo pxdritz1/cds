@@ -42,6 +42,7 @@ pub struct Ui {
     tab: Tab,
     hover: bool,
     hover_opened_dash: bool,
+    media_sheet: bool,
 }
 
 impl Service for Ui {
@@ -63,6 +64,23 @@ impl Ui {
 
     pub fn hover(&self) -> bool {
         self.hover
+    }
+
+    pub fn media_sheet(&self) -> bool {
+        self.media_sheet
+    }
+
+    pub fn toggle_media_sheet() {
+        {
+            let mut ui = Self::write();
+            ui.media_sheet = !ui.media_sheet;
+        }
+        Self::refresh();
+    }
+
+    pub fn reset_media_sheet() {
+        let mut ui = Self::write();
+        ui.media_sheet = false;
     }
 
     pub fn watch() {
