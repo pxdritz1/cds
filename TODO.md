@@ -24,8 +24,8 @@
 - [ ] Add controls for Island layout and visibility.
 - [ ] Allow repositioning shell elements (left/right/center, including dock and individual indicators).
 - [ ] Apply all appearance settings without restarting the shell.
-- [ ] Move the Matugen regeneration hint to the bottom of the Settings window.
-- [ ] Add a setting to switch CPU, memory and battery meters between the standard palette and transgender-flag colors.
+- [x] Keep the Matugen regeneration hint and regenerate action pinned to the bottom of the Settings window.
+- [x] Add a setting to switch CPU, memory and battery meters between the standard palette and transgender-flag colors.
 
 ## Dash
 
@@ -38,7 +38,7 @@
 - [x] Use desktop application icons with a Material Symbols fallback.
 - [ ] Improve icon fallback for apps without a GTK icon.
 - [x] Make Enter activate the selected Spotlight result.
-- [ ] Add pin/unpin support for objects in Spotlight and Launcher.
+- [x] Add right-click pin/unpin support for apps in Spotlight and Launcher.
 - [ ] Add a full-screen app-grid launcher with an app-grid button in the shell.
 
 ## Utilities
