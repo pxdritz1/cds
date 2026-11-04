@@ -1,5 +1,6 @@
 use std::path::Path;
-use std::time::{Instant, OnceLock};
+use std::sync::OnceLock;
+use std::time::Instant;
 
 use amane::{
     Apps, Center, Column, Image, Media, Notification, Notifications, Padding, Parent, Rectangle,
@@ -31,12 +32,12 @@ pub fn media(scheme: &Scheme, alpha: f32) -> Box<dyn Widget> {
     let (title, artist) = media_labels(&media);
 
     let info = Column::new(vec![
-        boxed(label(
+        boxed(marquee_label(
             title,
             13.5,
             scheme.on_surface,
             amane::Weight::SemiBold,
-            1,
+            130.0,
         )),
         boxed(label(
             artist,
@@ -351,4 +352,37 @@ fn animated_wave(playing: bool, color: amane::Color) -> amane::Text {
         .collect::<String>();
 
     m3::scale(Type::LabelSmall, wave, color)
+}
+
+
+fn marquee_label(
+    content: String,
+    size: f32,
+    color: amane::Color,
+    weight: amane::Weight,
+    width: usize,
+) -> amane::Text {
+    const VISIBLE_CHARS: usize = 17;
+    const STEP_MS: u128 = 280;
+    static START: OnceLock<Instant> = OnceLock::new();
+
+    let chars: Vec<char> = content.chars().collect();
+    if chars.len() <= VISIBLE_CHARS {
+        return label(content, size, color, weight, 1);
+    }
+
+    let elapsed = START.get_or_init(Instant::now).elapsed();
+    request_frame();
+
+    let separator: Vec<char> = "   •   ".chars().collect();
+    let mut tape = chars.clone();
+    tape.extend(separator);
+    let offset = ((elapsed.as_millis() / STEP_MS) as usize) % tape.len();
+
+    let window = (0..VISIBLE_CHARS)
+        .map(|step| tape[(offset + step) % tape.len()])
+        .collect::<String>();
+
+    let _ = width;
+    label(window, size, color, weight, 1)
 }
