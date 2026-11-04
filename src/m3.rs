@@ -1,6 +1,5 @@
 use std::f32::consts::TAU;
-use std::sync::OnceLock;
-use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use amane::{
     Arc, Button, Canvas, Cap, Center, Color, Column, Padding, Parent, Path, Pointer, Rectangle,
@@ -345,37 +344,6 @@ pub fn scallop(lobes: f32, depth: f32, size: f32, fill: Color) -> Canvas {
 
 pub fn cookie(lobes: f32, size: f32, fill: Color) -> Canvas {
     scallop(lobes, 0.09, size, fill)
-}
-
-pub fn rotating_cookie(size: f32, fill: Color) -> Canvas {
-    static START: OnceLock<Instant> = OnceLock::new();
-    let elapsed = START.get_or_init(Instant::now).elapsed();
-    motion::request_frame_at_most(30);
-
-    // Half the vertices are enough for a 26 px icon and reduce path work.
-    const STEPS: usize = 72;
-    let radius = size / 2.0;
-    let depth = radius * 0.09;
-    let rotation = elapsed.as_secs_f32() * 0.75;
-    let mut path = Path::new();
-
-    for step in 0..=STEPS {
-        let angle = TAU * step as f32 / STEPS as f32 + rotation;
-        let reach = radius - depth + depth * (12.0 * angle).cos();
-        let (sin, cos) = angle.sin_cos();
-        let x = radius + reach * cos;
-        let y = radius + reach * sin;
-        path = if step == 0 {
-            path.move_to(x, y)
-        } else {
-            path.line_to(x, y)
-        };
-    }
-
-    Canvas::new()
-        .width(size)
-        .height(size)
-        .shapes(vec![Box::new(path.fill(fill))])
 }
 
 pub fn badge_shape(glyph: &str, size: f32, lobes: f32, fill: Color, color: Color) -> Stack {
