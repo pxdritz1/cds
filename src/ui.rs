@@ -1,8 +1,62 @@
 use amane::Service;
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::time::Duration;
+use std::sync::{mpsc, OnceLock};
+use std::thread;
+use std::time::{Duration, Instant};
 
 static HOVER_GENERATION: AtomicU64 = AtomicU64::new(0);
+static HOVER_TIMER: OnceLock<mpsc::Sender<(u64, u64)>> = OnceLock::new();
+
+fn hover_timer() -> &'static mpsc::Sender<(u64, u64)> {
+    HOVER_TIMER.get_or_init(|| {
+        let (sender, receiver) = mpsc::channel();
+
+        if let Err(error) = thread::Builder::new()
+            .name(String::from("cds-hover-timer"))
+            .spawn(move || {
+                while let Ok((mut generation, mut delay)) = receiver.recv() {
+                    let mut deadline = Instant::now() + Duration::from_millis(delay);
+
+                    loop {
+                        match receiver.recv_timeout(deadline.saturating_duration_since(Instant::now())) {
+                            Ok((next_generation, next_delay)) => {
+                                generation = next_generation;
+                                delay = next_delay;
+                                deadline = Instant::now() + Duration::from_millis(delay);
+                            }
+                            Err(mpsc::RecvTimeoutError::Timeout) => {
+                                if HOVER_GENERATION.load(Ordering::Relaxed) == generation {
+                                    let should_open = {
+                                        let mut ui = Ui::write();
+
+                                        if ui.hover && !ui.dash {
+                                            ui.dash = true;
+                                            ui.hover_opened_dash = true;
+                                            true
+                                        } else {
+                                            false
+                                        }
+                                    };
+
+                                    if should_open {
+                                        crate::overlay::Overlay::close();
+                                    }
+                                }
+
+                                break;
+                            }
+                            Err(mpsc::RecvTimeoutError::Disconnected) => return,
+                        }
+                    }
+                }
+            })
+        {
+            eprintln!("CDS: não foi possível iniciar o temporizador de hover: {error}");
+        }
+
+        sender
+    })
+}
 
 #[derive(Clone, Copy, PartialEq, Eq, Default)]
 pub enum Tab {
@@ -155,27 +209,9 @@ impl Ui {
 
         if auto_open {
             let delay = crate::settings::Settings::read().hover_delay_ms();
-            std::thread::spawn(move || {
-                std::thread::sleep(Duration::from_millis(delay));
-                if HOVER_GENERATION.load(Ordering::Relaxed) != generation {
-                    return;
-                }
-
-                let should_open = {
-                    let mut ui = Self::write();
-                    if ui.hover && !ui.dash {
-                        ui.dash = true;
-                        ui.hover_opened_dash = true;
-                        true
-                    } else {
-                        false
-                    }
-                };
-
-                if should_open {
-                    crate::overlay::Overlay::close();
-                }
-            });
+            // One reusable worker debounces pointer movement. Rapid enter/leave
+            // events replace the pending deadline instead of spawning sleeping threads.
+            let _ = hover_timer().send((generation, delay));
         }
     }
 
