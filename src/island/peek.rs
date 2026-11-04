@@ -373,7 +373,7 @@ fn marquee_label(
 
     let offset = (elapsed * SPEED) % loop_width;
     let repeated = Row::new(vec![
-        boxed(text.clone()),
+        boxed(m3::text(content.clone(), size, color, weight)),
         boxed(m3::text(separator, size, color, weight)),
         boxed(m3::text(content.clone(), size, color, weight)),
         boxed(m3::text(separator, size, color, weight)),
