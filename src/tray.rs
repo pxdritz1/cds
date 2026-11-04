@@ -88,10 +88,10 @@ impl Service for Tray {
             // D-Bus property calls can wait on other processes. Keep them out
             // of the shared Tray write lock so a slow item cannot stall views.
             if let Some(items) = scan_items() {
-                let mut tray = Self::write();
+                let changed = Self::read().items != items;
 
-                if tray.items != items {
-                    tray.items = items;
+                if changed {
+                    Self::write().items = items;
                 }
             }
 
