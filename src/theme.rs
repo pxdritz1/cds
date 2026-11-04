@@ -279,15 +279,46 @@ pub fn apply(source: &str, value: &str, scheme: &str, dark: bool) -> String {
  * whole matugen run would freeze the bar; they spawn it and let the file
  * watcher refresh the scheme when it lands
  */
-pub fn apply_async(source: &str, value: &str, scheme: &str, dark: bool) {
-    let source = source.to_owned();
-    let value = value.to_owned();
-    let scheme = scheme.to_owned();
+type MatugenJob = (String, String, String, bool);
 
-    // Keep process execution and filesystem work off the drawing/IPC thread.
-    thread::spawn(move || {
-        let _ = run_matugen(&source, &value, &scheme, dark);
+static MATUGEN_JOBS: OnceLock<std::sync::mpsc::Sender<MatugenJob>> = OnceLock::new();
+
+pub fn apply_async(source: &str, value: &str, scheme: &str, dark: bool) {
+    let sender = MATUGEN_JOBS.get_or_init(|| {
+        let (sender, receiver) = std::sync::mpsc::channel::<MatugenJob>();
+
+        if let Err(error) = thread::Builder::new()
+            .name(String::from("cds-matugen"))
+            .spawn(move || {
+                while let Ok(mut job) = receiver.recv() {
+                    // Only the newest queued appearance matters. Discard stale
+                    // requests so rapid wallpaper/theme changes cannot build
+                    // an unbounded queue of worker threads or old palettes.
+                    while let Ok(newer) = receiver.try_recv() {
+                        job = newer;
+                    }
+
+                    let (source, value, scheme, dark) = job;
+                    let _ = run_matugen(&source, &value, &scheme, dark);
+                }
+            })
+        {
+            eprintln!("CDS: não foi possível iniciar o worker do matugen: {error}");
+        }
+
+        sender
     });
+
+    let job = (
+        source.to_owned(),
+        value.to_owned(),
+        scheme.to_owned(),
+        dark,
+    );
+
+    if sender.send(job).is_err() {
+        eprintln!("CDS: worker do matugen indisponível; alteração de aparência ignorada");
+    }
 }
 
 static MATUGEN_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
