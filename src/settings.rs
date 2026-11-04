@@ -116,6 +116,7 @@ impl Settings {
         self.hover_delay_ms
     }
 
+
     pub fn language(&self) -> &str {
         &self.language
     }
