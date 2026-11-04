@@ -52,7 +52,7 @@ pub fn settings(arguments: &[String]) -> String {
 pub fn root(arguments: &[String]) -> String {
     let Some(action) = arguments.first() else {
         return String::from(
-            "usage: open launcher|apps|spotlight|clipboard|power|control|config | closed | dash [aba] | tray ... | settings ... | weather | theme ...",
+            "usage: open launcher|apps|spotlight|clipboard|power|control|config | closed | dash [tab] | tray ... | settings ... | weather | theme ...",
         );
     };
 
