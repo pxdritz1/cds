@@ -25,7 +25,7 @@ const DOT_GAP: f32 = 7.0;
 const SIDE: f32 = 14.0;
 const ICON: f32 = 18.0;
 const ITEM_GAP: f32 = 10.0;
-const CLOCK_WIDTH: f32 = 226.0;
+const CLOCK_WIDTH: f32 = 230.0;
 const CLOCK_CENTER_WIDTH: f32 = 166.0;
 
 pub fn clock(scheme: &Scheme, alpha: f32) -> (Box<dyn Widget>, f32) {
@@ -39,8 +39,8 @@ pub fn clock(scheme: &Scheme, alpha: f32) -> (Box<dyn Widget>, f32) {
     );
 
     let search = Rectangle::new()
-        .width(22.0)
-        .height(22.0)
+        .width(26.0)
+        .height(36.0)
         .cursor(Pointer)
         .on_click(|button| {
             if button == Button::Left {
@@ -79,7 +79,19 @@ pub fn clock(scheme: &Scheme, alpha: f32) -> (Box<dyn Widget>, f32) {
                 ),
         )
     } else {
-        boxed(icon(weather.glyph(), ICON, scheme.on_surface_variant))
+        boxed(
+            Rectangle::new()
+                .width(26.0)
+                .height(36.0)
+                .cursor(Pointer)
+                .on_click(|button| {
+                    if button == Button::Left {
+                        crate::ui::Ui::open(crate::ui::Tab::Weather);
+                    }
+                })
+                .align_child(Center, Center)
+                .child(icon(weather.glyph(), ICON, scheme.on_surface_variant)),
+        )
     };
 
     let time_date = Rectangle::new()
@@ -105,9 +117,9 @@ pub fn clock(scheme: &Scheme, alpha: f32) -> (Box<dyn Widget>, f32) {
     let row = Row::new(vec![
         boxed(search),
         boxed(time_date),
-        boxed(Stack::new(vec![weather_icon]).width(26.0).height(26.0)),
+        boxed(Stack::new(vec![weather_icon]).width(26.0).height(36.0)),
     ])
-    .gap(6.0)
+    .gap(3.0)
     .align(Center)
     .width(Parent)
     .height(Parent)
@@ -119,6 +131,12 @@ pub fn clock(scheme: &Scheme, alpha: f32) -> (Box<dyn Widget>, f32) {
                 .width(Parent)
                 .height(Parent)
                 .opacity(alpha)
+                .padding(amane::Padding {
+                    top: 2.0,
+                    right: 3.0,
+                    bottom: 2.0,
+                    left: 3.0,
+                })
                 .child(row),
         ),
         CLOCK_WIDTH,
