@@ -144,6 +144,7 @@ pub fn window() -> Window {
     let dark = settings.dark();
     let hover_dash = settings.flag("hover_dash");
     let hover_delay_ms = settings.hover_delay_ms();
+    let trans_meter_colors = settings.flag("trans_meter_colors");
 
     let current = String::from(settings.scheme_name());
 
@@ -191,7 +192,7 @@ pub fn window() -> Window {
         })
         .collect();
 
-    let behavior = settings_card(WIDTH - PADDING * 2.0, 174.0, scheme.surface_container_low).child(
+    let behavior = settings_card(WIDTH - PADDING * 2.0, 222.0, scheme.surface_container_low).child(
         Column::new(vec![
             Box::new(section(TUNE, crate::lang::text("Comportamento", "Behavior"), scheme)),
             Box::new(chip(
@@ -220,6 +221,22 @@ pub fn window() -> Window {
                 .gap(8.0)
                 .width(Parent),
             ),
+            Box::new(section(TUNE, crate::lang::text("Cores dos medidores", "Meter colors"), scheme)),
+            Box::new(chip(
+                "sv:meter-colors",
+                if trans_meter_colors {
+                    crate::lang::text("Bandeira trans", "Trans flag")
+                } else {
+                    crate::lang::text("Cores do tema", "Theme colors")
+                },
+                220.0,
+                trans_meter_colors,
+                scheme,
+                || {
+                    Settings::toggle_flag("trans_meter_colors");
+                    crate::ui::Ui::refresh();
+                },
+            )),
         ])
         .gap(10.0)
         .width(Parent),
