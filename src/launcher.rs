@@ -185,10 +185,10 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
 
     let hint = if count == 0 {
         String::from(crate::lang::text("Nenhum aplicativo encontrado", "No applications match"))
+    } else if crate::settings::Settings::read().language() == "en" {
+        format!("{count} applications  ·  ↑↓ choose  ·  Enter opens")
     } else {
-        format!(
-            crate::lang::text("{count} aplicativo(s)  ·  ↑↓ selecionar  ·  Enter abrir", "{count} application(s)  ·  ↑↓ choose  ·  Enter opens")
-        )
+        format!("{count} aplicativos  ·  ↑↓ selecionar  ·  Enter abrir")
     };
 
     let footer = Row::new(vec![
@@ -199,7 +199,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
             amane::Weight::Medium,
         )),
         boxed(text(
-            crate::lang::text("Esc fecha", crate::lang::text("Esc fecha", "Esc closes")),
+            crate::lang::text("Esc fecha", "Esc closes"),
             11.5,
             fade(scheme.on_surface_variant, 170),
             amane::Weight::Regular,
