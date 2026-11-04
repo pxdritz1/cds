@@ -151,8 +151,8 @@ impl StatusNotifierWatcher {
     fn register_status_notifier_item(
         &self,
         #[zbus(header)] header: zbus::message::Header<'_>,
+        #[zbus(connection)] connection: &zbus::blocking::Connection,
         service: String,
-        #[zbus(signal_emitter)] emitter: zbus::object_server::SignalEmitter<'_>,
     ) -> zbus::fdo::Result<()> {
         let address = if service.starts_with('/') {
             let sender = header
@@ -169,7 +169,14 @@ impl StatusNotifierWatcher {
         if !items.iter().any(|item| item == &address) {
             items.push(address.clone());
             items.sort();
-            Self::status_notifier_item_registered(&emitter, &address)
+            connection
+                .emit_signal(
+                    None::<&str>,
+                    WATCHER_PATH,
+                    WATCHER_INTERFACE,
+                    "StatusNotifierItemRegistered",
+                    &(address.as_str(),),
+                )
                 .map_err(|error| zbus::fdo::Error::Failed(error.to_string()))?;
         }
 
@@ -179,8 +186,8 @@ impl StatusNotifierWatcher {
     fn register_status_notifier_host(
         &self,
         #[zbus(header)] header: zbus::message::Header<'_>,
+        #[zbus(connection)] connection: &zbus::blocking::Connection,
         service: String,
-        #[zbus(signal_emitter)] emitter: zbus::object_server::SignalEmitter<'_>,
     ) -> zbus::fdo::Result<()> {
         let host = if service.is_empty() {
             header.sender().map(|sender| sender.to_string()).unwrap_or_default()
@@ -191,7 +198,14 @@ impl StatusNotifierWatcher {
         let mut hosts = self.hosts.lock().unwrap_or_else(|error| error.into_inner());
         if !hosts.iter().any(|entry| entry == &host) {
             hosts.push(host);
-            Self::status_notifier_host_registered(&emitter)
+            connection
+                .emit_signal(
+                    None::<&str>,
+                    WATCHER_PATH,
+                    WATCHER_INTERFACE,
+                    "StatusNotifierHostRegistered",
+                    &(),
+                )
                 .map_err(|error| zbus::fdo::Error::Failed(error.to_string()))?;
         }
 
@@ -213,27 +227,6 @@ impl StatusNotifierWatcher {
         0
     }
 
-    #[zbus(signal)]
-    fn status_notifier_item_registered(
-        emitter: &zbus::object_server::SignalEmitter<'_>,
-        service: &str,
-    ) -> zbus::Result<()>;
-
-    #[zbus(signal)]
-    fn status_notifier_item_unregistered(
-        emitter: &zbus::object_server::SignalEmitter<'_>,
-        service: &str,
-    ) -> zbus::Result<()>;
-
-    #[zbus(signal)]
-    fn status_notifier_host_registered(
-        emitter: &zbus::object_server::SignalEmitter<'_>,
-    ) -> zbus::Result<()>;
-
-    #[zbus(signal)]
-    fn status_notifier_host_unregistered(
-        emitter: &zbus::object_server::SignalEmitter<'_>,
-    ) -> zbus::Result<()>;
 }
 
 struct TrayHost;
