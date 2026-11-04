@@ -1,3 +1,5 @@
+use amane::Service;
+
 use crate::settings::Settings;
 
 /// Returns the string matching the language selected in Settings.
