@@ -63,15 +63,11 @@ pub fn media(scheme: &Scheme, alpha: f32) -> Box<dyn Widget> {
     .width(42.0)
     .align(Center);
 
+    // The player clock is display-only; returning to the compact island
+    // is intentionally not available from this surface.
     let clock_view = Rectangle::new()
         .width(42.0)
         .height(46.0)
-        .cursor(amane::Pointer)
-        .on_click(|button| {
-            if button == amane::Button::Left {
-                crate::ui::Ui::toggle();
-            }
-        })
         .align_child(Center, Center)
         .child(clock_view);
 
