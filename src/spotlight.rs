@@ -295,7 +295,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
     let footer = Row::new(vec![
         boxed(scale_label(
             Type::LabelMedium,
-            crate::lang::text("↑↓ navega · Enter executa", "↑↓ navigate · Enter run"),
+            crate::lang::text("↑↓ navega · Enter executa · clique direito fixa", "↑↓ navigate · Enter runs · right-click pins"),
             scheme.on_surface_variant,
             1,
         )),
