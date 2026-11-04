@@ -341,7 +341,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
         IslandMode::Compact => {
             let (content, width) = compact::clock(scheme, alpha);
 
-            (content, width, BAR_HEIGHT, BAR_HEIGHT / 2.0)
+            (content, width, BAR_HEIGHT, crate::m3::shape::ISLAND_COMPACT)
         }
     };
 
