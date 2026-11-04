@@ -150,250 +150,19 @@ impl Clipboard {
             let count = clipboard.matches().len();
 
             if count == 0 {
-                None
+                String::from(crate::lang::text("Nada copiado ainda", "Nothing copied yet"))
+            } else if crate::settings::Settings::read().language() == "en" {
+                format!("{count} items  ·  ↑↓ choose  ·  Enter copies")
             } else {
-                let index = clipboard.selected.min(count - 1);
-
-                let entry = clipboard.matches().get(index).copied();
-
-                entry.map(|index| clipboard.history[index].text.clone())
+                format!("{count} itens  ·  ↑↓ selecionar  ·  Enter copiar")
             }
-        };
-
-        if let Some(text) = text {
-            Self::copy_text(&text);
-        }
-    }
-
-    pub fn clear() {
-        let mut clipboard = Self::write();
-
-        clipboard.history.clear();
-        clipboard.selected = 0;
-        clipboard.save();
-    }
-
-    fn insert(&mut self, text: String) {
-        // the newest copy sits on top, without the same text showing twice
-        self.history.retain(|entry| entry.text != text);
-        self.history.insert(0, Entry { text });
-        self.history.truncate(LIMIT);
-
-        self.selected = self.selected.min(self.history.len().saturating_sub(1));
-    }
-
-    // positions in the history that match what was typed
-    fn matches(&self) -> Vec<usize> {
-        let needle = self.query.trim().to_lowercase();
-
-        self.history
-            .iter()
-            .enumerate()
-            .filter(|(_, entry)| needle.is_empty() || entry.text.to_lowercase().contains(&needle))
-            .map(|(index, _)| index)
-            .collect()
-    }
-
-    fn file() -> PathBuf {
-        cache_home().join("chloe-dynamic-shell/clipboard.conf")
-    }
-
-    fn load(&mut self) {
-        let Ok(text) = fs::read_to_string(Self::file()) else {
-            return;
-        };
-
-        for line in text.lines() {
-            if line.is_empty() {
-                continue;
-            }
-
-            self.history.push(Entry {
-                text: unescape(line),
-            });
-        }
-
-        self.history.truncate(LIMIT);
-    }
-
-    fn save(&self) {
-        let file = Self::file();
-
-        if let Some(folder) = file.parent() {
-            let _ = fs::create_dir_all(folder);
-        }
-
-        let mut text = String::new();
-
-        for entry in &self.history {
-            text.push_str(&escape(&entry.text));
-            text.push('\n');
-        }
-
-        let _ = fs::write(file, text);
-    }
-}
-
-// a line per entry, with newlines escaped so entries stay apart
-fn escape(text: &str) -> String {
-    text.replace('\\', "\\\\")
-        .replace('\n', "\\n")
-        .replace('\r', "\\r")
-}
-
-fn unescape(line: &str) -> String {
-    let mut text = String::new();
-    let mut letters = line.chars();
-
-    while let Some(letter) = letters.next() {
-        if letter != '\\' {
-            text.push(letter);
-
-            continue;
-        }
-
-        match letters.next() {
-            Some('n') => text.push('\n'),
-            Some('r') => text.push('\r'),
-            Some('\\') => text.push('\\'),
-            Some(other) => {
-                text.push('\\');
-                text.push(other);
-            }
-            None => text.push('\\'),
-        }
-    }
-
-    text
-}
-
-// the clipboard text, or nothing when it holds something else like an image
-fn current() -> Option<String> {
-    let output = Command::new("timeout")
-        .arg("2")
-        .arg("wl-paste")
-        .arg("--no-newline")
-        .output()
-        .ok()?;
-
-    if !output.status.success() {
-        return None;
-    }
-
-    let text = String::from_utf8(output.stdout).ok()?;
-    let text = text.trim_end_matches('\n').to_string();
-
-    if text.trim().is_empty() || text.len() > MAX_BYTES {
-        return None;
-    }
-
-    Some(text)
-}
-
-fn wl_copy(text: &str) {
-    let text = String::from(text);
-
-    // wl-copy forks a owner of its own; waiting here would hold up an input handler
-    thread::spawn(move || {
-        let Ok(mut child) = Command::new("wl-copy").arg("--").arg(&text).spawn() else {
-            return;
-        };
-
-        let _ = child.wait();
-    });
-}
-
-pub fn view(monitor: &Monitor) -> LayerWindow {
-    let theme = Theme::read();
-    let scheme = theme.scheme();
-
-    let state = Overlay::read();
-    let open = state.panel() == Panel::Clipboard;
-
-    let clipboard = Clipboard::read();
-    let matches = clipboard.matches();
-
-    let selected = if matches.is_empty() {
-        0
-    } else {
-        clipboard.selected().min(matches.len() - 1)
-    };
-
-    let count = matches.len();
-
-    let search = overlay::search(
-        "clipboard",
-        INPUT,
-        SEARCH,
-        crate::lang::text("Buscar no clipboard", "Search the clipboard"),
-        open,
-        scheme,
-        Clipboard::set_query,
-        |_| Clipboard::copy_selected(),
-    );
-
-    let header = Row::new(vec![
-        boxed(text(
-            crate::lang::text("Área de transferência", "Clipboard"),
-            20.0,
-            scheme.on_surface,
-            amane::Weight::SemiBold,
-        )),
-        boxed(chip(
-            "clipboard-clear",
-            crate::lang::text("Limpar", "Clear"),
-            84.0,
-            false,
-            scheme,
-            Clipboard::clear,
-        )),
-    ])
-    .width(Parent)
-    .justify(SpaceBetween)
-    .align(Center);
-
-    let rows: Vec<Box<dyn Widget>> = matches
-        .iter()
-        .enumerate()
-        .map(|(position, &index)| {
-            boxed(entry_row(
-                scheme,
-                &clipboard.history[index].text,
-                position,
-                position == selected,
-            ))
-        })
-        .collect();
-
-    let list: Box<dyn Widget> = if rows.is_empty() {
-        boxed(empty(scheme))
-    } else {
-        boxed(
-            ScrollArea::new(
-                "clipboard-results",
-                Column::new(rows).gap(4.0).width(Parent),
-            )
-            .width(Parent)
-            .height(LIST),
-        )
-    };
-
-    let footer = Row::new(vec![
-        boxed(text(
-            if count == 0 {
-                String::from("Nothing copied yet")
-            } else {
-                format!(
-                    crate::lang::text("{count} item(ns)  ·  ↑↓ selecionar  ·  Enter copiar", "{count} item(s)  ·  ↑↓ choose  ·  Enter copies"),
-                    if count == 1 { "" } else { "s" }
-                )
             },
             11.5,
             scheme.on_surface_variant,
             amane::Weight::Medium,
         )),
         boxed(text(
-            crate::lang::text("Esc fecha", crate::lang::text("Esc fecha", "Esc closes")),
+            crate::lang::text("Esc fecha", "Esc closes"),
             11.5,
             fade(scheme.on_surface_variant, 170),
             amane::Weight::Regular,
@@ -552,7 +321,7 @@ fn empty(scheme: &Scheme) -> Rectangle {
                 boxed(Row::new(vec![boxed(circle)]).width(Parent).justify(Center)),
                 boxed(
                     Row::new(vec![boxed(text(
-                        crate::lang::text("O clipboard está vazio", "The clipboard is empty"),
+                        crate::lang::text("O clipboard está vazio", crate::lang::text("O clipboard está vazio", "The clipboard is empty")),
                         15.0,
                         scheme.on_surface,
                         amane::Weight::Medium,
