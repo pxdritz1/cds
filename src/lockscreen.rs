@@ -10,7 +10,7 @@ use std::time::Duration;
 use amane::{
     Arc, Canvas, Cap, Center, Column, End, Full, Horizontal, Image, Keyboard, Layer,
     LayerWindow, Line, Lock, Media, Monitor, Notifications, Padding, Parent, Pointer,
-    Rectangle, Row, Service, Shape, SpaceBetween, Stack, TextInput, Vertical, request_frame,
+    Rectangle, Row, Service, Shape, Stack, TextInput, Vertical, request_frame,
 };
 
 use crate::clock::Clock;
