@@ -54,7 +54,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
         background.fill(scheme.surface)
     } else {
         background.fill(
-            Image::cover(&wallpaper)
+            Image::cover(wallpaper.as_str())
                 .thumbnail(64, 36)
                 .blurred(9),
         )
@@ -113,6 +113,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
                 })
                 .on_submit(|password| {
                     Lock::unlock(&password);
+                    POWER_MENU_OPEN.store(false, Ordering::Relaxed);
                     TextInput::set_text(PASSWORD, "");
                     PASSWORD_LENGTH.store(0, Ordering::Relaxed);
                     request_frame();
