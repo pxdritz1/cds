@@ -11,7 +11,7 @@ use std::time::{Duration, Instant};
 use amane::{
     Arc, Canvas, Cap, Center, Column, End, Full, Horizontal, Image, Keyboard, Layer,
     Key, LayerWindow, Line, Lock, Media, Monitor, Notifications, Padding, Parent, Pointer,
-    Rectangle, Row, Service, Shape, Stack, TextInput, Vertical, request_frame,
+    Rectangle, Row, Service, Shape, Stack, TextInput, Vertical,
 };
 
 use crate::clock::Clock;
@@ -56,7 +56,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
         || weather_intro < 0.999
         || user_intro < 0.999
     {
-        request_frame();
+        crate::motion::request_frame_at_most(60);
     }
 
     let clock = Clock::read();
@@ -102,7 +102,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
         Duration::from_millis(190),
     );
     if (password_width - password_target).abs() > 0.5 {
-        request_frame();
+        crate::motion::request_frame_at_most(60);
     }
 
     let (field_border, feedback_color, feedback_text) = if failed {
@@ -139,14 +139,14 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
                 .focused()
                 .on_change(|value| {
                     PASSWORD_LENGTH.store(value.chars().count(), Ordering::Relaxed);
-                    request_frame();
+                    crate::motion::request_frame_at_most(60);
                 })
                 .on_submit(|password| {
                     Lock::unlock(&password);
                     POWER_MENU_OPEN.store(false, Ordering::Relaxed);
                     TextInput::set_text(PASSWORD, "");
                     PASSWORD_LENGTH.store(0, Ordering::Relaxed);
-                    request_frame();
+                    crate::motion::request_frame_at_most(60);
                 }),
         );
 
@@ -302,7 +302,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
         .on_click(|_| {
             let open = !POWER_MENU_OPEN.load(Ordering::Relaxed);
             POWER_MENU_OPEN.store(open, Ordering::Relaxed);
-            request_frame();
+            crate::motion::request_frame_at_most(60);
         })
         .align_child(Center, Center)
         .child(m3::icon(m3::POWER, 21.0 * ui_scale, scheme.on_primary_container));
@@ -370,7 +370,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
     let power_intro = crate::motion::fade("lockscreen:power-menu", if power_menu_open { 1 } else { 0 });
 
     if power_menu_open && power_intro < 0.999 {
-        request_frame();
+        crate::motion::request_frame_at_most(60);
     }
 
     let power_menu = if power_menu_open {
@@ -470,7 +470,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
         .keyboard(Keyboard::Exclusive)
         .on_key(|key| {
             if key == Key::Escape && POWER_MENU_OPEN.swap(false, Ordering::Relaxed) {
-                request_frame();
+                crate::motion::request_frame_at_most(60);
             }
         })
         .namespace("cds-lockscreen")
