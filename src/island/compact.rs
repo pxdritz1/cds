@@ -26,6 +26,7 @@ const SIDE: f32 = 14.0;
 const ICON: f32 = 18.0;
 const ITEM_GAP: f32 = 10.0;
 const CLOCK_WIDTH: f32 = 226.0;
+const CLOCK_CENTER_WIDTH: f32 = 166.0;
 
 pub fn clock(scheme: &Scheme, alpha: f32) -> (Box<dyn Widget>, f32) {
     let clock = Clock::read();
@@ -38,8 +39,8 @@ pub fn clock(scheme: &Scheme, alpha: f32) -> (Box<dyn Widget>, f32) {
     );
 
     let search = Rectangle::new()
-        .width(ICON + 4.0)
-        .height(ICON + 4.0)
+        .width(22.0)
+        .height(22.0)
         .cursor(Pointer)
         .on_click(|button| {
             if button == Button::Left {
@@ -69,9 +70,10 @@ pub fn clock(scheme: &Scheme, alpha: f32) -> (Box<dyn Widget>, f32) {
     };
 
     let time_date = Rectangle::new()
-        .width(Parent)
+        .width(CLOCK_CENTER_WIDTH)
         .height(Parent)
         .cursor(Pointer)
+        .align_child(Center, Center)
         .on_click(|button| {
             if button == Button::Left && Media::read().playing() {
                 crate::ui::Ui::toggle_media_sheet();
@@ -90,7 +92,7 @@ pub fn clock(scheme: &Scheme, alpha: f32) -> (Box<dyn Widget>, f32) {
     let row = Row::new(vec![
         boxed(search),
         boxed(time_date),
-        weather_icon,
+        boxed(Rectangle::new().width(26.0).height(26.0).align_child(Center, Center).child(weather_icon)),
     ])
     .gap(6.0)
     .align(Center)
