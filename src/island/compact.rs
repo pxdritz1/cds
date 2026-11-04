@@ -3,6 +3,8 @@
  * and tray on the left, the clock in the middle (it grows into the dash)
  * and the system status on the right (it opens the control center).
  */
+use std::time::Duration;
+
 use amane::{
     Audio, Battery, Bluetooth, Button, Center, Color, Media, Monitor, Network, Parent, Pointer, Rectangle,
     Row, Service, Stack, Widget, Workspace, Workspaces,
