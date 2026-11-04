@@ -444,7 +444,7 @@ fn audio_devices_page(scheme: &Scheme, output: bool) -> Box<dyn Widget> {
                 .radius(14.0)
                 .cursor(amane::Pointer)
                 .on_click(move |_| {
-                    let _ = Command::new("pactl").args([command, &device_name]).spawn();
+                    let _ = Command::new("pactl").args([command, device_name.as_str()]).spawn();
                 })
                 .padding(12.0)
                 .align_child(amane::Start, Center)
