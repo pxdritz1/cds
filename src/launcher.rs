@@ -159,7 +159,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
         "launcher",
         INPUT,
         SEARCH,
-        "Search applications",
+        crate::lang::text("Buscar aplicativos", "Search applications"),
         open,
         scheme,
         Launcher::set_query,
@@ -187,8 +187,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
         String::from(crate::lang::text("Nenhum aplicativo encontrado", "No applications match"))
     } else {
         format!(
-            "{count} application{}  ·  ↑↓ choose  ·  Enter opens",
-            if count == 1 { "" } else { "s" }
+            crate::lang::text("{count} aplicativo(s)  ·  ↑↓ selecionar  ·  Enter abrir", "{count} application(s)  ·  ↑↓ choose  ·  Enter opens")
         )
     };
 
@@ -200,7 +199,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
             amane::Weight::Medium,
         )),
         boxed(text(
-            crate::lang::text("Esc fecha", "Esc closes"),
+            crate::lang::text("Esc fecha", crate::lang::text("Esc fecha", "Esc closes")),
             11.5,
             fade(scheme.on_surface_variant, 170),
             amane::Weight::Regular,
@@ -276,7 +275,7 @@ fn result_row(scheme: &Scheme, app: &DesktopApp, index: usize, selected: bool) -
     let info = Column::new(vec![
         boxed(label(app.name(), 13.5, color, amane::Weight::Medium, 1)),
         boxed(label(
-            app.description().unwrap_or(crate::lang::text("Aplicativo", "Application")),
+            app.description().unwrap_or(crate::lang::text("Aplicativo", crate::lang::text("Aplicativo", "Application"))),
             11.0,
             if selected {
                 fade(color, 200)
@@ -341,7 +340,7 @@ fn empty(scheme: &Scheme) -> Rectangle {
                 boxed(Row::new(vec![boxed(circle)]).width(Parent).justify(Center)),
                 boxed(
                     Row::new(vec![boxed(text(
-                        crate::lang::text("Nada encontrado", "Nothing found"),
+                        crate::lang::text("Nada encontrado", crate::lang::text("Nada encontrado", "Nothing found")),
                         15.0,
                         scheme.on_surface,
                         amane::Weight::Medium,
@@ -351,7 +350,7 @@ fn empty(scheme: &Scheme) -> Rectangle {
                 ),
                 boxed(
                     Row::new(vec![boxed(text(
-                        crate::lang::text("Tente outro nome", "Try another name"),
+                        crate::lang::text("Tente outro nome", crate::lang::text("Tente outro nome", "Try another name")),
                         12.0,
                         mix(scheme.on_surface_variant, scheme.on_surface, 0.1),
                         amane::Weight::Regular,
