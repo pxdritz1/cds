@@ -4,7 +4,7 @@ use amane::{
 };
 
 use crate::island::widgets::{
-    DARK_MODE, LIGHT_MODE, OPEN_NEW, SUNNY, TUNE, boxed, card, chip, icon, label, text,
+    DARK_MODE, LIGHT_MODE, OPEN_NEW, SUNNY, TUNE, boxed, chip, icon, label, text,
 };
 use crate::settings::Settings;
 use crate::theme::{Scheme, Theme};
@@ -15,6 +15,16 @@ const PADDING: f32 = 16.0;
 
 const DIRECTORY_INPUT: &str = "cds-settings-directory";
 const LOCATION_INPUT: &str = "cds-settings-location";
+
+fn settings_card(width: f32, height: f32, fill: amane::Color) -> Rectangle {
+    Rectangle::new()
+        .width(width)
+        .height(height)
+        .fill(fill)
+        .radius(24.0)
+        .clip()
+        .padding(16.0)
+}
 
 #[derive(Default)]
 pub struct SettingsView {
@@ -180,7 +190,7 @@ pub fn window() -> Window {
         })
         .collect();
 
-    let behavior = card(WIDTH - PADDING * 2.0, scheme.surface_container_low).child(
+    let behavior = settings_card(WIDTH - PADDING * 2.0, 174.0, scheme.surface_container_low).child(
         Column::new(vec![
             Box::new(section(TUNE, "Comportamento", scheme)),
             Box::new(chip(
@@ -214,7 +224,7 @@ pub fn window() -> Window {
         .width(Parent),
     );
 
-    let appearance = card(WIDTH - PADDING * 2.0, scheme.surface_container_low).child(
+    let appearance = settings_card(WIDTH - PADDING * 2.0, 236.0, scheme.surface_container_low).child(
         Column::new(vec![
             Box::new(section(TUNE, "Aparência", scheme)),
             Box::new(
@@ -250,7 +260,7 @@ pub fn window() -> Window {
      * the wallpaper section: one input moves where the dash reads images
      * from, applying as soon as the path is submitted
      */
-    let wallpapers = card(WIDTH - PADDING * 2.0, scheme.surface_container_low).child(
+    let wallpapers = settings_card(WIDTH - PADDING * 2.0, 146.0, scheme.surface_container_low).child(
         Column::new(vec![
             Box::new(section(OPEN_NEW, "Papéis de parede", scheme)),
             Box::new(field(
@@ -285,7 +295,7 @@ pub fn window() -> Window {
     );
 
     // the weather section, where the dash reads its forecast spot from
-    let climate = card(WIDTH - PADDING * 2.0, scheme.surface_container_low).child(
+    let climate = settings_card(WIDTH - PADDING * 2.0, 122.0, scheme.surface_container_low).child(
         Column::new(vec![
             Box::new(section(SUNNY, "Clima", scheme)),
             Box::new(field(
@@ -344,6 +354,7 @@ pub fn window() -> Window {
     let content = Rectangle::new()
         .width(Parent)
         .height(Parent)
+        .fill(scheme.surface)
         .padding(Padding {
             top: PADDING,
             right: PADDING,
