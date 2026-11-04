@@ -7,7 +7,8 @@
 use std::cell::{Cell, RefCell};
 use std::process::Command;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::time::Duration;
+use std::thread;
+use std::time::{Duration, Instant};
 
 use amane::{
     Bluetooth, Brightness, Button, Center, Column, Key, LayerWindow, Media, Monitor,
@@ -82,38 +83,44 @@ impl Service for AudioDevices {
         Self::default()
     }
 
-    fn interval() -> Duration {
-        Duration::from_secs(3)
-    }
+    fn listen() {
+        let mut last_scan: Option<Instant> = None;
 
-    fn update(&mut self) -> bool {
-        if !AUDIO_REFRESH_REQUESTED.swap(false, Ordering::Relaxed) {
-            return false;
-        }
+        loop {
+            if AUDIO_REFRESH_REQUESTED.swap(false, Ordering::Relaxed) {
+                let due = last_scan.is_none_or(|last| last.elapsed() >= Duration::from_secs(3));
 
-        let Some((output_default, outputs, input_default, inputs)) = scan_audio_devices() else {
-            if !self.loaded {
-                self.loaded = true;
-                return true;
+                if due {
+                    // Do all pactl work before taking the service write lock.
+                    // A slow audio server must never block a window reading this cache.
+                    let result = scan_audio_devices();
+                    last_scan = Some(Instant::now());
+
+                    let mut current = Self::write();
+
+                    if let Some((output_default, outputs, input_default, inputs)) = result {
+                        let next = Self {
+                            output_default,
+                            outputs,
+                            input_default,
+                            inputs,
+                            loaded: true,
+                        };
+
+                        if *current != next {
+                            *current = next;
+                        }
+                    } else if !current.loaded {
+                        current.loaded = true;
+                    }
+                } else {
+                    // The page is still visible; retry after the refresh interval.
+                    AUDIO_REFRESH_REQUESTED.store(true, Ordering::Relaxed);
+                }
             }
 
-            return false;
-        };
-
-        let next = Self {
-            output_default,
-            outputs,
-            input_default,
-            inputs,
-            loaded: true,
-        };
-
-        if *self == next {
-            return false;
+            thread::sleep(Duration::from_millis(250));
         }
-
-        *self = next;
-        true
     }
 }
 
