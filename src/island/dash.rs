@@ -748,7 +748,7 @@ fn alerts(scheme: &Scheme) -> Box<dyn Widget> {
         )),
         boxed(button(
             "alerts-clear",
-            "Limpar tudo",
+            crate::lang::text("Limpar tudo", "Clear all"),
             Some(m3::CLEAR_ALL),
             Kind::Tonal,
             scheme,
