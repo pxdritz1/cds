@@ -192,7 +192,7 @@ pub fn window() -> Window {
         })
         .collect();
 
-    let behavior = settings_card(WIDTH - PADDING * 2.0, 222.0, scheme.surface_container_low).child(
+    let behavior = settings_card(WIDTH - PADDING * 2.0, 250.0, scheme.surface_container_low).child(
         Column::new(vec![
             Box::new(section(TUNE, crate::lang::text("Comportamento", "Behavior"), scheme)),
             Box::new(chip(
