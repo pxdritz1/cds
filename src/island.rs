@@ -3,7 +3,9 @@ mod dash;
 mod peek;
 pub(crate) mod widgets;
 
-use std::time::Duration;
+use std::collections::HashMap;
+use std::sync::{Mutex, OnceLock};
+use std::time::{Duration, Instant};
 
 use amane::{
     Button, Center, Column, End, Full, Horizontal, InputArea, Key, Keyboard, Layer, LayerWindow,
@@ -21,6 +23,31 @@ const RESERVED: f32 = 52.0;
 const BAR_HEIGHT: f32 = 40.0;
 const MARGIN: i32 = 10;
 const NOTICE_TIME: Duration = Duration::from_secs(5);
+
+struct NoticeTimer {
+    remaining: Duration,
+    last_tick: Instant,
+    hovered: bool,
+}
+
+static NOTICE_TIMERS: OnceLock<Mutex<HashMap<u32, NoticeTimer>>> = OnceLock::new();
+
+fn notice_timers() -> &'static Mutex<HashMap<u32, NoticeTimer>> {
+    NOTICE_TIMERS.get_or_init(|| Mutex::new(HashMap::new()))
+}
+
+pub(crate) fn set_notice_hover(id: u32, inside: bool) {
+    let mut timers = notice_timers().lock().unwrap_or_else(|error| error.into_inner());
+    if let Some(timer) = timers.get_mut(&id) {
+        timer.hovered = inside;
+        timer.last_tick = Instant::now();
+    }
+}
+
+pub(crate) fn notification_preview_active() -> bool {
+    let timers = notice_timers().lock().unwrap_or_else(|error| error.into_inner());
+    timers.values().any(|timer| timer.remaining > Duration::ZERO)
+}
 
 // the tray sheet rounds like a card, not like the pill the bar uses
 const CENTER_WIDTH: f32 = 760.0;
@@ -390,10 +417,24 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
 }
 
 fn recent(notifications: &Notifications) -> Option<&Notification> {
-    notifications.list().iter().rfind(|notification| {
-        notification
-            .received()
-            .elapsed()
-            .is_ok_and(|age| age < NOTICE_TIME)
-    })
+    let notification = notifications.list().last()?;
+    let id = notification.id();
+    let now = Instant::now();
+
+    let mut timers = notice_timers().lock().unwrap_or_else(|error| error.into_inner());
+    timers.retain(|known_id, _| notifications.list().iter().any(|item| item.id() == *known_id));
+
+    let timer = timers.entry(id).or_insert_with(|| NoticeTimer {
+        remaining: NOTICE_TIME,
+        last_tick: now,
+        hovered: false,
+    });
+
+    let elapsed = now.saturating_duration_since(timer.last_tick);
+    if !timer.hovered {
+        timer.remaining = timer.remaining.saturating_sub(elapsed);
+    }
+    timer.last_tick = now;
+
+    (timer.remaining > Duration::ZERO).then_some(notification)
 }
