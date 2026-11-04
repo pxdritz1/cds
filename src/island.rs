@@ -17,7 +17,7 @@ use crate::motion;
 use crate::overlay::{Overlay, Panel};
 use crate::theme::{Scheme, Theme, fade};
 use crate::tray::{self, Tray};
-use crate::ui::Ui;
+use crate::ui::{Tab, Ui};
 
 const RESERVED: f32 = 52.0;
 const BAR_HEIGHT: f32 = 40.0;
@@ -355,11 +355,24 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
 
     let fill = motion::color("island-fill", target, motion::SELECT_DURATION);
 
-    let mut island = surface(width, height, radius, fill, scheme).on_hover(Ui::set_hover);
+    let mut island = surface(width, height, radius, fill, scheme);
 
-    // clicking the island itself: keep the click inside the dash, or open it
+    // The media sheet is click-only: hovering it never reveals the dash.
+    if mode == IslandMode::Media {
+        Ui::set_hover(false);
+    } else {
+        island = island.on_hover(Ui::set_hover);
+    }
+
+    // On the player sheet, mouse buttons choose which dash tab to open.
     if ui.dash() {
         island = island.on_click(|_| {});
+    } else if mode == IslandMode::Media {
+        island = island.on_click(|button| match button {
+            Button::Left => Ui::open(Tab::Media),
+            Button::Right => Ui::open(Tab::Home),
+            _ => {}
+        });
     } else {
         island = island.on_click(|_| Ui::toggle());
     }
