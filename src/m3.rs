@@ -1,6 +1,9 @@
 use std::f32::consts::TAU;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::OnceLock;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
+
+static LAST_WAVE_FRAME: AtomicU64 = AtomicU64::new(0);
 
 use amane::{
     Arc, Button, Canvas, Cap, Center, Color, Column, Padding, Parent, Path, Pointer, Rectangle,
@@ -784,13 +787,23 @@ pub fn wavy(fraction: f32, width: f32, animated: bool, color: Color, track: Colo
     let middle = HEIGHT / 2.0;
 
     let phase = if animated {
-        amane::request_frame();
-
+        // CPU and RAM meters share one 30 FPS animation clock. This keeps the
+        // wave motion fluid without asking the compositor for a frame at 60+
+        // FPS or doing duplicate work for each meter.
         let millis = SystemTime::now()
             .duration_since(UNIX_EPOCH)
-            .map_or(0, |elapsed| elapsed.as_millis() % 1600);
+            .map_or(0, |elapsed| elapsed.as_millis() as u64);
 
-        TAU * millis as f32 / 1600.0
+        let previous = LAST_WAVE_FRAME.load(Ordering::Relaxed);
+        if millis.saturating_sub(previous) >= 33
+            && LAST_WAVE_FRAME
+                .compare_exchange(previous, millis, Ordering::Relaxed, Ordering::Relaxed)
+                .is_ok()
+        {
+            amane::request_frame();
+        }
+
+        TAU * (millis % 1600) as f32 / 1600.0
     } else {
         0.0
     };
@@ -816,7 +829,9 @@ pub fn wavy(fraction: f32, width: f32, animated: bool, color: Color, track: Colo
         let mut x = STROKE / 2.0;
 
         while x < active {
-            x = (x + 2.0).min(active);
+            // A slightly wider sampling interval cuts canvas path work in
+            // half while remaining visually smooth at this widget's height.
+            x = (x + 4.0).min(active);
             path = path.line_to(x, wave(x));
         }
 
