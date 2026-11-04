@@ -2,7 +2,7 @@ use std::f32::consts::TAU;
 use std::time::Duration;
 
 use amane::{
-    Arc, Button, Canvas, Cap, Center, Color, Column, Line, Padding, Parent, Pointer, Rectangle,
+    Arc, Button, Canvas, Cap, Center, Color, Column, Line, Padding, Parent, Path, Pointer, Rectangle,
     Row, Service, Shadow, Shape, Size, Stack, Start, Text, Widget,
 };
 
@@ -718,6 +718,18 @@ pub fn progress_line(fraction: f32, width: f32, color: Color, track: Color) -> C
     }
 
     Canvas::new().width(width).height(HEIGHT).shapes(shapes)
+}
+
+/// Compatibility wrapper for existing OSD callers.
+/// The progress indicator is intentionally static: no animation or frame requests.
+pub fn wavy(
+    fraction: f32,
+    width: f32,
+    _animated: bool,
+    color: Color,
+    track: Color,
+) -> Canvas {
+    progress_line(fraction, width, color, track)
 }
 
 pub fn ring(
