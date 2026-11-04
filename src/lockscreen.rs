@@ -28,6 +28,8 @@ static POWER_MENU_OPEN: AtomicBool = AtomicBool::new(false);
 pub fn view(monitor: &Monitor) -> LayerWindow {
     let theme = Theme::read();
     let scheme = theme.scheme();
+    let shortest = monitor.width.min(monitor.height) as f32;
+    let ui_scale = (shortest / 900.0).clamp(0.76, 1.12);
 
     let clock = Clock::read();
     let lock = Lock::read();
@@ -65,7 +67,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
         .height(Parent)
         .fill(fade(scheme.scrim, 112));
 
-    let password_target = (PASSWORD_LENGTH.load(Ordering::Relaxed) as f32 * 13.0).min(260.0);
+    let password_target = (PASSWORD_LENGTH.load(Ordering::Relaxed) as f32 * 13.0 * ui_scale).min(260.0 * ui_scale);
     let password_width = crate::motion::number(
         "lockscreen-password-progress",
         password_target,
@@ -88,21 +90,21 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
     };
 
     let password = Rectangle::new()
-        .width(340.0)
-        .height(58.0)
+        .width(340.0 * ui_scale)
+        .height(58.0 * ui_scale)
         .fill(fade(scheme.surface_container_highest, 238))
         .radius(20.0)
         .border(1.5, field_border)
         .padding(Padding {
             top: 0.0,
-            right: 18.0,
+            right: 18.0 * ui_scale,
             bottom: 0.0,
-            left: 18.0,
+            left: 18.0 * ui_scale,
         })
         .align_child(Center, Center)
         .child(
             TextInput::new(PASSWORD)
-                .size(17.0)
+                .size(17.0 * ui_scale)
                 .color(scheme.on_surface)
                 .placeholder("Digite sua senha")
                 .password()
@@ -121,8 +123,8 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
         );
 
     let password_progress = Rectangle::new()
-        .width(340.0)
-        .height(4.0)
+        .width(340.0 * ui_scale)
+        .height(4.0 * ui_scale)
         .fill(fade(scheme.on_surface, 36))
         .radius(2.0)
         .child(
@@ -144,18 +146,18 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
 
     let notification_chip = Rectangle::new()
         .width(340.0)
-        .height(54.0)
+        .height(54.0 * ui_scale)
         .fill(fade(scheme.surface_container_highest, 220))
-        .radius(18.0)
+        .radius(18.0 * ui_scale)
         .padding(Padding {
             top: 0.0,
-            right: 16.0,
+            right: 16.0 * ui_scale,
             bottom: 0.0,
-            left: 16.0,
+            left: 16.0 * ui_scale,
         })
         .child(
             Row::new(vec![
-                Box::new(m3::icon(m3::BELL, 21.0, scheme.primary)),
+                Box::new(m3::icon(m3::BELL, 21.0 * ui_scale, scheme.primary)),
                 Box::new(scale_label(
                     Type::BodyMedium,
                     app_name,
@@ -163,22 +165,22 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
                     1,
                 )),
             ])
-            .gap(12.0)
+            .gap(12.0 * ui_scale)
             .align(Center)
             .width(Parent)
             .height(Parent),
         );
 
     let center_panel = Rectangle::new()
-        .width(440.0)
-        .height(390.0)
+        .width(440.0 * ui_scale)
+        .height(390.0 * ui_scale)
         .fill(fade(scheme.surface_container, 224))
-        .radius(34.0)
+        .radius(34.0 * ui_scale)
         .clip()
-        .padding(28.0)
+        .padding(28.0 * ui_scale)
         .child(
             Column::new(vec![
-                Box::new(scale(Type::DisplayLarge, clock.time(true), scheme.on_surface).size(82.0)),
+                Box::new(scale(Type::DisplayLarge, clock.time(true), scheme.on_surface).size(82.0 * ui_scale)),
                 Box::new(scale_label(
                     Type::TitleMedium,
                     clock.date(),
@@ -201,39 +203,39 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
                         )),
                 ),
             ])
-            .gap(12.0)
+            .gap(12.0 * ui_scale)
             .width(Parent)
             .height(Parent)
             .align(Center)
             .justify(Center),
         );
 
-    let analog = analogue_clock(&clock, scheme);
+    let analog = analogue_clock(&clock, scheme, ui_scale);
     let analog_panel = Rectangle::new()
-        .width(172.0)
-        .height(172.0)
+        .width(172.0 * ui_scale)
+        .height(172.0 * ui_scale)
         .fill(fade(scheme.surface_container, 224))
-        .radius(86.0)
+        .radius(86.0 * ui_scale)
         .align_child(Center, Center)
         .child(analog);
 
     let weather = Weather::read();
     let weather_panel = Rectangle::new()
-        .width(270.0)
-        .height(104.0)
+        .width(270.0 * ui_scale)
+        .height(104.0 * ui_scale)
         .fill(fade(scheme.surface_container, 224))
-        .radius(26.0)
-        .padding(18.0)
+        .radius(26.0 * ui_scale)
+        .padding(18.0 * ui_scale)
         .child(
             Row::new(vec![
                 Box::new(
                     Rectangle::new()
-                        .width(54.0)
-                        .height(54.0)
+                        .width(54.0 * ui_scale)
+                        .height(54.0 * ui_scale)
                         .fill(scheme.tertiary_container)
                         .radius(18.0)
                         .align_child(Center, Center)
-                        .child(m3::icon(weather.glyph(), 30.0, scheme.on_tertiary_container)),
+                        .child(m3::icon(weather.glyph(), 30.0 * ui_scale, scheme.on_tertiary_container)),
                 ),
                 Box::new(
                     Column::new(vec![
@@ -250,7 +252,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
                     .justify(Center),
                 ),
             ])
-            .gap(14.0)
+            .gap(14.0 * ui_scale)
             .align(Center)
             .width(Parent)
             .height(Parent),
@@ -264,10 +266,10 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
     drop(media);
 
     let power_button = Rectangle::new()
-        .width(42.0)
-        .height(42.0)
+        .width(42.0 * ui_scale)
+        .height(42.0 * ui_scale)
         .fill(scheme.primary_container)
-        .radius(21.0)
+        .radius(21.0 * ui_scale)
         .cursor(Pointer)
         .on_click(|_| {
             let open = !POWER_MENU_OPEN.load(Ordering::Relaxed);
@@ -275,11 +277,11 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
             request_frame();
         })
         .align_child(Center, Center)
-        .child(m3::icon(m3::POWER, 21.0, scheme.on_primary_container));
+        .child(m3::icon(m3::POWER, 21.0 * ui_scale, scheme.on_primary_container));
 
     let user_media_panel = Rectangle::new()
-        .width(330.0)
-        .height(154.0)
+        .width(330.0 * ui_scale)
+        .height(154.0 * ui_scale)
         .fill(fade(scheme.surface_container, 224))
         .radius(26.0)
         .padding(18.0)
@@ -287,7 +289,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
             Column::new(vec![
                 Box::new(
                     Row::new(vec![
-                        Box::new(m3::avatar(&initial, 42.0, scheme)),
+                        Box::new(m3::avatar(&initial, 42.0 * ui_scale, scheme)),
                         Box::new(
                             Column::new(vec![
                                 Box::new(scale_label(
@@ -315,7 +317,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
                 ),
                 Box::new(
                     Row::new(vec![
-                        Box::new(m3::icon(m3::MUSIC, 20.0, scheme.primary)),
+                        Box::new(m3::icon(m3::MUSIC, 20.0 * ui_scale, scheme.primary)),
                         Box::new(
                             Column::new(vec![
                                 Box::new(scale_label(Type::BodyMedium, track, scheme.on_surface, 1)),
@@ -330,7 +332,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
                     .width(Parent),
                 ),
             ])
-            .gap(16.0)
+            .gap(16.0 * ui_scale)
             .width(Parent)
             .height(Parent)
             .justify(Center),
@@ -338,7 +340,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
 
     let power_menu_open = POWER_MENU_OPEN.load(Ordering::Relaxed);
     let power_menu = if power_menu_open {
-        Some(power_menu(scheme))
+        Some(power_menu(scheme, ui_scale))
     } else {
         None
     };
@@ -358,8 +360,8 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
                 .width(Parent)
                 .height(Parent)
                 .padding(Padding {
-                    top: 32.0,
-                    right: 40.0,
+                    top: 32.0 * ui_scale,
+                    right: 40.0 * ui_scale,
                     bottom: 0.0,
                     left: 0.0,
                 })
@@ -373,8 +375,8 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
                 .padding(Padding {
                     top: 0.0,
                     right: 0.0,
-                    bottom: 36.0,
-                    left: 40.0,
+                    bottom: 36.0 * ui_scale,
+                    left: 40.0 * ui_scale,
                 })
                 .align_child(amane::Start, End)
                 .child(weather_panel),
@@ -402,7 +404,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
                 .padding(Padding {
                     top: 0.0,
                     right: 40.0,
-                    bottom: 210.0,
+                    bottom: 210.0 * ui_scale,
                     left: 0.0,
                 })
                 .align_child(End, End)
@@ -426,20 +428,20 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
         )
 }
 
-fn analogue_clock(clock: &Clock, scheme: &crate::theme::Scheme) -> Canvas {
-    let size = 144.0;
+fn analogue_clock(clock: &Clock, scheme: &crate::theme::Scheme, ui_scale: f32) -> Canvas {
+    let size = 144.0 * ui_scale;
     let center = size / 2.0;
-    let radius = 64.0;
+    let radius = 64.0 * ui_scale;
 
     let mut shapes: Vec<Box<dyn Shape>> = vec![Box::new(
-        Arc::new().stroke(2.0, fade(scheme.on_surface, 170)),
+        Arc::new().stroke(2.0 * ui_scale, fade(scheme.on_surface, 170)),
     )];
 
     for tick in 0..12 {
         let angle = TAU * tick as f32 / 12.0 - std::f32::consts::FRAC_PI_2;
         let outer_x = center + radius * angle.cos();
         let outer_y = center + radius * angle.sin();
-        let inner_radius = if tick % 3 == 0 { radius - 11.0 } else { radius - 6.0 };
+        let inner_radius = if tick % 3 == 0 { radius - 11.0 * ui_scale } else { radius - 6.0 * ui_scale };
         let inner_x = center + inner_radius * angle.cos();
         let inner_y = center + inner_radius * angle.sin();
 
@@ -447,7 +449,7 @@ fn analogue_clock(clock: &Clock, scheme: &crate::theme::Scheme) -> Canvas {
             Line::new()
                 .from(inner_x, inner_y)
                 .to(outer_x, outer_y)
-                .stroke(if tick % 3 == 0 { 2.6 } else { 1.4 }, scheme.on_surface_variant)
+                .stroke(if tick % 3 == 0 { 2.6 * ui_scale } else { 1.4 * ui_scale }, scheme.on_surface_variant)
                 .cap(Cap::Round),
         ));
     }
@@ -465,22 +467,22 @@ fn analogue_clock(clock: &Clock, scheme: &crate::theme::Scheme) -> Canvas {
     shapes.push(Box::new(
         Line::new()
             .from(center, center)
-            .to(center + 31.0 * hour_angle.cos(), center + 31.0 * hour_angle.sin())
-            .stroke(5.0, scheme.on_surface)
+            .to(center + 31.0 * ui_scale * hour_angle.cos(), center + 31.0 * hour_angle.sin())
+            .stroke(5.0 * ui_scale, scheme.on_surface)
             .cap(Cap::Round),
     ));
     shapes.push(Box::new(
         Line::new()
             .from(center, center)
-            .to(center + 49.0 * minute_angle.cos(), center + 49.0 * minute_angle.sin())
-            .stroke(2.8, scheme.primary)
+            .to(center + 49.0 * ui_scale * minute_angle.cos(), center + 49.0 * minute_angle.sin())
+            .stroke(2.8 * ui_scale, scheme.primary)
             .cap(Cap::Round),
     ));
 
     Canvas::new().width(size).height(size).shapes(shapes)
 }
 
-fn power_menu(scheme: &crate::theme::Scheme) -> Rectangle {
+fn power_menu(scheme: &crate::theme::Scheme, ui_scale: f32) -> Rectangle {
     let actions = [
         (1, m3::LOGOUT, "Sair da sessão"),
         (2, m3::POWER, "Suspender"),
@@ -495,7 +497,7 @@ fn power_menu(scheme: &crate::theme::Scheme) -> Rectangle {
             Box::new(
                 Rectangle::new()
                     .width(Parent)
-                    .height(44.0)
+                    .height(44.0 * ui_scale)
                     .fill(fade(scheme.surface_container_highest, 210))
                     .radius(14.0)
                     .cursor(Pointer)
@@ -505,13 +507,13 @@ fn power_menu(scheme: &crate::theme::Scheme) -> Rectangle {
                     })
                     .padding(Padding {
                         top: 0.0,
-                        right: 12.0,
+                        right: 12.0 * ui_scale,
                         bottom: 0.0,
-                        left: 12.0,
+                        left: 12.0 * ui_scale,
                     })
                     .child(
                         Row::new(vec![
-                            Box::new(m3::icon(glyph, 19.0, scheme.on_surface_variant)),
+                            Box::new(m3::icon(glyph, 19.0 * ui_scale, scheme.on_surface_variant)),
                             Box::new(scale_label(
                                 Type::BodyMedium,
                                 *label,
@@ -529,15 +531,15 @@ fn power_menu(scheme: &crate::theme::Scheme) -> Rectangle {
         .collect();
 
     Rectangle::new()
-        .width(260.0)
-        .height(224.0)
+        .width(260.0 * ui_scale)
+        .height(224.0 * ui_scale)
         .fill(fade(scheme.surface_container, 238))
         .radius(24.0)
         .clip()
-        .padding(14.0)
+        .padding(14.0 * ui_scale)
         .child(
             Column::new(rows)
-                .gap(6.0)
+                .gap(6.0 * ui_scale)
                 .width(Parent)
                 .height(Parent)
                 .justify(Center),
