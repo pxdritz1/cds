@@ -46,13 +46,19 @@ pub fn media_width() -> f32 {
 fn media_info_width(title: &str, show_title: bool, show_artist: bool, max_width: f32) -> f32 {
     if !show_title && !show_artist { return 0.0; }
     if !show_title { return 104.0; }
-    let estimated = title.chars().map(|c| {
-        if c.is_whitespace() || "ilI.,'!:;|".contains(c) { 3.8 }
-        else if "MW@#%&".contains(c) { 10.0 }
-        else if c.is_ascii_uppercase() { 8.2 }
-        else if c.is_ascii() { 7.0 }
-        else { 8.5 }
-    }).sum::<f32>() + 4.0;
+    let measured_text = m3::text(title, 13.0, amane::Color::TRANSPARENT, amane::Weight::SemiBold);
+    let measured = m3::measured(&measured_text);
+    let estimated = if measured > 0.0 {
+        measured + 4.0
+    } else {
+        title.chars().map(|c| {
+            if c.is_whitespace() || "ilI.,'!:;|".contains(c) { 3.8 }
+            else if "MW@#%&".contains(c) { 10.0 }
+            else if c.is_ascii_uppercase() { 8.2 }
+            else if c.is_ascii() { 7.0 }
+            else { 8.5 }
+        }).sum::<f32>() + 4.0
+    };
     estimated.max(104.0).min(max_width.max(104.0))
 }
 
