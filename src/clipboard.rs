@@ -325,7 +325,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
         "clipboard",
         INPUT,
         SEARCH,
-        "Search the clipboard",
+        crate::lang::text("Buscar no clipboard", "Search the clipboard"),
         open,
         scheme,
         Clipboard::set_query,
@@ -341,7 +341,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
         )),
         boxed(chip(
             "clipboard-clear",
-            "Clear",
+            crate::lang::text("Limpar", "Clear"),
             84.0,
             false,
             scheme,
@@ -393,7 +393,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
             amane::Weight::Medium,
         )),
         boxed(text(
-            "Esc closes",
+            crate::lang::text("Esc fecha", "Esc closes"),
             11.5,
             fade(scheme.on_surface_variant, 170),
             amane::Weight::Regular,
@@ -552,7 +552,7 @@ fn empty(scheme: &Scheme) -> Rectangle {
                 boxed(Row::new(vec![boxed(circle)]).width(Parent).justify(Center)),
                 boxed(
                     Row::new(vec![boxed(text(
-                        "The clipboard is empty",
+                        crate::lang::text("O clipboard está vazio", "The clipboard is empty"),
                         15.0,
                         scheme.on_surface,
                         amane::Weight::Medium,
@@ -562,7 +562,7 @@ fn empty(scheme: &Scheme) -> Rectangle {
                 ),
                 boxed(
                     Row::new(vec![boxed(text(
-                        "Copy something and it shows up here",
+                        crate::lang::text("Copie algo para aparecer aqui", "Copy something and it will show up here"),
                         12.0,
                         scheme.on_surface_variant,
                         amane::Weight::Regular,
