@@ -28,12 +28,11 @@ pub fn media(scheme: &Scheme, alpha: f32) -> Box<dyn Widget> {
     let (title, artist) = media_labels(&media);
 
     let info = Column::new(vec![
-        boxed(label(
+        boxed(marquee_label(
             title,
             13.0,
             scheme.on_surface,
             amane::Weight::SemiBold,
-            1,
         )),
         boxed(m3::scale_label(
             Type::LabelSmall,
@@ -342,6 +341,23 @@ fn decode_file_url_path(value: &str) -> Option<String> {
 }
 
 
+
+
+fn marquee_label(
+    content: String,
+    size: f32,
+    color: amane::Color,
+    weight: amane::Weight,
+) -> Rectangle {
+    const VIEWPORT: f32 = 104.0;
+
+    Rectangle::new()
+        .width(VIEWPORT)
+        .height(18.0)
+        .clip()
+        .align_child(amane::Start, Center)
+        .child(m3::text(content, size, color, weight))
+}
 
 fn format_time(seconds: u64) -> String {
     format!("{:02}:{:02}", seconds / 60, seconds % 60)
