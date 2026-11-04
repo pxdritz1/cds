@@ -347,6 +347,7 @@ impl Settings {
             self.dark,
             self.directory.display(),
             self.location,
+            self.hover_delay_ms,
         );
 
         for (name, value) in &self.flags {
