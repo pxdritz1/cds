@@ -140,6 +140,7 @@ pub fn window() -> Window {
 
     let settings = Settings::read();
 
+    let language = String::from(settings.language());
     let dark = settings.dark();
     let hover_dash = settings.flag("hover_dash");
     let hover_delay_ms = settings.hover_delay_ms();
@@ -192,13 +193,13 @@ pub fn window() -> Window {
 
     let behavior = settings_card(WIDTH - PADDING * 2.0, 174.0, scheme.surface_container_low).child(
         Column::new(vec![
-            Box::new(section(TUNE, "Comportamento", scheme)),
+            Box::new(section(TUNE, crate::lang::text("Comportamento", "Behavior"), scheme)),
             Box::new(chip(
                 "sv:hover-dash",
                 if hover_dash {
-                    "Abrir Dash ao passar o mouse: ligado"
+                    crate::lang::text("Abrir Dash ao passar o mouse: ligado", "Open Dash on hover: on")
                 } else {
-                    "Abrir Dash ao passar o mouse: desligado"
+                    crate::lang::text("Abrir Dash ao passar o mouse: desligado", "Open Dash on hover: off")
                 },
                 360.0,
                 hover_dash,
@@ -208,7 +209,7 @@ pub fn window() -> Window {
                     crate::ui::Ui::refresh();
                 },
             )),
-            Box::new(section(TUNE, "Atraso do hover", scheme)),
+            Box::new(section(TUNE, crate::lang::text("Atraso do hover", "Hover delay"), scheme)),
             Box::new(
                 Row::new(vec![
                     boxed(chip("sv:hover-delay-250", "250 ms", 88.0, hover_delay_ms == 250, scheme, || Settings::set_hover_delay_ms(250))),
@@ -224,15 +225,15 @@ pub fn window() -> Window {
         .width(Parent),
     );
 
-    let appearance = settings_card(WIDTH - PADDING * 2.0, 236.0, scheme.surface_container_low).child(
+    let appearance = settings_card(WIDTH - PADDING * 2.0, 286.0, scheme.surface_container_low).child(
         Column::new(vec![
-            Box::new(section(TUNE, "Aparência", scheme)),
+            Box::new(section(TUNE, crate::lang::text("Aparência", "Appearance"), scheme)),
             Box::new(
                 Row::new(vec![
-                    boxed(chip("sv:dark", "Escuro", 118.0, dark, scheme, move || {
+                    boxed(chip("sv:dark", crate::lang::text("Escuro", "Dark"), 118.0, dark, scheme, move || {
                         Settings::set_dark_live(true)
                     })),
-                    boxed(chip("sv:light", "Claro", 118.0, !dark, scheme, move || {
+                    boxed(chip("sv:light", crate::lang::text("Claro", "Light"), 118.0, !dark, scheme, move || {
                         Settings::set_dark_live(false)
                     })),
                     boxed(
@@ -251,6 +252,11 @@ pub fn window() -> Window {
                 .width(Parent),
             ),
             Box::new(Column::new(scheme_rows).gap(8.0).width(Parent)),
+            Box::new(section(TUNE, crate::lang::text("Idioma", "Language"), scheme)),
+            Box::new(Row::new(vec![
+                boxed(chip("sv:lang-pt", "Português (Brasil)", 150.0, language == "pt-BR", scheme, || Settings::set_language("pt-BR"))),
+                boxed(chip("sv:lang-en", "English", 110.0, language == "en", scheme, || Settings::set_language("en"))),
+            ]).gap(8.0).width(Parent)),
         ])
         .gap(12.0)
         .width(Parent),
@@ -262,9 +268,9 @@ pub fn window() -> Window {
      */
     let wallpapers = settings_card(WIDTH - PADDING * 2.0, 146.0, scheme.surface_container_low).child(
         Column::new(vec![
-            Box::new(section(OPEN_NEW, "Papéis de parede", scheme)),
+            Box::new(section(OPEN_NEW, crate::lang::text("Papéis de parede", "Wallpapers"), scheme)),
             Box::new(field(
-                "Diretório das imagens",
+                crate::lang::text("Diretório das imagens", "Image folder"),
                 DIRECTORY_INPUT,
                 &directory,
                 scheme,
@@ -276,7 +282,7 @@ pub fn window() -> Window {
             )),
             Box::new(text(
                 &format!(
-                    "{} imagens encontradas",
+                    "{}",
                     Settings::read().wallpapers().len()
                 ),
                 11.5,
@@ -291,12 +297,12 @@ pub fn window() -> Window {
     // the weather section, where the dash reads its forecast spot from
     let climate = settings_card(WIDTH - PADDING * 2.0, 122.0, scheme.surface_container_low).child(
         Column::new(vec![
-            Box::new(section(SUNNY, "Clima", scheme)),
+            Box::new(section(SUNNY, crate::lang::text("Clima", "Weather"), scheme)),
             Box::new(field(
-                "Coordenadas (latitude,longitude — vazio volta ao automático)",
+                crate::lang::text("Coordenadas (latitude,longitude — vazio volta ao automático)", "Coordinates (latitude,longitude — empty uses automatic location)"),
                 LOCATION_INPUT,
                 if location.is_empty() {
-                    "automático pelo ip"
+                    crate::lang::text("automático pelo ip", "automatic (IP)")
                 } else {
                     &location
                 },
@@ -313,14 +319,14 @@ pub fn window() -> Window {
 
     let footer = Row::new(vec![
         boxed(text(
-            "As mudanças regeneram o matugen na hora",
+            crate::lang::text("As mudanças regeneram o matugen na hora", "Changes are applied with Matugen"),
             11.5,
             scheme.on_surface_variant,
             amane::Weight::Medium,
         )),
         boxed(chip(
             "sv:refresh",
-            "Regenerar",
+            crate::lang::text("Regenerar", "Regenerate"),
             108.0,
             false,
             scheme,
@@ -380,7 +386,7 @@ pub fn window() -> Window {
         );
 
     Window::new()
-        .title("Chloe Dynamic Shell — Configurações")
+        .title(crate::lang::text("Chloe Dynamic Shell — Configurações", "Chloe Dynamic Shell — Settings"))
         .size(WIDTH, HEIGHT)
         .resizable(true)
         .child(content)
