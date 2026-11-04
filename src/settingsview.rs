@@ -132,6 +132,7 @@ pub fn window() -> Window {
 
     let dark = settings.dark();
     let hover_dash = settings.flag("hover_dash");
+    let hover_delay_ms = settings.hover_delay_ms();
 
     let current = String::from(settings.scheme_name());
 
@@ -197,6 +198,17 @@ pub fn window() -> Window {
                     crate::ui::Ui::refresh();
                 },
             )),
+            Box::new(section(TUNE, "Atraso do hover", scheme)),
+            Box::new(
+                Row::new(vec![
+                    boxed(chip("sv:hover-delay-250", "250 ms", 88.0, hover_delay_ms == 250, scheme, || Settings::set_hover_delay_ms(250))),
+                    boxed(chip("sv:hover-delay-500", "500 ms", 88.0, hover_delay_ms == 500, scheme, || Settings::set_hover_delay_ms(500))),
+                    boxed(chip("sv:hover-delay-750", "750 ms", 88.0, hover_delay_ms == 750, scheme, || Settings::set_hover_delay_ms(750))),
+                    boxed(chip("sv:hover-delay-1000", "1 s", 88.0, hover_delay_ms == 1000, scheme, || Settings::set_hover_delay_ms(1000))),
+                ])
+                .gap(8.0)
+                .width(Parent),
+            ),
         ])
         .gap(10.0)
         .width(Parent),
