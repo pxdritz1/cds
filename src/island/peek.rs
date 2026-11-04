@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::path::Path as FsPath;
 use std::sync::OnceLock;
 use std::time::Instant;
 
@@ -287,7 +287,7 @@ fn local_image_path(value: &str) -> Option<String> {
         value.to_string()
     };
 
-    let path = Path::new(&path);
+    let path = FsPath::new(&path);
 
     if path.is_file() {
         Some(path.to_string_lossy().into_owned())
