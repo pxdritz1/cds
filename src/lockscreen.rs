@@ -9,7 +9,7 @@ use std::time::Duration;
 
 use amane::{
     Arc, Canvas, Cap, Center, Column, End, Full, Horizontal, Image, Keyboard, Layer,
-    LayerWindow, Line, Lock, Media, Monitor, Notifications, Padding, Parent, Pointer,
+    Key, LayerWindow, Line, Lock, Media, Monitor, Notifications, Padding, Parent, Pointer,
     Rectangle, Row, Service, Shape, Stack, TextInput, Vertical, request_frame,
 };
 
@@ -419,6 +419,11 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
         .anchor_horizontal(Horizontal::Middle)
         .layer(Layer::Top)
         .keyboard(Keyboard::Exclusive)
+        .on_key(|key| {
+            if key == Key::Escape && POWER_MENU_OPEN.swap(false, Ordering::Relaxed) {
+                request_frame();
+            }
+        })
         .namespace("cds-lockscreen")
         .child(
             Rectangle::new()
