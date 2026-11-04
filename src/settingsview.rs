@@ -376,7 +376,7 @@ pub fn window() -> Window {
                         .width(Parent),
                     )
                     .width(Parent)
-                    .height(Parent),
+                    .height(HEIGHT - PADDING * 2.0 - 46.0),
                 ),
                 Box::new(footer),
             ])
