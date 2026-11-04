@@ -28,8 +28,6 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
 
     let list = Apps::read().list().to_vec();
 
-    let count = list.len();
-
     let mut rows: Vec<Box<dyn Widget>> = Vec::new();
 
     for (row, group) in list.chunks(COLUMNS).enumerate() {
