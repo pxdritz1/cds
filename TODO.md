@@ -46,9 +46,3 @@
 - [ ] Use conversation avatars when notification metadata provides them.
 - [ ] Define a fallback order for notification artwork.
 
-## Validation
-
-- [ ] Test startup and repeated wallpaper changes.
-- [ ] Test tray behavior with multiple SNI applications.
-- [ ] Test notifications and multi-monitor sessions.
-- [ ] Run a full build and runtime check on supported systems.
