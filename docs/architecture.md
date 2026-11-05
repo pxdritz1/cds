@@ -57,14 +57,15 @@ Keep slow work out of the drawing path:
 
 ## Shell layouts and motion
 
-The shell has three runtime layouts, selected in Settings or with
-`amane ipc call settings layout <1|2|3>`:
+The shell has two mutually exclusive runtime interfaces, selected in Settings or with
+`amane ipc call mode <islands|dock>` (or `mode toggle`):
 
-- Layout 1 keeps the original three-island bar.
-- Layout 2 hides the bar and shows the standalone app dock.
-- Layout 3 combines the dock with the existing bar and center Island.
+- `islands` keeps the original three-island bar and its Dash.
+- `dock` replaces the Island surfaces with the standalone app dock.
 
-The dock has independent top/bottom placement and left/center/right alignment.
+The old numeric layout setting is migrated on load: 1 remains Islands, while 2 and 3 become Dock. This prevents older settings files from restoring a removed third interface.
+
+The Dock has independent top/bottom placement and left/center/right alignment. Its app-grid action opens the full-screen application grid; pinned and running apps are populated from the desktop application registry and Niri's window list.
 The workspace group, center Island and status group can also be aligned
 independently. Workspace, center-Island, status and dock visibility can be
 changed at runtime.
