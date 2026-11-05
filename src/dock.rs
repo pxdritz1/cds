@@ -38,7 +38,7 @@ struct DockUi {
     hovered: bool,
     last_activity: Instant,
     auto_hidden: bool,
-}
+    context_exec: Option<String>,
 
 impl Default for DockUi {
     fn default() -> Self {
@@ -49,6 +49,7 @@ impl Default for DockUi {
             hovered: false,
             last_activity: Instant::now(),
             auto_hidden: false,
+            context_exec: None,
         }
     }
 }
@@ -79,13 +80,30 @@ impl Service for DockUi {
 }
 
 impl DockUi {
-    fn snapshot(&self) -> (Option<String>, bool, String, bool) {
+    fn snapshot(&self) -> (Option<String>, bool, String, bool, Option<String>) {
         (
             if self.drawer_open { None } else { self.picker.clone() },
             self.drawer_open,
             self.query.clone(),
             self.auto_hidden,
+            self.context_exec.clone(),
         )
+    }
+
+    fn toggle_context(exec: &str) {
+        let mut state = Self::write();
+        state.context_exec = if state.context_exec.as_deref() == Some(exec) { None } else { Some(String::from(exec)) };
+        state.picker = None;
+        state.drawer_open = false;
+        state.auto_hidden = false;
+        state.last_activity = Instant::now();
+        drop(state);
+        crate::ui::Ui::refresh();
+    }
+
+    fn close_context() {
+        Self::write().context_exec = None;
+        crate::ui::Ui::refresh();
     }
 
     fn set_hovered(inside: bool) {
@@ -397,7 +415,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
     drop(settings);
 
     let running_windows = RunningApps::read().windows.clone();
-    let (picker_exec, drawer_open, drawer_query, auto_hidden) = DockUi::read().snapshot();
+    let (picker_exec, drawer_open, drawer_query, auto_hidden, context_exec) = DockUi::read().snapshot();
     let drawer_progress = motion::number(
         &format!("dock:drawer:{}", monitor.name),
         if drawer_open { 1.0 } else { 0.0 },
@@ -509,6 +527,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
         children.push(Box::new(app_item(
             app, scheme, icon_size * dock_scale, magnification_enabled,
             window_ids, proximity, slot, dock_height, dock_scale, dock_side,
+            _pinned, context_exec.as_deref() == Some(app.exec()),
         )));
         row_cursor += slot + 4.0;
     }
@@ -1047,6 +1066,8 @@ fn app_item(
     dock_height: f32,
     transition_scale: f32,
     dock_side: f32,
+    pinned: bool,
+    context_open: bool,
 ) -> Rectangle {
     let exec = String::from(app.exec());
     let key = format!("dock:{}", exec);
@@ -1116,6 +1137,24 @@ fn app_item(
         ));
     }
 
+    if context_open {
+        let pin_exec = exec.clone();
+        let left_exec = exec.clone();
+        let right_exec = exec.clone();
+        let menu = Rectangle::new()
+            .width(156.0).height(72.0)
+            .translate(-50.0, if dock_side < 0.0 { -76.0 } else { 0.0 })
+            .radius(14.0).fill(scheme.surface_container)
+            .border(1.0, fade(scheme.outline_variant, 150))
+            .shadow(Shadow::drop(scheme.shadow).opacity(0.34).blur(18.0).offset(0.0, 5.0))
+            .child(Column::new(vec![
+                Box::new(context_option(if pinned { crate::lang::text("Desafixar", "Unpin") } else { crate::lang::text("Fixar no Dock", "Pin to Dock") }, scheme, move || { Settings::toggle_pinned(&pin_exec); DockUi::close_context(); })),
+                Box::new(context_option(crate::lang::text("Mover para esquerda", "Move left"), scheme, move || { Settings::move_pinned(&left_exec, -1); DockUi::close_context(); })),
+                Box::new(context_option(crate::lang::text("Mover para direita", "Move right"), scheme, move || { Settings::move_pinned(&right_exec, 1); DockUi::close_context(); })),
+            ]).gap(1.0).width(Parent).height(Parent));
+        layers.push(Box::new(menu));
+    }
+
     let label_alpha = motion::number(
         &format!("{key}:label"),
         ((proximity - 0.82) / 0.18).clamp(0.0, 1.0),
@@ -1152,7 +1191,7 @@ fn app_item(
                 }
                 Overlay::close();
             }
-            Button::Right => Settings::toggle_pinned(&launch),
+            Button::Right => DockUi::toggle_context(&launch),
             _ => {}
         })
         .on_scroll(move |scroll: Scroll| {
@@ -1173,6 +1212,14 @@ fn app_item(
                 .translate(0.0, dock_side * rise + bounce)
                 .child(amane::Stack::new(layers).width(size).height(size)),
         )
+}
+
+fn context_option(label: &str, scheme: &Scheme, action: impl Fn() + 'static) -> Rectangle {
+    Rectangle::new()
+        .width(Parent).height(23.0).radius(8.0).cursor(Pointer)
+        .on_click(move |button| { if button == Button::Left { action(); } })
+        .padding(6.0).align_child(Start, Center)
+        .child(Text::new(label).size(10.5).color(scheme.on_surface))
 }
 
 fn action_item(
