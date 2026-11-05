@@ -130,7 +130,8 @@ fn app_matches_id(app: &DesktopApp, app_id: &str) -> bool {
     let normalize = |value: &str| {
         let value = value.to_lowercase();
         let value = value.rsplit('/').next().unwrap_or(&value);
-        value.strip_suffix(".desktop").unwrap_or(value).to_string()
+        let value = value.strip_suffix(".desktop").unwrap_or(value);
+        value.chars().filter(char::is_ascii_alphanumeric).collect::<String>()
     };
 
     let target = normalize(app_id);
