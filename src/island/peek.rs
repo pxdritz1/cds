@@ -2,7 +2,7 @@ use std::path::Path as FsPath;
 
 use amane::{
     Apps, Center, Column, Image, Media, Notification, Notifications, Padding, Parent,
-    Rectangle, Row, Service, Widget,
+    Rectangle, Row, Service, SpaceBetween, Widget,
 };
 
 use crate::m3::{self, Type};
@@ -163,7 +163,7 @@ pub fn media(scheme: &Scheme, alpha: f32) -> Box<dyn Widget> {
     ])
     .gap(6.0)
     .align(Center)
-    .justify(Center)
+    .justify(SpaceBetween)
     .width(Parent)
     .height(18.0);
 
