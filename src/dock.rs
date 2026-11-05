@@ -887,7 +887,7 @@ fn action_item(
                 let _ = command.spawn();
             });
         })
-        .align_child(Center, if dock_side < 0.0 { End } else { Start })
+        .align_child(Center, if dock_side < 0.0 { Align::End } else { Align::Start })
         .child(
             Rectangle::new()
                 .width(action_size * scale)
