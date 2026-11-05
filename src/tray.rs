@@ -603,7 +603,9 @@ fn scan_items() -> Option<Vec<TrayItem>> {
         let interface = item_interface(&bus, &service, &path);
 
         let status = item_property(&bus, &service, &path, &interface, "Status");
-        if status == "Passive" {
+        if status.is_empty() || status == "Passive" {
+            // A registered address can outlive its D-Bus owner briefly. Do not
+            // render a blank tray slot while the watcher catches up.
             continue;
         }
 
@@ -695,6 +697,10 @@ fn resolve_icon_pixmap(bus: &Bus, service: &str, path: &str, interface: &str) ->
         let expected = (width as usize)
             .checked_mul(height as usize)?
             .checked_mul(4)?;
+        // A broken item must not make the shell allocate an enormous pixmap.
+        if expected > 16 * 1024 * 1024 {
+            continue;
+        }
 
         let bytes: Vec<u8> = fields[2]
             .list()
