@@ -566,6 +566,16 @@ impl Tray {
                 Argument::from(-1_i32),
                 Argument::from(Vec::<String>::new()),
             ];
+            // Let applications rebuild dynamic menu contents before the
+            // initial layout snapshot is requested.
+            let about_to_show = [Argument::from(0_i32)];
+            bus.call(
+                &service,
+                &path,
+                "com.canonical.dbusmenu",
+                "AboutToShow",
+                &about_to_show,
+            );
             let result = bus.call(
                 &service,
                 &path,
