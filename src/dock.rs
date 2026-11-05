@@ -9,11 +9,9 @@ use crate::overlay::{Overlay, Panel};
 use crate::settings::Settings;
 use crate::theme::{Scheme, Theme, fade};
 
-const WIDTH: f32 = 900.0;
 const HEIGHT: f32 = 104.0;
-const ICON: f32 = 42.0;
-const SLOT: f32 = 62.0;
-const MAX_ITEMS: usize = 10;
+const SLOT: f32 = 88.0;
+const ICON_GAP: f32 = 20.0;
 
 pub fn view(_monitor: &Monitor) -> LayerWindow {
     // Hover state is published through Ui::refresh, just like other shell
@@ -41,25 +39,21 @@ pub fn view(_monitor: &Monitor) -> LayerWindow {
     let scheme = theme.scheme();
     let apps = Apps::read();
     let settings = Settings::read();
-
-    let mut items: Vec<DesktopApp> = apps.list().to_vec();
-    items.sort_by_key(|app| !settings.is_pinned(app.exec()));
-    items.truncate(MAX_ITEMS);
-
+    let pinned = settings.pinned_apps().to_vec();
+    let icon_size = settings.dock_icon_size() as f32;
+    let magnification = settings.flag("dock_magnification");
+    let items: Vec<DesktopApp> = pinned.iter()
+        .filter_map(|exec| apps.list().iter().find(|app| app.exec() == exec).cloned())
+        .collect();
     drop(settings);
     drop(apps);
 
+    let dock_width = (items.len() as f32 * SLOT + 96.0).clamp(132.0, 1800.0);
+
     let mut children: Vec<Box<dyn Widget>> = items
         .iter()
-        .map(|app| Box::new(app_item(app, scheme)) as Box<dyn Widget>)
+        .map(|app| Box::new(app_item(app, scheme, icon_size, magnification)) as Box<dyn Widget>)
         .collect();
-
-    children.push(Box::new(action_item(
-        "dock:apps",
-        m3::APPS,
-        scheme,
-        || Overlay::open(Panel::Apps),
-    )));
 
     children.push(Box::new(action_item(
         "dock:trash",
@@ -71,7 +65,7 @@ pub fn view(_monitor: &Monitor) -> LayerWindow {
     )));
 
     let bar = Rectangle::new()
-        .width(WIDTH)
+        .width(dock_width)
         .height(HEIGHT - 12.0)
         .fill(scheme.surface_container_high)
         .radius(30.0)
@@ -112,7 +106,7 @@ pub fn view(_monitor: &Monitor) -> LayerWindow {
     };
 
     LayerWindow::new()
-        .width(WIDTH)
+        .width(dock_width)
         .height(HEIGHT)
         .anchor_vertical(if position == "top" {
             Vertical::Top
@@ -121,7 +115,7 @@ pub fn view(_monitor: &Monitor) -> LayerWindow {
         })
         .anchor_horizontal(horizontal)
         .layer(Layer::Top)
-        .space(Zone::Ignore)
+        .space(Zone::Reserve)
         .margin(margin)
         .namespace("cds-dock")
         .visible(true)
@@ -134,16 +128,16 @@ pub fn view(_monitor: &Monitor) -> LayerWindow {
         )
 }
 
-fn app_item(app: &DesktopApp, scheme: &Scheme) -> Rectangle {
+fn app_item(app: &DesktopApp, scheme: &Scheme, icon_base: f32, magnification: bool) -> Rectangle {
     let exec = String::from(app.exec());
     let key = format!("dock:{}", exec);
     let hover = motion::hover(&key);
     let scale = motion::number(
         &format!("{key}:scale"),
-        if hover > 0.5 { 1.32 } else { 1.0 },
+        if magnification && hover > 0.5 { 1.32 } else { 1.0 },
         motion::style_duration(180, 130),
     );
-    let size = ICON * scale;
+    let size = icon_base * scale;
     let owned = key.clone();
     let launch = exec.clone();
     let icon: Box<dyn Widget> = match app.icon_path() {
@@ -219,6 +213,6 @@ fn action_item(
                 .radius(14.0)
                 .fill(scheme.surface_container_highest)
                 .align_child(Center, Center)
-                .child(m3::icon(glyph, 24.0 * scale, scheme.on_surface)),
+                .child(m3::icon(glyph, icon_base * 0.58 * scale, scheme.on_surface)),
         )
 }
