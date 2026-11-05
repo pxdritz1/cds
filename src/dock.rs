@@ -528,7 +528,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
         children.push(Box::new(app_item(
             app, scheme, icon_size * dock_scale, magnification_enabled,
             window_ids, proximity, slot, dock_height, dock_scale, dock_side,
-            _pinned, context_exec.as_deref() == Some(app.exec()),
+            *_pinned, context_exec.as_deref() == Some(app.exec()),
         )));
         row_cursor += slot + 4.0;
     }
