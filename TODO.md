@@ -50,13 +50,14 @@
 
 ## UI modes
 
-- [x] Mode 1: current shell layout (Islands and one bar).
-- [x] Mode 2: standalone macOS-like app dock, with magnification on hover, a trash launcher and an app-grid button.
-- [x] Add drag-and-drop support to the dock trash target.
-- [x] Mode 3: dock plus bar, centered main Island combining existing shell controls and additional content.
-- [x] Add independent placement controls for the dock, main Island, workspace group and status group.
-- [x] Add Material 3 and Fluent motion presets with bubble transitions between panels.
-
+- [x] Mode 1: Islands, preserving the existing Island shell.
+- [x] Mode 2: standalone macOS-like application Dock; remove the combined Dock + bar mode.
+- [x] Add IPC commands to query, select and toggle Islands / Dock.
+- [x] Add a Niri keybind for animated mode switching.
+- [x] Coordinate Island contraction and Dock expansion through the shared motion frame scheduler.
+- [x] Open the application grid from the Dock.
+- [x] Focus an existing Niri window when its running application icon is clicked.
+- [x] Keep pinned apps, running-app indicators, magnification and trash drag-and-drop.
 ## Notifications
 
 - [x] Show the source application's icon in notification previews.
