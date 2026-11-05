@@ -4,7 +4,7 @@ use std::thread;
 use std::time::Duration;
 
 use amane::{
-    Apps, Button, Canvas, Center, DesktopApp, Horizontal, Image, InputArea, Layer, LayerWindow, Monitor,
+    Apps, Button, Canvas, Center, Column, DesktopApp, Horizontal, Image, InputArea, Layer, LayerWindow, Monitor,
     End, Full, Parent, Path, Pointer, Rectangle, Row, Service, Shadow, Shape, Start, Text, Vertical, Widget,
     Zone,
 };
@@ -22,11 +22,47 @@ const MAGNIFICATION: f32 = 1.32;
 struct RunningWindow {
     id: u64,
     app_id: String,
+    title: String,
 }
 
 #[derive(Default, PartialEq, Eq)]
 struct RunningApps {
     windows: Vec<RunningWindow>,
+}
+
+#[derive(Default)]
+struct DockUi {
+    picker: Option<String>,
+}
+
+impl Service for DockUi {
+    fn new() -> Self { Self::default() }
+    fn listen() {}
+}
+
+impl DockUi {
+    fn picker(&self) -> Option<&str> { self.picker.as_deref() }
+
+    fn toggle_picker(exec: &str) {
+        let mut state = Self::write();
+        if state.picker.as_deref() == Some(exec) {
+            state.picker = None;
+        } else {
+            state.picker = Some(String::from(exec));
+        }
+        drop(state);
+        crate::ui::Ui::refresh();
+    }
+
+    fn close_picker() {
+        let changed = {
+            let mut state = Self::write();
+            let changed = state.picker.is_some();
+            state.picker = None;
+            changed
+        };
+        if changed { crate::ui::Ui::refresh(); }
+    }
 }
 
 impl Service for RunningApps {
@@ -68,9 +104,10 @@ fn read_running_windows() -> Vec<RunningWindow> {
         // fields must never be paired with another window's identifier.
         if app_ids.len() != 1 || ids.len() != 1 { continue; }
         let app_id = app_ids.into_iter().next().unwrap_or_default();
+        let title = json_string_values(object, "title").into_iter().next().unwrap_or_default();
         let id = ids[0];
         if !app_id.is_empty() && !windows.iter().any(|window: &RunningWindow| window.id == id) {
-            windows.push(RunningWindow { id, app_id });
+            windows.push(RunningWindow { id, app_id, title });
         }
     }
     windows
@@ -242,6 +279,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
     drop(settings);
 
     let running_windows = RunningApps::read().windows.clone();
+    let picker_exec = DockUi::read().picker().map(String::from);
     let mut items: Vec<(DesktopApp, Vec<u64>, bool)> = Vec::new();
 
     for exec in &pinned {
@@ -294,6 +332,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
 
     let mut children: Vec<Box<dyn Widget>> = Vec::new();
     let mut row_cursor = 10.0;
+    let mut picker_anchor = None;
 
     for (index, (app, window_ids, _pinned)) in items.iter().enumerate() {
         if index == pinned_count && has_separator {
@@ -308,6 +347,9 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
         }
 
         let center = row_cursor + slot * 0.5;
+        if picker_exec.as_deref() == Some(app.exec()) && window_ids.len() > 1 {
+            picker_anchor = Some(center);
+        }
         let proximity = if magnification_enabled {
             pointer_x.map_or(0.0, |x| gaussian((x - center) / 46.0))
         } else {
@@ -378,7 +420,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
                 .height(Parent),
         );
 
-    let body = amane::Stack::new(vec![
+    let mut body_layers: Vec<Box<dyn Widget>> = vec![
         Box::new(shadow),
         Box::new(dock_shape(
             base_width,
@@ -389,9 +431,51 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
             scheme,
         )),
         Box::new(content),
-    ])
-    .width(base_width)
-    .height(base_body_height);
+    ];
+
+    let mut picker_region = None;
+    if let (Some(exec), Some(anchor)) = (picker_exec.as_deref(), picker_anchor) {
+        if let Some((app, _, _)) = items.iter().find(|(app, _, _)| app.exec() == exec) {
+            let windows: Vec<RunningWindow> = running_windows.iter()
+                .filter(|window| app_matches_id(app, &window.app_id))
+                .cloned()
+                .collect();
+            if windows.len() > 1 {
+                let panel_width = 280.0_f32.min((monitor.width as f32 - 24.0).max(180.0));
+                let panel_height = 44.0 + windows.len().min(5) as f32 * 42.0;
+                let panel_x = (anchor - panel_width * 0.5)
+                    .clamp(8.0, (base_width - panel_width - 8.0).max(8.0));
+                let body_y = if position == "top" {
+                    12.0
+                } else {
+                    (monitor.height as f32 - base_body_height - 14.0).max(0.0)
+                };
+                let desired_y = if dock_side < 0.0 {
+                    body_y - panel_height - 12.0
+                } else {
+                    body_y + base_body_height + 12.0
+                };
+                let panel_screen_y = desired_y.clamp(
+                    4.0,
+                    (monitor.height as f32 - panel_height - 4.0).max(4.0),
+                );
+                let panel_y = panel_screen_y - body_y;
+                picker_region = Some(InputArea {
+                    x: panel_x.floor() as i32,
+                    y: panel_screen_y.floor() as i32,
+                    width: panel_width.ceil() as i32,
+                    height: panel_height.ceil() as i32,
+                });
+                body_layers.push(Box::new(window_picker(
+                    &windows, scheme, panel_width, panel_height, panel_x, panel_y,
+                )));
+            }
+        }
+    }
+
+    let body = amane::Stack::new(body_layers)
+        .width(base_width)
+        .height(base_body_height);
 
     // Keep the Wayland surface at monitor size. Only the dock's inner
     // geometry changes; resizing a layer surface during magnification or a
@@ -411,12 +495,17 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
     let input_region = if transition.is_some() {
         Vec::new()
     } else {
-        vec![InputArea {
+        let mut regions = vec![InputArea {
             x: dock_x.floor() as i32,
             y: dock_y.floor() as i32,
             width: base_width.ceil().min(monitor.width as f32) as i32,
             height: base_height.ceil().min(monitor.height as f32) as i32,
-        }]
+        }];
+        if let Some(mut picker) = picker_region {
+            picker.x += dock_x.floor() as i32;
+            regions.push(picker);
+        }
+        regions
     };
 
     let window = LayerWindow::new()
@@ -455,6 +544,64 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
             )
             .child(body.translate(0.0, if position == "top" { 12.0 } else { -14.0 })),
     )
+}
+
+fn window_picker(
+    windows: &[RunningWindow],
+    scheme: &Scheme,
+    width: f32,
+    height: f32,
+    x: f32,
+    y: f32,
+) -> Rectangle {
+    let mut rows: Vec<Box<dyn Widget>> = Vec::new();
+    rows.push(Box::new(
+        Rectangle::new()
+            .width(Parent)
+            .height(28.0)
+            .align_child(Start, Center)
+            .child(Text::new(crate::lang::text("Janelas abertas", "Open windows"))
+                .size(11.0)
+                .color(scheme.on_surface_variant)
+                .weight(amane::Weight::SemiBold)),
+    ));
+
+    for window in windows.iter().take(5) {
+        let id = window.id;
+        let title = if window.title.trim().is_empty() {
+            crate::lang::text("Janela sem título", "Untitled window")
+        } else {
+            window.title.as_str()
+        };
+        rows.push(Box::new(
+            Rectangle::new()
+                .width(Parent)
+                .height(38.0)
+                .radius(10.0)
+                .fill(scheme.surface_container_highest)
+                .cursor(Pointer)
+                .on_click(move |button| {
+                    if button == Button::Left {
+                        focus_window(id);
+                        DockUi::close_picker();
+                    }
+                })
+                .padding(10.0)
+                .align_child(Start, Center)
+                .child(Text::new(title).size(12.0).color(scheme.on_surface).elide()),
+        ));
+    }
+
+    Rectangle::new()
+        .width(width)
+        .height(height)
+        .translate(x, y)
+        .padding(8.0)
+        .radius(18.0)
+        .fill(scheme.surface_container)
+        .border(1.0, fade(scheme.outline_variant, 120))
+        .shadow(Shadow::drop(scheme.shadow).opacity(0.38).blur(24.0).offset(0.0, 8.0))
+        .child(Column::new(rows).gap(4.0).width(Parent).height(Parent))
 }
 
 fn dock_shape(
@@ -662,13 +809,15 @@ fn app_item(
         .on_click(move |button| match button {
             Button::Left => {
                 motion::trigger_bounce(bounce_key.clone());
-                if !click_window_ids.is_empty() {
-                    let index = motion::dock_window_index(&focus_key, click_window_ids.len());
-                    if let Some(id) = click_window_ids.get(index) {
-                        focus_window(*id);
-                    }
+                if click_window_ids.len() > 1 {
+                    DockUi::toggle_picker(&launch);
                 } else {
-                    amane::spawn(&launch);
+                    DockUi::close_picker();
+                    if let Some(id) = click_window_ids.first() {
+                        focus_window(*id);
+                    } else {
+                        amane::spawn(&launch);
+                    }
                 }
                 Overlay::close();
             }
