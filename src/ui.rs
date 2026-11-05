@@ -97,6 +97,7 @@ pub struct Ui {
     hover: bool,
     hover_opened_dash: bool,
     media_sheet: bool,
+    wallpaper_index: usize,
 }
 
 impl Service for Ui {
@@ -191,7 +192,7 @@ impl Ui {
     pub fn move_tab(delta: isize) {
         let mut ui = Self::write();
         let current = ui.tab.index() as isize;
-        let next = (current + delta).clamp(0, 4) as u64;
+        let next = (current + delta).rem_euclid(5) as u64;
         ui.tab = match next {
             0 => Tab::Home,
             1 => Tab::Media,
@@ -199,6 +200,22 @@ impl Ui {
             3 => Tab::Wallpapers,
             _ => Tab::Alerts,
         };
+    }
+
+    pub fn wallpaper_index(&self) -> usize {
+        self.wallpaper_index
+    }
+
+    pub fn move_wallpaper(delta: isize, count: usize) {
+        if count == 0 { return; }
+        let mut ui = Self::write();
+        let current = ui.wallpaper_index.min(count - 1) as isize;
+        ui.wallpaper_index = (current + delta).clamp(0, count as isize - 1) as usize;
+    }
+
+    pub fn select_wallpaper(index: usize, count: usize) {
+        if count == 0 { return; }
+        Self::write().wallpaper_index = index.min(count - 1);
     }
 
     pub fn set_hover(hover: bool) {

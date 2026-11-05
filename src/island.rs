@@ -522,6 +522,11 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
             }
 
             if overlay_open {
+                if Ui::read().tab() == crate::ui::Tab::Wallpapers
+                    && dash::handle_wallpaper_key(key)
+                {
+                    return;
+                }
                 match key {
                     Key::Left => Ui::move_tab(-1),
                     Key::Right | Key::Tab => Ui::move_tab(1),

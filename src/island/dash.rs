@@ -6,7 +6,7 @@
 use std::f32::consts::TAU;
 
 use amane::{
-    Arc, Audio, Battery, Brightness, Button, Canvas, Cap, Center, Column, Cpu, Image, Line, Media, Memory, Notifications, Parent,
+    Arc, Audio, Battery, Brightness, Button, Canvas, Cap, Center, Column, Cpu, Image, Key, Line, Media, Memory, Notifications, Parent,
     Pointer, Rectangle, Row, ScrollArea, Service, Shape, SpaceBetween, Start, Widget,
 };
 
@@ -781,15 +781,20 @@ fn wallpapers(scheme: &Scheme) -> Box<dyn Widget> {
 
     let current = String::from(settings.wallpaper());
 
-    let rows: Vec<Box<dyn Widget>> = settings
-        .wallpapers()
+    let wallpaper_paths = settings.wallpapers().to_vec();
+    let selected_index = Ui::read().wallpaper_index();
+    let rows: Vec<Box<dyn Widget>> = wallpaper_paths
         .chunks(3)
-        .map(|chunk| {
+        .enumerate()
+        .map(|(row_index, chunk)| {
             let thumbs: Vec<Box<dyn Widget>> = chunk
                 .iter()
-                .map(|path| boxed(thumb(path, *path == current, scheme)))
+                .enumerate()
+                .map(|(column_index, path)| {
+                    let index = row_index * 3 + column_index;
+                    boxed(thumb(path, *path == current, index == selected_index, scheme))
+                })
                 .collect();
-
             boxed(Row::new(thumbs).gap(GAP))
         })
         .collect();
@@ -825,7 +830,28 @@ fn wallpapers(scheme: &Scheme) -> Box<dyn Widget> {
     )
 }
 
-fn thumb(path: &str, selected: bool, scheme: &Scheme) -> Rectangle {
+pub fn handle_wallpaper_key(key: Key) -> bool {
+    let settings = Settings::read();
+    let count = settings.wallpapers().len();
+    let selected = Ui::read().wallpaper_index().min(count.saturating_sub(1));
+    match key {
+        Key::Left => Ui::move_wallpaper(-1, count),
+        Key::Right => Ui::move_wallpaper(1, count),
+        Key::Up => Ui::move_wallpaper(-3, count),
+        Key::Down => Ui::move_wallpaper(3, count),
+        Key::Home => Ui::select_wallpaper(0, count),
+        Key::End if count > 0 => Ui::select_wallpaper(count - 1, count),
+        Key::Enter if count > 0 => {
+            if let Some(path) = settings.wallpapers().get(selected) {
+                Settings::set_wallpaper_live(path);
+            }
+        }
+        _ => return false,
+    }
+    true
+}
+
+fn thumb(path: &str, selected: bool, focused: bool, scheme: &Scheme) -> Rectangle {
     let owned = String::from(path);
 
     let thumb = Rectangle::new()
@@ -837,7 +863,9 @@ fn thumb(path: &str, selected: bool, scheme: &Scheme) -> Rectangle {
         .cursor(Pointer)
         .on_click(move |_| Settings::set_wallpaper_live(&owned));
 
-    if selected {
+    if focused {
+        thumb.border(3.0, scheme.tertiary)
+    } else if selected {
         thumb.border(3.0, scheme.primary)
     } else {
         thumb
