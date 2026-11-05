@@ -4,8 +4,8 @@ use std::thread;
 use std::time::Duration;
 
 use amane::{
-    Apps, Button, Canvas, Center, Column, DesktopApp, Horizontal, Image, InputArea, Layer, LayerWindow, Monitor,
-    End, Full, Parent, Path, Pointer, Rectangle, Row, Service, Shadow, Shape, Start, Text, Vertical, Widget,
+    Align, Apps, Button, Canvas, Center, Column, DesktopApp, Horizontal, Image, InputArea, Layer, LayerWindow, Monitor,
+    End, Full, Parent, Path, Pointer, Rectangle, Row, Scroll, Service, Shadow, Shape, Start, Text, Vertical, Widget,
     Zone,
 };
 
@@ -522,9 +522,9 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
     let pointer_move_key = pointer_key.clone();
     let pointer_leave_key = pointer_key;
     let horizontal_align = match alignment.as_str() {
-        "left" => Start,
-        "right" => End,
-        _ => Center,
+        "left" => Align::Start,
+        "right" => Align::End,
+        _ => Align::Center,
     };
     window.child(
         Rectangle::new()
@@ -540,9 +540,15 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
             })
             .align_child(
                 horizontal_align,
-                if position == "top" { Start } else { End },
+                if position == "top" { Align::Start } else { Align::End },
             )
-            .child(body.translate(0.0, if position == "top" { 12.0 } else { -14.0 })),
+            .child(
+                Rectangle::new()
+                    .width(base_width)
+                    .height(base_body_height)
+                    .translate(0.0, if position == "top" { 12.0 } else { -14.0 })
+                    .child(body),
+            ),
     )
 }
 
@@ -834,7 +840,7 @@ fn app_item(
                 focus_window(*id);
             }
         })
-        .align_child(Center, if dock_side < 0.0 { End } else { Start })
+        .align_child(Center, if dock_side < 0.0 { Align::End } else { Align::Start })
         .child(
             Rectangle::new()
                 .width(size)
