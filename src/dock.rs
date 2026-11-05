@@ -550,7 +550,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
         0.0
     };
     children.push(Box::new(action_item(
-        "dock:trash", m3::DELETE, scheme, slot, dock_height, trash_proximity, magnification_enabled, dock_scale, dock_side, -1.0,
+        "dock:trash", m3::DELETE, scheme, slot, dock_height, trash_proximity, magnification_enabled, dock_scale, dock_side, -2.0,
         || amane::spawn("xdg-open trash:///"),
     )));
 
