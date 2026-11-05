@@ -255,9 +255,8 @@ pub fn window() -> Window {
         Column::new(vec![
             Box::new(section(TUNE, crate::lang::text("Layout da interface", "Interface layout"), scheme)),
             Box::new(Row::new(vec![
-                boxed(chip("sv:layout-1", crate::lang::text("Ilhas", "Islands"), 88.0, shell_mode == 1, scheme, || Settings::set_shell_mode(1))),
-                boxed(chip("sv:layout-2", "Dock", 88.0, shell_mode == 2, scheme, || Settings::set_shell_mode(2))),
-                boxed(chip("sv:layout-3", crate::lang::text("Dock + barra", "Dock + bar"), 124.0, shell_mode == 3, scheme, || Settings::set_shell_mode(3))),
+                boxed(chip("sv:mode-islands", crate::lang::text("Ilhas", "Islands"), 112.0, shell_mode == 1, scheme, || Settings::set_shell_mode(1))),
+                boxed(chip("sv:mode-dock", "Dock", 112.0, shell_mode == 2, scheme, || Settings::set_shell_mode(2))),
             ]).gap(8.0).width(Parent)),
             Box::new(section(TUNE, crate::lang::text("Linguagem de movimento", "Motion language"), scheme)),
             Box::new(Row::new(vec![
