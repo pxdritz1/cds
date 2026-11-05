@@ -48,7 +48,7 @@ pub fn view(_monitor: &Monitor) -> LayerWindow {
     drop(settings);
     drop(apps);
 
-    let dock_width = (items.len() as f32 * SLOT + SLOT + 16.0).clamp(128.0, 1800.0);
+    let dock_width = (items.len() as f32 * (SLOT + 4.0) + SLOT + 16.0).max(128.0);
 
     let mut children: Vec<Box<dyn Widget>> = items
         .iter()
