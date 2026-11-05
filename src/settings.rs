@@ -238,7 +238,7 @@ impl Settings {
     }
 
     pub fn set_shell_mode(value: u8) {
-        let value = value.clamp(1, 2);
+        let value = value.clamp(1, 3);
         if Self::read().shell_mode == value {
             return;
         }
