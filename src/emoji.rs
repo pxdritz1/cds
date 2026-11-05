@@ -168,16 +168,19 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
                     // color bitmaps. Use the official Noto SVG asset for the visible glyph;
                     // the original Unicode string is still what gets copied to the clipboard.
                     .child(if let Some(path) = emoji_asset(value) {
-                        boxed(Rectangle::new()
+                        Rectangle::new()
+                            .width(34.0)
+                            .height(34.0)
+                            .fill(Image::contain(path).thumbnail(96, 96))
+                    } else {
+                        Rectangle::new()
                             .width(34.0)
                             .height(34.0)
                             .align_child(Center, Center)
-                            .fill(Image::contain(path).thumbnail(96, 96)))
-                    } else {
-                        boxed(amane::Text::new(value)
-                            .size(27.0)
-                            .color(if active { scheme.on_secondary_container } else { scheme.on_surface })
-                            .weight(amane::Weight::Regular))
+                            .child(amane::Text::new(value)
+                                .size(27.0)
+                                .color(if active { scheme.on_secondary_container } else { scheme.on_surface })
+                                .weight(amane::Weight::Regular))
                     })
             )
         }).collect()).gap(6.0))
