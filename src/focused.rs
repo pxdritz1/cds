@@ -215,10 +215,11 @@ mod tests {
             Some(String::from("Chloe ✨")),
         );
     }
+
     #[test]
     fn parses_unicode_surrogate_pairs() {
         assert_eq!(
-            json_string(r#"{"title":"\\uD83D\\uDE80"}"#, "title"),
+            json_string(r#"{"title":"\uD83D\uDE80"}"#, "title"),
             Some(String::from("🚀")),
         );
     }
