@@ -561,7 +561,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
 
     let region_height = if overlay_open { CENTER_HEIGHT } else { height };
 
-    let window = LayerWindow::new()
+    LayerWindow::new()
         .width(CENTER_WIDTH)
         .height(CENTER_HEIGHT)
         .anchor_vertical(Vertical::Top)
@@ -573,8 +573,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
         .space(Zone::Ignore)
         .margin(side_margin)
         .keyboard(keyboard)
-        .namespace("cds-island");
-    window
+        .namespace("cds-island")
         .input_region(vec![InputArea {
             x: region_x as i32,
             y: 0,
