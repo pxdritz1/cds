@@ -188,7 +188,11 @@ pub fn left(monitor: &Monitor) -> LayerWindow {
         .margin(side_margin)
         .namespace("cds-left")
         .input_region(vec![InputArea {
-            x: 0,
+            x: if alignment == "right" {
+                (LEFT_WIDTH - width).max(0.0) as i32
+            } else {
+                0
+            },
             y: 0,
             width: width.ceil() as i32,
             height: height.ceil() as i32,
@@ -227,6 +231,7 @@ pub fn right(monitor: &Monitor) -> LayerWindow {
 
     let tray_open = Tray::read().open();
     let tray_count = Tray::read().items().len();
+    let side_align = if alignment == "left" { Start } else { End };
     let (status, status_width) = compact::status(scheme);
 
     let (content, width, height, radius): (Box<dyn Widget>, f32, f32, f32) = if tray_open {
@@ -239,12 +244,12 @@ pub fn right(monitor: &Monitor) -> LayerWindow {
         let menu_slot = if tray_count == 1 {
             menu_slot.align_child(Center, Center)
         } else {
-            menu_slot.align_child(End, Center)
+            menu_slot.align_child(side_align, Center)
         }
         .child(Stack::new(vec![menu]));
 
         let column = Column::new(vec![status, Box::new(menu_slot)])
-            .align(End)
+            .align(side_align)
             .gap(TRAY_PADDING)
             .width(Parent)
             .height(Parent);
