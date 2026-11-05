@@ -133,7 +133,7 @@ impl DockUi {
             let mut state = Self::write();
             state.drawer_open = !state.drawer_open;
             state.picker = None;
-            state.query.clear();
+            if state.drawer_open { state.query.clear(); }
             state.auto_hidden = false;
             state.last_activity = Instant::now();
             state.drawer_open
@@ -152,13 +152,11 @@ impl DockUi {
             let mut state = Self::write();
             let changed = state.drawer_open;
             state.drawer_open = false;
-            state.query.clear();
             state.auto_hidden = false;
             state.last_activity = Instant::now();
             changed
         };
         if changed {
-            TextInput::set_text(DRAWER_SEARCH_ID, "");
             crate::ui::Ui::refresh();
         }
     }
@@ -400,7 +398,13 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
 
     let running_windows = RunningApps::read().windows.clone();
     let (picker_exec, drawer_open, drawer_query, auto_hidden) = DockUi::read().snapshot();
-    let hide_target = if auto_hide && auto_hidden && !drawer_open && picker_exec.is_none() && transition.is_none() {
+    let drawer_progress = motion::number(
+        &format!("dock:drawer:{}", monitor.name),
+        if drawer_open { 1.0 } else { 0.0 },
+        Duration::from_millis(380),
+    );
+    let drawer_visible = drawer_open || drawer_progress > 0.001;
+    let hide_target = if auto_hide && auto_hidden && !drawer_visible && picker_exec.is_none() && transition.is_none() {
         0.0
     } else {
         1.0
@@ -622,9 +626,10 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
     }
 
     let mut drawer_region = None;
-    if drawer_open {
-        let drawer_width = (monitor.width as f32 - 32.0).max(240.0).min(720.0);
-        let drawer_height = (monitor.height as f32 - 32.0).max(220.0).min(420.0);
+    if drawer_visible {
+        let target_width = (monitor.width as f32 - 32.0).max(240.0).min(720.0).max(base_width);
+        let drawer_width = base_width + (target_width - base_width) * drawer_progress;
+        let drawer_height = (380.0 * drawer_progress).max(1.0);
         let drawer_screen_x = (dock_x + base_width * 0.5 - drawer_width * 0.5)
             .clamp(8.0, (monitor.width as f32 - drawer_width - 8.0).max(8.0));
         let desired_y = if dock_side < 0.0 {
@@ -636,12 +641,14 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
             8.0,
             (monitor.height as f32 - drawer_height - 8.0).max(8.0),
         );
-        drawer_region = Some(InputArea {
-            x: drawer_screen_x.floor() as i32,
-            y: drawer_screen_y.floor() as i32,
-            width: drawer_width.ceil() as i32,
-            height: drawer_height.ceil() as i32,
-        });
+        if drawer_open {
+            drawer_region = Some(InputArea {
+                x: drawer_screen_x.floor() as i32,
+                y: drawer_screen_y.floor() as i32,
+                width: drawer_width.ceil() as i32,
+                height: drawer_height.ceil() as i32,
+            });
+        }
         body_layers.push(Box::new(app_drawer(
             &drawer_apps,
             &drawer_query,
@@ -650,6 +657,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
             drawer_height,
             drawer_screen_x - dock_x,
             drawer_screen_y - body_y,
+            drawer_open,
         )));
     }
 
@@ -749,6 +757,7 @@ fn app_drawer(
     height: f32,
     x: f32,
     y: f32,
+    interactive: bool,
 ) -> Rectangle {
     let needle = query.trim().to_lowercase();
     let mut results: Vec<&DesktopApp> = apps.iter().filter(|app| {
@@ -789,6 +798,13 @@ fn app_drawer(
         .child(Text::new(crate::lang::text("Aplicativos", "Applications"))
             .size(15.0).color(scheme.on_surface).weight(amane::Weight::SemiBold));
 
+    let search_input = TextInput::new(DRAWER_SEARCH_ID)
+        .width(Parent)
+        .size(13.0)
+        .color(scheme.on_surface)
+        .placeholder(crate::lang::text("Buscar aplicativos...", "Search applications..."))
+        .on_change(DockUi::set_query);
+    let search_input = if interactive { search_input.focused() } else { search_input };
     let search = Rectangle::new()
         .width(Parent)
         .height(38.0)
@@ -796,13 +812,7 @@ fn app_drawer(
         .fill(scheme.surface_container_highest)
         .padding(10.0)
         .align_child(Start, Center)
-        .child(TextInput::new(DRAWER_SEARCH_ID)
-            .width(Parent)
-            .size(13.0)
-            .color(scheme.on_surface)
-            .placeholder(crate::lang::text("Buscar aplicativos...", "Search applications..."))
-            .focused()
-            .on_change(DockUi::set_query));
+        .child(search_input);
 
     Rectangle::new()
         .width(width)
@@ -810,6 +820,7 @@ fn app_drawer(
         .translate(x, y)
         .padding(16.0)
         .radius(24.0)
+        .clip()
         .fill(scheme.surface_container)
         .border(1.0, fade(scheme.outline_variant, 120))
         .shadow(Shadow::drop(scheme.shadow).opacity(0.38).blur(28.0).offset(0.0, 10.0))
