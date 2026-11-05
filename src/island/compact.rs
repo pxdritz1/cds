@@ -6,11 +6,12 @@
 use std::time::Duration;
 
 use amane::{
-    Audio, Battery, Bluetooth, Button, Center, Color, Media, Monitor, Network, Parent, Pointer, Rectangle,
+    Apps, Audio, Battery, Bluetooth, Button, Center, Color, Image, Media, Monitor, Network, Parent, Pointer, Rectangle,
     Row, Service, Stack, Widget, Workspace, Workspaces,
 };
 
 use crate::clock::Clock;
+use crate::focused::FocusedWindow;
 use crate::glyphs;
 use crate::m3::{self, Type};
 use crate::motion;
@@ -165,6 +166,11 @@ pub fn workspaces(monitor: &Monitor, scheme: &Scheme) -> (Box<dyn Widget>, f32) 
 
     drop(workspaces);
 
+    let (focused_title, focused_app) = {
+        let focused = FocusedWindow::read();
+        (String::from(focused.title()), String::from(focused.app_id()))
+    };
+
     let mut children: Vec<Box<dyn Widget>> = Vec::new();
     let mut width = SIDE * 2.0 - 6.0;
 
@@ -173,6 +179,57 @@ pub fn workspaces(monitor: &Monitor, scheme: &Scheme) -> (Box<dyn Widget>, f32) 
         width += dots_width + ITEM_GAP;
     }
 
+    if !focused_title.is_empty() {
+        let apps = Apps::read();
+        let app_id = focused_app.to_lowercase();
+        let icon_path = apps
+            .list()
+            .iter()
+            .find(|app| {
+                app.name().eq_ignore_ascii_case(&focused_app)
+                    || app.exec().to_lowercase().contains(&app_id)
+            })
+            .and_then(|app| app.icon_path())
+            .map(|path| path.to_path_buf());
+        drop(apps);
+
+        let icon_widget: Box<dyn Widget> = match icon_path.as_deref() {
+            Some(path) if Image::loaded(path) => boxed(
+                Rectangle::new()
+                    .width(24.0)
+                    .height(24.0)
+                    .radius(7.0)
+                    .clip()
+                    .fill(Image::contain(path).thumbnail(48, 48)),
+            ),
+            _ => boxed(m3::icon(
+                glyphs::application(&focused_title, &focused_app),
+                20.0,
+                scheme.on_surface_variant,
+            )),
+        };
+
+        let title: String = focused_title.chars().take(24).collect();
+        let title = if focused_title.chars().count() > 24 {
+            format!("{title}…")
+        } else {
+            title
+        };
+
+        let title_widget = Rectangle::new()
+            .width(170.0)
+            .height(30.0)
+            .clip()
+            .align_child(Center, Center)
+            .child(m3::scale(Type::LabelSmall, title, scheme.on_surface_variant));
+
+        children.push(boxed(
+            Row::new(vec![icon_widget, boxed(title_widget)])
+                .gap(8.0)
+                .align(Center),
+        ));
+        width += ITEM_GAP + 202.0;
+    }
 
     let row = Row::new(children)
         .gap(ITEM_GAP)
