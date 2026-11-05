@@ -112,8 +112,9 @@ binds {
 
     // CDS launcher and Spotlight
     Mod+D { spawn-sh "amane ipc call open launcher"; }
-    Mod+Space { spawn-sh "amane ipc call open spotlight"; }
-    XF86LaunchB { spawn-sh "amane ipc call open spotlight"; }
+    Mod+Space { spawn-sh "amane ipc call open launcher"; }
+    Mod+Shift+Space { spawn-sh "amane ipc call open spotlight"; }
+    XF86LaunchB { spawn-sh "amane ipc call open launcher"; }
 
     // CDS utility pickers
     Mod+P { spawn-sh "amane ipc call open color"; }

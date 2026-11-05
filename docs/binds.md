@@ -9,7 +9,7 @@ personal setup is in [niri-config.kdl](niri-config.kdl).
 | Shortcut | Action |
 | --- | --- |
 | Mod+D | Application launcher |
-| Mod+Space / XF86LaunchB | Spotlight |
+| Mod+Space / XF86LaunchB | Application launcher |\n| Mod+Shift+Space | Spotlight |
 | Mod+period | Emoji picker |
 | Mod+P | HEX color picker |
 | Mod+Shift+V | Clipboard history |
@@ -24,7 +24,7 @@ Example:
 
 ```kdl
 Mod+D           { spawn-sh "amane ipc call open launcher"; }
-Mod+Space       { spawn-sh "amane ipc call open spotlight"; }
+Mod+Space       { spawn-sh "amane ipc call open launcher"; }\nMod+Shift+Space { spawn-sh "amane ipc call open spotlight"; }
 Mod+period      { spawn-sh "amane ipc call open emoji"; }
 Mod+P           { spawn-sh "amane ipc call open color"; }
 Mod+Shift+V     { spawn-sh "amane ipc call open clipboard"; }
