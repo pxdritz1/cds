@@ -173,24 +173,45 @@ pub fn layer(
         Place::Middle => 0.55,
     };
 
-    let panel = Rectangle::new()
-        .width(if frame.full_screen { Parent } else { frame.width })
-        .height(if frame.full_screen { Parent } else { frame.height })
-        .fill(scheme.surface_container)
-        .radius(if frame.full_screen { 0.0 } else { frame.radius })
-        .clip()
-        .border(1.0, fade(scheme.outline_variant, 70))
-        .shadow(
-            Shadow::drop(scheme.shadow)
-                .opacity(0.40)
-                .blur(36.0)
-                .offset(0.0, 14.0),
-        )
-        .opacity(presence)
-        .scale(0.96 + 0.04 * presence)
-        .translate(0.0, -14.0 * (1.0 - presence))
-        .on_click(|_| {})
-        .child(content);
+    let panel = if frame.full_screen {
+        Rectangle::new()
+            .width(Parent)
+            .height(Parent)
+            .fill(scheme.surface_container)
+            .radius(0.0)
+            .clip()
+            .border(1.0, fade(scheme.outline_variant, 70))
+            .shadow(
+                Shadow::drop(scheme.shadow)
+                    .opacity(0.40)
+                    .blur(36.0)
+                    .offset(0.0, 14.0),
+            )
+            .opacity(presence)
+            .scale(0.96 + 0.04 * presence)
+            .translate(0.0, -14.0 * (1.0 - presence))
+            .on_click(|_| {})
+            .child(content)
+    } else {
+        Rectangle::new()
+            .width(frame.width)
+            .height(frame.height)
+            .fill(scheme.surface_container)
+            .radius(frame.radius)
+            .clip()
+            .border(1.0, fade(scheme.outline_variant, 70))
+            .shadow(
+                Shadow::drop(scheme.shadow)
+                    .opacity(0.40)
+                    .blur(36.0)
+                    .offset(0.0, 14.0),
+            )
+            .opacity(presence)
+            .scale(0.96 + 0.04 * presence)
+            .translate(0.0, -14.0 * (1.0 - presence))
+            .on_click(|_| {})
+            .child(content)
+    };
 
     let padding = match frame.place {
         Place::Under => Padding {
