@@ -5,7 +5,7 @@
  *   amane ipc call closed
  *   amane ipc call dash [home|media|clima|papeis|alertas]
  *   amane ipc call tray [toggle|close|list|focus <id>|close-window <id>]
- *   amane ipc call settings [wallpaper|wallpapers|dark|scheme|directory|location|refresh]
+ *   amane ipc call settings [wallpaper|wallpapers|dark|scheme|directory|location|layout|motion|dock-position|dock-alignment|clock|refresh]
  *   amane ipc call weather
  *   amane ipc call theme ...
  *
@@ -156,7 +156,7 @@ fn toggle_dash(arguments: &[String]) -> String {
 fn settings_verb(arguments: &[String]) -> String {
     use crate::settings::{SCHEMES, Settings};
 
-    const USAGE: &str = "usage: settings wallpaper [image] | wallpapers | dark [true|false|toggle] | scheme [name] | directory [path] | location [lat,lon|auto] | refresh";
+    const USAGE: &str = "usage: settings wallpaper [image] | wallpapers | dark [true|false|toggle] | scheme [name] | directory [path] | location [lat,lon|auto] | layout [1|2|3] | motion [m3|fluent] | dock-position [top|bottom] | dock-alignment [left|center|right] | clock [digital|analog] | refresh";
 
     let [action, rest @ ..] = arguments else {
         return String::from(USAGE);
@@ -229,6 +229,64 @@ fn settings_verb(arguments: &[String]) -> String {
             "" => format!("location={}", Settings::read().location()),
             "auto" | "ip" => Settings::set_location(""),
             spot => Settings::set_location(spot),
+        },
+
+        "layout" => match rest.first().copied() {
+            None => format!("layout={}", Settings::read().shell_mode()),
+            Some(value) => match value.parse::<u8>() {
+                Ok(mode @ 1..=3) => {
+                    Settings::set_shell_mode(mode);
+                    format!("ok: layout={mode}")
+                }
+                _ => String::from("usage: settings layout [1|2|3]"),
+            },
+        },
+
+        "motion" => match rest.first().copied() {
+            None => format!("motion={}", Settings::read().motion_style()),
+            Some("m3") => {
+                Settings::set_motion_style("m3");
+                String::from("ok: motion=m3")
+            }
+            Some("fluent") => {
+                Settings::set_motion_style("fluent");
+                String::from("ok: motion=fluent")
+            }
+            _ => String::from("usage: settings motion [m3|fluent]"),
+        },
+
+        "dock-position" => match rest.first().copied() {
+            None => format!("dock-position={}", Settings::read().dock_position()),
+            Some(value @ ("top" | "bottom")) => {
+                Settings::set_dock_position(value);
+                format!("ok: dock-position={value}")
+            }
+            _ => String::from("usage: settings dock-position [top|bottom]"),
+        },
+
+        "dock-alignment" => match rest.first().copied() {
+            None => format!("dock-alignment={}", Settings::read().dock_alignment()),
+            Some(value @ ("left" | "center" | "right")) => {
+                Settings::set_dock_alignment(value);
+                format!("ok: dock-alignment={value}")
+            }
+            _ => String::from("usage: settings dock-alignment [left|center|right]"),
+        },
+
+        "clock" => match rest.first().copied() {
+            None => format!(
+                "clock={}",
+                if Settings::read().flag("clock_analog") { "analog" } else { "digital" }
+            ),
+            Some("analog") => {
+                Settings::set_flag("clock_analog", true);
+                String::from("ok: clock=analog")
+            }
+            Some("digital") => {
+                Settings::set_flag("clock_analog", false);
+                String::from("ok: clock=digital")
+            }
+            _ => String::from("usage: settings clock [digital|analog]"),
         },
 
         "refresh" => Settings::refresh(),
