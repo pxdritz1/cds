@@ -110,10 +110,10 @@ impl Service for Settings {
                 {
                     None
                 } else {
-                    let current = settings.wallpapers.iter()
+                    let next = settings.wallpapers.iter()
                         .position(|path| path == &settings.wallpaper)
-                        .unwrap_or(0);
-                    Some(settings.wallpapers[(current + 1) % settings.wallpapers.len()].clone())
+                        .map_or(0, |current| (current + 1) % settings.wallpapers.len());
+                    Some(settings.wallpapers[next].clone())
                 }
             };
 
