@@ -1,6 +1,6 @@
 use std::process::Command;
 use std::thread;
-use std::time::Duration;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use amane::Service;
 
@@ -24,8 +24,12 @@ impl Service for Clock {
 
     fn listen() {
         loop {
-            // The UI displays minutes, so polling every five seconds is sufficient.
-            thread::sleep(Duration::from_secs(5));
+            // The clock displays minutes, so align one background refresh to
+            // the next minute instead of spawning date every five seconds.
+            let second = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .map_or(0, |duration| duration.as_secs() % 60);
+            thread::sleep(Duration::from_secs(60 - second));
 
             let Some(fresh) = read() else {
                 continue;
@@ -87,17 +91,23 @@ fn greeting(hour: u32) -> &'static str {
 }
 
 fn read() -> Option<Clock> {
-    let output = ["date", "/usr/bin/date"].iter().find_map(|program| {
-        let mut command = Command::new(program);
-        if crate::settings::Settings::read().language() == "en" {
-            command.env("LC_TIME", "C");
-        }
-        command
-            .arg(if crate::settings::Settings::read().language() == "en" { "+%H:%M%n%I:%M %p%n%A, %B %d%n%a, %b %d%n%H%n%Y %m %d %w" } else { "+%H:%M%n%I:%M %p%n%A, %d de %B%n%a, %d %b%n%H%n%Y %m %d %w" })
-            .output()
-            .ok()
-            .filter(|output| output.status.success())
-    })?;
+    let english = crate::settings::Settings::read().language() == "en";
+    let format = if english {
+        "+%H:%M%n%I:%M %p%n%A, %B %d%n%a, %b %d%n%H%n%Y %m %d %w"
+    } else {
+        "+%H:%M%n%I:%M %p%n%A, %d de %B%n%a, %d %b%n%H%n%Y %m %d %w"
+    };
+
+    let mut command = Command::new("date");
+    if english {
+        command.env("LC_TIME", "C");
+    }
+
+    let output = command
+        .arg(format)
+        .output()
+        .ok()
+        .filter(|output| output.status.success())?;
 
     let text = String::from_utf8(output.stdout).ok()?;
     let mut lines = text.lines().map(str::trim);
