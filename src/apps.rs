@@ -16,8 +16,8 @@ const WIDTH: f32 = 760.0;
 const HEIGHT: f32 = 520.0;
 const PADDING: f32 = 20.0;
 
-const COLUMNS: usize = 4;
-const TILE_WIDTH: f32 = 172.0;
+const COLUMNS: usize = 6;
+const TILE_WIDTH: f32 = 160.0;
 const TILE_HEIGHT: f32 = 112.0;
 
 pub fn view(monitor: &Monitor) -> LayerWindow {
