@@ -296,7 +296,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
         0.0
     };
     children.push(Box::new(action_item(
-        "dock:apps", m3::APPS, scheme, slot, dock_height, apps_proximity, dock_scale, dock_side,
+        "dock:apps", m3::APPS, scheme, slot, dock_height, apps_proximity, magnification_enabled, dock_scale, dock_side,
         || Overlay::toggle(crate::overlay::Panel::Apps),
     )));
     let trash_center = apps_center + slot + 4.0;
@@ -306,7 +306,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
         0.0
     };
     children.push(Box::new(action_item(
-        "dock:trash", m3::DELETE, scheme, slot, dock_height, trash_proximity, dock_scale, dock_side,
+        "dock:trash", m3::DELETE, scheme, slot, dock_height, trash_proximity, magnification_enabled, dock_scale, dock_side,
         || amane::spawn("xdg-open trash:///"),
     )));
 
@@ -377,6 +377,23 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
 
 fn gaussian(distance: f32) -> f32 {
     (-distance * distance).exp()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::gaussian;
+
+    #[test]
+    fn magnification_is_maximum_at_the_pointer() {
+        assert!((gaussian(0.0) - 1.0).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn magnification_falls_off_symmetrically() {
+        assert!((gaussian(-0.75) - gaussian(0.75)).abs() < f32::EPSILON);
+        assert!(gaussian(1.0) < gaussian(0.5));
+        assert!(gaussian(2.0) < gaussian(1.0));
+    }
 }
 
 fn app_item(
@@ -493,13 +510,14 @@ fn action_item(
     slot: f32,
     dock_height: f32,
     proximity: f32,
+    magnification: bool,
     transition_scale: f32,
     dock_side: f32,
     action: impl Fn() + 'static,
 ) -> Rectangle {
     let hover = motion::hover(key);
     let action_size = ACTION_ICON.min((dock_height - 28.0).max(1.0) * 0.72);
-    let proximity = proximity.max(hover);
+    let proximity = if magnification { proximity.max(hover) } else { 0.0 };
     let scale = motion::number(
         &format!("{key}:scale"),
         1.0 + 0.48 * proximity,
