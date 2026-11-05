@@ -548,7 +548,9 @@ fn app_item(
     let bounce = motion::bounce(&key) * dock_side;
     let launch = exec.clone();
     let bounce_key = key.clone();
-    let window_id = window_ids.first().map(|id| id.to_string());
+    let focus_key = key.clone();
+    let scroll_key = key.clone();
+    let window_ids = window_ids.to_vec();
     let window_count = window_ids.len();
 
     let icon: Box<dyn Widget> = match app.icon_path() {
@@ -625,10 +627,13 @@ fn app_item(
         .on_click(move |button| match button {
             Button::Left => {
                 motion::trigger_bounce(bounce_key.clone());
-                if let Some(id) = window_id.as_deref() {
-                    let _ = Command::new("niri")
-                        .args(["msg", "action", "focus-window", "--id", id])
-                        .spawn();
+                if !window_ids.is_empty() {
+                    let index = motion::dock_window_index(&focus_key, window_ids.len());
+                    if let Some(id) = window_ids.get(index) {
+                        let _ = Command::new("niri")
+                            .args(["msg", "action", "focus-window", "--id", &id.to_string()])
+                            .spawn();
+                    }
                 } else {
                     amane::spawn(&launch);
                 }
@@ -636,6 +641,18 @@ fn app_item(
             }
             Button::Right => Settings::toggle_pinned(&launch),
             _ => {}
+        })
+        .on_scroll(move |scroll: Scroll| {
+            if window_ids.len() < 2 || scroll.y == 0.0 {
+                return;
+            }
+            let delta = if scroll.y > 0.0 { 1 } else { -1 };
+            let index = motion::cycle_dock_window(&scroll_key, delta, window_ids.len());
+            if let Some(id) = window_ids.get(index) {
+                let _ = Command::new("niri")
+                    .args(["msg", "action", "focus-window", "--id", &id.to_string()])
+                    .spawn();
+            }
         })
         .align_child(Center, Center)
         .child(
