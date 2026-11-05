@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -35,7 +35,8 @@ pub struct Settings {
     flags: BTreeMap<String, bool>,
     hover_delay_ms: u64,
     language: String,
-    pinned_apps: BTreeSet<String>,
+    pinned_apps: Vec<String>,
+    dock_icon_size: u32,
     media_title_max_width: u32,
     wallpaper_rotation: bool,
     wallpaper_interval_minutes: u32,
@@ -64,7 +65,8 @@ impl Service for Settings {
             flags: BTreeMap::new(),
             hover_delay_ms: 500,
             language: String::from("pt-BR"),
-            pinned_apps: BTreeSet::new(),
+            pinned_apps: Vec::new(),
+            dock_icon_size: 48,
             media_title_max_width: 320,
             wallpaper_rotation: false,
             wallpaper_interval_minutes: 30,
@@ -181,6 +183,10 @@ impl Settings {
         &self.motion_style
     }
 
+    pub fn dock_icon_size(&self) -> u32 { self.dock_icon_size }
+
+    pub fn pinned_apps(&self) -> &[String] { &self.pinned_apps }
+
     pub fn dock_position(&self) -> &str {
         &self.dock_position
     }
@@ -211,6 +217,14 @@ impl Settings {
         let mut settings = Self::write();
         settings.motion_style = if value == "fluent" { String::from("fluent") } else { String::from("m3") };
         settings.save();
+    }
+
+    pub fn set_dock_icon_size(value: u32) {
+        let mut settings = Self::write();
+        settings.dock_icon_size = value.clamp(28, 72);
+        settings.save();
+        drop(settings);
+        crate::ui::Ui::refresh();
     }
 
     pub fn set_dock_position(value: &str) {
@@ -285,10 +299,14 @@ impl Settings {
 
     pub fn toggle_pinned(exec: &str) {
         let mut settings = Self::write();
-        if !settings.pinned_apps.remove(exec) {
-            settings.pinned_apps.insert(String::from(exec));
+        if let Some(index) = settings.pinned_apps.iter().position(|item| item == exec) {
+            settings.pinned_apps.remove(index);
+        } else {
+            settings.pinned_apps.push(String::from(exec));
         }
         settings.save();
+        drop(settings);
+        crate::ui::Ui::refresh();
     }
 
     pub fn set_language(language: &str) {
@@ -566,7 +584,7 @@ impl Settings {
                 "directory" => self.directory = expand_home_path(value),
                 "location" => self.location = String::from(value),
                 "language" => self.language = if value == "en" { String::from("en") } else { String::from("pt-BR") },
-                "pinned_app" => { self.pinned_apps.insert(String::from(value)); },
+                "pinned_app" => { if !self.pinned_apps.iter().any(|item| item == value) { self.pinned_apps.push(String::from(value)); } },
                 "media_title_max_width" => {
                     self.media_title_max_width = value.parse::<u32>().unwrap_or(320).clamp(104, 520)
                 },
@@ -578,6 +596,7 @@ impl Settings {
                 "motion_style" => self.motion_style = if value == "fluent" { String::from("fluent") } else { String::from("m3") },
                 "dock_position" => self.dock_position = if value == "top" { String::from("top") } else { String::from("bottom") },
                 "dock_alignment" => self.dock_alignment = match value { "left" => String::from("left"), "right" => String::from("right"), _ => String::from("center") },
+                "dock_icon_size" => self.dock_icon_size = value.parse::<u32>().unwrap_or(48).clamp(28, 72),
                 "workspaces_alignment" => self.workspaces_alignment = if value == "right" { String::from("right") } else { String::from("left") },
                 "center_alignment" => self.center_alignment = match value { "left" => String::from("left"), "right" => String::from("right"), _ => String::from("center") },
                 "status_alignment" => self.status_alignment = if value == "left" { String::from("left") } else { String::from("right") },
@@ -601,7 +620,7 @@ impl Settings {
         }
 
         let mut text = format!(
-            "wallpaper={}\nscheme={}\ndark={}\ndirectory={}\nlocation={}\nhover_delay_ms={}\nlanguage={}\nmedia_title_max_width={}\nwallpaper_rotation={}\nwallpaper_interval_minutes={}\nshell_mode={}\nmotion_style={}\ndock_position={}\ndock_alignment={}\nworkspaces_alignment={}\ncenter_alignment={}\nstatus_alignment={}\n",
+            "wallpaper={}\nscheme={}\ndark={}\ndirectory={}\nlocation={}\nhover_delay_ms={}\nlanguage={}\nmedia_title_max_width={}\nwallpaper_rotation={}\nwallpaper_interval_minutes={}\nshell_mode={}\nmotion_style={}\ndock_position={}\ndock_alignment={}\ndock_icon_size={}\nworkspaces_alignment={\ncenter_alignment={}\nstatus_alignment={}\n",
             self.wallpaper,
             self.scheme,
             self.dark,
@@ -616,6 +635,7 @@ impl Settings {
             self.motion_style,
             self.dock_position,
             self.dock_alignment,
+            self.dock_icon_size,
             self.workspaces_alignment,
             self.center_alignment,
             self.status_alignment,
