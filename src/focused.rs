@@ -78,7 +78,12 @@ fn publish(fresh: Option<FocusedWindow>) {
         return;
     };
 
-    if *FocusedWindow::read() != fresh {
+    let changed = {
+        let current = FocusedWindow::read();
+        *current != fresh
+    };
+
+    if changed {
         *FocusedWindow::write() = fresh;
     }
 }
