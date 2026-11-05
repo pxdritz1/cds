@@ -7,6 +7,7 @@ mod art;
 mod clipboard;
 mod clock;
 mod control;
+mod dock;
 mod color;
 mod emoji;
 mod glyphs;
@@ -40,6 +41,7 @@ fn main() {
         .window_per_monitor(island::left)
         .window_per_monitor(island::view)
         .window_per_monitor(island::right)
+        .window_per_monitor(dock::view)
         .window_per_monitor(apps::view)
         .window_per_monitor(spotlight::view)
         .window_per_monitor(launcher::view)
