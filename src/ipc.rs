@@ -82,7 +82,7 @@ pub fn root(arguments: &[String]) -> String {
  */
 fn show(arguments: &[String]) -> String {
     let Some(name) = arguments.first() else {
-        return String::from("usage: open launcher|apps|spotlight|clipboard|power|control|config");
+        return String::from("usage: open launcher|apps|spotlight|clipboard|power|control|config|color|emoji");
     };
 
     let panel = match name.as_str() {
@@ -97,6 +97,14 @@ fn show(arguments: &[String]) -> String {
         "emoji" | "emoji-picker" => Panel::Emoji,
         _ => return format!("failed: unknown panel {name}"),
     };
+
+    if Overlay::read().panel() != panel {
+        match panel {
+            Panel::Color => crate::color::ColorPicker::reset(),
+            Panel::Emoji => crate::emoji::EmojiPicker::reset(),
+            _ => {}
+        }
+    }
 
     Overlay::toggle(panel);
 
