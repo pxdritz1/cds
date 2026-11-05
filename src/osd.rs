@@ -174,6 +174,10 @@ mod tests {
 
     #[test]
     fn queues_simultaneous_volume_and_microphone_changes() {
+        MEMORY.with(|memory| {
+            memory.borrow_mut().remove("test-simultaneous-osd");
+        });
+
         let before = Snapshot {
             volume: 35,
             muted: false,
