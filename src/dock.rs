@@ -502,7 +502,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
             picker_anchor = Some(center);
         }
         let proximity = if magnification_enabled {
-            pointer_x.map_or(0.0, |x| if (x - center).abs() <= slot * 0.5 { 1.0 } else { 0.0 })
+            pointer_x.map_or(0.0, |x| gaussian((x - center) / 46.0))
         } else {
             0.0
         };
@@ -515,7 +515,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
 
     let apps_center = row_cursor + slot * 0.5;
     let apps_proximity = if magnification_enabled {
-        pointer_x.map_or(0.0, |x| if (x - apps_center).abs() <= slot * 0.5 { 1.0 } else { 0.0 })
+        pointer_x.map_or(0.0, |x| gaussian((x - apps_center) / 46.0))
     } else {
         0.0
     };
@@ -525,7 +525,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
     )));
     let trash_center = apps_center + slot + 4.0;
     let trash_proximity = if magnification_enabled {
-        pointer_x.map_or(0.0, |x| if (x - trash_center).abs() <= slot * 0.5 { 1.0 } else { 0.0 })
+        pointer_x.map_or(0.0, |x| gaussian((x - trash_center) / 46.0))
     } else {
         0.0
     };
@@ -1054,7 +1054,7 @@ fn app_item(
     let scale = motion::number(
         &format!("{key}:scale"),
         1.0 + 0.62 * proximity,
-        motion::style_duration(90, 90),
+        motion::style_duration(190, 170),
     );
     let size = icon_base * scale;
     let rise = (8.0 + 10.0 * proximity) * transition_scale;
