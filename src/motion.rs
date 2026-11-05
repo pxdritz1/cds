@@ -215,6 +215,8 @@ thread_local! {
     static NUMBERS: RefCell<HashMap<String, Track<f32>>> = RefCell::new(HashMap::new());
     static COLORS: RefCell<HashMap<String, Track<Color>>> = RefCell::new(HashMap::new());
     static PRESENCES: RefCell<HashMap<String, Track<f32>>> = RefCell::new(HashMap::new());
+    // Pointer coordinates are local to each Dock's stable LayerWindow.
+    static DOCK_POINTERS: RefCell<HashMap<String, Option<f32>>> = RefCell::new(HashMap::new());
 }
 
 // the island growing or shrinking between its compact, peek and dash sizes
@@ -369,6 +371,16 @@ pub fn color(key: &str, target: Color, duration: Duration) -> Color {
 
         track.value()
     })
+}
+
+pub fn set_pointer_x(key: impl Into<String>, x: Option<f32>) {
+    DOCK_POINTERS.with(|pointers| {
+        pointers.borrow_mut().insert(key.into(), x);
+    });
+}
+
+pub fn pointer_x(key: &str) -> Option<f32> {
+    DOCK_POINTERS.with(|pointers| pointers.borrow().get(key).copied().flatten())
 }
 
 pub const WORKSPACE_DURATION: Duration = WORKSPACE;
