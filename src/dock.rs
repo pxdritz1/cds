@@ -20,9 +20,10 @@ pub fn view(_monitor: &Monitor) -> LayerWindow {
     let mode = settings.shell_mode();
     let position = String::from(settings.dock_position());
     let alignment = String::from(settings.dock_alignment());
+    let dock_enabled = settings.flag("show_dock");
     drop(settings);
 
-    let visible = mode == 2 || mode == 3;
+    let visible = dock_enabled && (mode == 2 || mode == 3);
 
     if !visible {
         return LayerWindow::new()
