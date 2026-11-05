@@ -478,7 +478,7 @@ fn app_item(
                 .radius(4.0)
                 .fill(scheme.primary)
                 .border(1.0, scheme.surface_container_high)
-                .translate(0.0, -dock_side * (size * 0.5 - 3.0)),
+                .translate((size - 7.0) * 0.5, if dock_side < 0.0 { size - 3.0 } else { -4.0 }),
         ));
     }
     if window_count > 1 {
@@ -489,7 +489,7 @@ fn app_item(
                 .radius(10.0)
                 .fill(scheme.primary)
                 .border(2.0, scheme.surface_container_high)
-                .translate(size * 0.34, dock_side * size * 0.36)
+                .translate(size - 10.0, if dock_side < 0.0 { -9.0 } else { size - 10.0 })
                 .align_child(Center, Center)
                 .child(Text::new(window_count.to_string()).size(9.5).color(scheme.on_primary).weight(amane::Weight::Bold).tight()),
         ));
@@ -502,14 +502,14 @@ fn app_item(
     );
     layers.push(Box::new(
         Rectangle::new()
-            .width(148.0)
+            .width(100.0)
             .height(22.0)
             .radius(8.0)
             .fill(scheme.surface_container_highest)
             .opacity(label_alpha)
-            .translate(-(148.0 - size) * 0.5, dock_side * (size * 0.5 + 20.0))
+            .translate(-(100.0 - size) * 0.5, if dock_side < 0.0 { -30.0 } else { size + 8.0 })
             .align_child(Center, Center)
-            .child(Text::new(app.name()).size(11.0).color(scheme.on_surface).weight(amane::Weight::Medium)),
+            .child(Text::new(app.name()).size(11.0).color(scheme.on_surface).weight(amane::Weight::Medium).elide()),
     ));
 
     Rectangle::new()
