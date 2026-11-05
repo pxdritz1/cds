@@ -192,6 +192,7 @@ pub fn window() -> Window {
     let dock_alignment = String::from(settings.dock_alignment());
     let dock_icon_size = settings.dock_icon_size();
     let dock_magnification = settings.flag("dock_magnification");
+    let dock_auto_hide = settings.flag("dock_auto_hide");
     let workspaces_alignment = String::from(settings.workspaces_alignment());
     let center_alignment = String::from(settings.center_alignment());
     let status_alignment = String::from(settings.status_alignment());
@@ -251,7 +252,7 @@ pub fn window() -> Window {
         })
         .collect();
 
-    let interface = settings_card(WIDTH - PADDING * 2.0, 610.0, scheme.surface_container_low).child(
+    let interface = settings_card(WIDTH - PADDING * 2.0, 670.0, scheme.surface_container_low).child(
         Column::new(vec![
             Box::new(section(TUNE, crate::lang::text("Modo da interface", "Interface mode"), scheme)),
             Box::new(Row::new(vec![
@@ -287,6 +288,11 @@ pub fn window() -> Window {
             Box::new(Row::new(vec![
                 boxed(chip("sv:dock-magnify-on", crate::lang::text("Ativada", "On"), 100.0, dock_magnification, scheme, || Settings::set_flag("dock_magnification", true))),
                 boxed(chip("sv:dock-magnify-off", crate::lang::text("Desativada", "Off"), 100.0, !dock_magnification, scheme, || Settings::set_flag("dock_magnification", false))),
+            ]).gap(8.0).width(Parent)),
+            Box::new(section(TUNE, crate::lang::text("Ocultar automaticamente", "Auto-hide Dock"), scheme)),
+            Box::new(Row::new(vec![
+                boxed(chip("sv:dock-autohide-on", crate::lang::text("Ativado", "On"), 100.0, dock_auto_hide, scheme, || Settings::set_flag("dock_auto_hide", true))),
+                boxed(chip("sv:dock-autohide-off", crate::lang::text("Desativado", "Off"), 100.0, !dock_auto_hide, scheme, || Settings::set_flag("dock_auto_hide", false))),
             ]).gap(8.0).width(Parent)),
             Box::new(section(TUNE, crate::lang::text("Visibilidade das ilhas", "Island visibility"), scheme)),
             Box::new(Row::new(vec![

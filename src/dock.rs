@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
 use std::thread;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use amane::{
     Align, Apps, Button, Canvas, Center, Column, DesktopApp, Horizontal, Image, InputArea, Keyboard, Key, Layer, LayerWindow, Monitor,
@@ -31,25 +31,75 @@ struct RunningApps {
     windows: Vec<RunningWindow>,
 }
 
-#[derive(Default)]
 struct DockUi {
     picker: Option<String>,
     drawer_open: bool,
     query: String,
+    hovered: bool,
+    last_activity: Instant,
+    auto_hidden: bool,
+}
+
+impl Default for DockUi {
+    fn default() -> Self {
+        Self {
+            picker: None,
+            drawer_open: false,
+            query: String::new(),
+            hovered: false,
+            last_activity: Instant::now(),
+            auto_hidden: false,
+        }
+    }
 }
 
 impl Service for DockUi {
     fn new() -> Self { Self::default() }
-    fn listen() {}
+
+    fn listen() {
+        loop {
+            let auto_hide = Settings::read().flag("dock_auto_hide");
+            let changed = {
+                let mut state = Self::write();
+                let protected = state.hovered || state.drawer_open || state.picker.is_some();
+                let should_hide = auto_hide
+                    && !protected
+                    && state.last_activity.elapsed() >= Duration::from_millis(1600);
+                if state.auto_hidden != should_hide {
+                    state.auto_hidden = should_hide;
+                    true
+                } else {
+                    false
+                }
+            };
+            if changed { crate::ui::Ui::refresh(); }
+            thread::sleep(Duration::from_millis(if auto_hide { 80 } else { 250 }));
+        }
+    }
 }
 
 impl DockUi {
-    fn snapshot(&self) -> (Option<String>, bool, String) {
+    fn snapshot(&self) -> (Option<String>, bool, String, bool) {
         (
             if self.drawer_open { None } else { self.picker.clone() },
             self.drawer_open,
             self.query.clone(),
+            self.auto_hidden,
         )
+    }
+
+    fn set_hovered(inside: bool) {
+        let changed = {
+            let mut state = Self::write();
+            let changed = state.hovered != inside || (inside && state.auto_hidden);
+            if changed {
+                state.hovered = inside;
+                state.last_activity = Instant::now();
+            }
+            if inside { state.auto_hidden = false; }
+            changed
+        };
+        if changed { crate::ui::Ui::refresh(); }
     }
 
     fn toggle_picker(exec: &str) {
@@ -61,6 +111,8 @@ impl DockUi {
         };
         state.drawer_open = false;
         state.query.clear();
+        state.auto_hidden = false;
+        state.last_activity = Instant::now();
         drop(state);
         crate::ui::Ui::refresh();
     }
@@ -70,6 +122,7 @@ impl DockUi {
             let mut state = Self::write();
             let changed = state.picker.is_some();
             state.picker = None;
+            state.last_activity = Instant::now();
             changed
         };
         if changed { crate::ui::Ui::refresh(); }
@@ -81,6 +134,8 @@ impl DockUi {
             state.drawer_open = !state.drawer_open;
             state.picker = None;
             state.query.clear();
+            state.auto_hidden = false;
+            state.last_activity = Instant::now();
             state.drawer_open
         };
         if open { TextInput::set_text(DRAWER_SEARCH_ID, ""); }
@@ -98,6 +153,8 @@ impl DockUi {
             let changed = state.drawer_open;
             state.drawer_open = false;
             state.query.clear();
+            state.auto_hidden = false;
+            state.last_activity = Instant::now();
             changed
         };
         if changed {
@@ -318,10 +375,21 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
     let pinned = settings.pinned_apps().to_vec();
     let icon_size = settings.dock_icon_size() as f32;
     let magnification = settings.flag("dock_magnification");
+    let auto_hide = settings.flag("dock_auto_hide");
     drop(settings);
 
     let running_windows = RunningApps::read().windows.clone();
-    let (picker_exec, drawer_open, drawer_query) = DockUi::read().snapshot();
+    let (picker_exec, drawer_open, drawer_query, auto_hidden) = DockUi::read().snapshot();
+    let hide_target = if auto_hide && auto_hidden && !drawer_open && picker_exec.is_none() && transition.is_none() {
+        0.0
+    } else {
+        1.0
+    };
+    let reveal_progress = motion::number(
+        &format!("dock:auto-hide:{}", monitor.name),
+        hide_target,
+        Duration::from_millis(360),
+    );
     let mut items: Vec<(DesktopApp, Vec<u64>, bool)> = Vec::new();
 
     for exec in &pinned {
@@ -374,6 +442,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
     } else {
         (monitor.height as f32 - base_body_height - 14.0).max(0.0)
     };
+    let hide_offset = hidden_offset(&position, base_body_height) * (1.0 - reveal_progress);
 
     let slot = (base_slot * dock_scale).max(1.0);
     let dock_height = (base_body_height * dock_scale).max(1.0);
@@ -575,10 +644,17 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
     // not steal clicks from applications.
     let input_region = if transition.is_some() {
         Vec::new()
+    } else if auto_hide && auto_hidden && reveal_progress <= 0.001 {
+        vec![InputArea {
+            x: 0,
+            y: if position == "top" { 0 } else { (monitor.height as i32 - 4).max(0) },
+            width: monitor.width as i32,
+            height: 4,
+        }]
     } else {
         let mut regions = vec![InputArea {
             x: dock_x.floor() as i32,
-            y: dock_y.floor() as i32,
+            y: (dock_y + hide_offset).floor().max(0.0) as i32,
             width: base_width.ceil().min(monitor.width as f32) as i32,
             height: base_height.ceil().min(monitor.height as f32) as i32,
         }];
@@ -623,6 +699,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
                 motion::set_pointer_x(pointer_move_key.clone(), Some(point.x - dock_x));
             })
             .on_hover(move |inside| {
+                DockUi::set_hovered(inside);
                 if !inside {
                     motion::set_pointer_x(pointer_leave_key.clone(), None);
                 }
@@ -635,7 +712,10 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
                 Rectangle::new()
                     .width(base_width)
                     .height(base_body_height)
-                    .translate(0.0, if position == "top" { 12.0 } else { -14.0 })
+                    .translate(
+                        0.0,
+                        (if position == "top" { 12.0 } else { -14.0 }) + hide_offset,
+                    )
                     .child(body),
             ),
     )
@@ -883,6 +963,10 @@ fn dock_shape(
         .shapes(vec![Box::new(path) as Box<dyn Shape>])
 }
 
+fn hidden_offset(position: &str, body_height: f32) -> f32 {
+    if position == "top" { -(body_height + 8.0) } else { body_height + 10.0 }
+}
+
 fn gaussian(distance: f32) -> f32 {
     (-distance * distance).exp()
 }
@@ -901,6 +985,13 @@ mod tests {
         assert!((gaussian(-0.75) - gaussian(0.75)).abs() < f32::EPSILON);
         assert!(gaussian(1.0) < gaussian(0.5));
         assert!(gaussian(2.0) < gaussian(1.0));
+    }
+
+    #[test]
+    fn auto_hide_leaves_four_pixels_at_both_edges() {
+        let height = 120.0;
+        assert_eq!(12.0 + hidden_offset("top", height) + height, 4.0);
+        assert_eq!(-14.0 + hidden_offset("bottom", height), height - 4.0);
     }
 
     #[test]
