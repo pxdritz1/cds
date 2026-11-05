@@ -803,7 +803,7 @@ fn wallpapers(scheme: &Scheme) -> Box<dyn Widget> {
             let thumbs: Vec<Box<dyn Widget>> = chunk
                 .iter()
                 .map(|(index, path)| {
-                    boxed(thumb(path, **path == current, **index == selected_index, scheme))
+                    boxed(thumb(path, **path == current, *index == selected_index, scheme))
                 })
                 .collect();
             boxed(Row::new(thumbs).gap(GAP))
