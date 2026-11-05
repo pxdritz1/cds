@@ -105,10 +105,8 @@ pub fn reserve(monitor: &Monitor) -> LayerWindow {
         && !notification_preview_active();
     let notice_active = notification_preview_active() && !ui.dash();
     let media_expanded = motion::hover(&format!("media-island:{}", monitor.name)) > 0.5;
-    let reserved_height = if media_visible && media_expanded {
-        peek::MEDIA_HEIGHT + 6.0
-    } else if media_visible {
-        peek::MEDIA_COMPACT_HEIGHT + 6.0
+    let reserved_height = if media_visible {
+        RESERVED
     } else if notice_active && ui.hover() {
         peek::NOTICE_HEIGHT + 6.0
     } else if notice_active {
@@ -478,19 +476,13 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
             }
         },
 
+        // Keep the media player inside the exact same 260x40 footprint as
+        // the regular center island. Playback changes content, never geometry.
         IslandMode::Media => (
-            peek::media(scheme, alpha, media_expanded),
-            peek::media_width(),
-            if media_expanded {
-                peek::MEDIA_HEIGHT
-            } else {
-                peek::MEDIA_COMPACT_HEIGHT
-            },
-            if media_expanded {
-                crate::m3::shape::ISLAND_EXPANDED
-            } else {
-                crate::m3::shape::ISLAND_COMPACT
-            },
+            peek::media(scheme, alpha, false),
+            260.0,
+            BAR_HEIGHT,
+            crate::m3::shape::ISLAND_COMPACT,
         ),
 
         IslandMode::Compact => {
