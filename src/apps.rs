@@ -10,6 +10,7 @@ use amane::{
 use crate::m3::{self, Type, badge_shape, boxed, scale, scale_label, state_layer};
 use crate::motion;
 use crate::overlay::{self, Overlay, Panel};
+use crate::settings::Settings;
 use crate::theme::{Scheme, Theme};
 
 const PADDING: f32 = 20.0;
@@ -35,7 +36,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
             .map(|(column, app)| boxed(app_tile(app, &scheme, row * COLUMNS + column)))
             .collect();
 
-        rows.push(boxed(Row::new(items).gap(8.0)));
+        rows.push(boxed(Row::new(items).gap(12.0).width(Parent).justify(Center)));
     }
 
     let grid: Box<dyn Widget> = if rows.is_empty() {
@@ -95,8 +96,8 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
         open,
         scheme,
         overlay::Frame {
-            width: WIDTH,
-            height: HEIGHT,
+            width: 0.0,
+            height: 0.0,
             radius: m3::shape::XL,
             place: overlay::Place::Middle,
             full_screen: true,
@@ -151,6 +152,7 @@ fn app_tile(app: &DesktopApp, scheme: &Scheme, index: usize) -> Rectangle {
     .align(Center)
     .justify(Center);
 
+    let exec = String::from(app.exec());
     let app = app.clone();
 
     Rectangle::new()
@@ -164,12 +166,13 @@ fn app_tile(app: &DesktopApp, scheme: &Scheme, index: usize) -> Rectangle {
         .radius(m3::shape::MD)
         .cursor(Pointer)
         .on_hover(move |inside| motion::set_hover(owned.clone(), inside))
-        .on_click(move |button| {
-            if button == Button::Left {
+        .on_click(move |button| match button {
+            Button::Left => {
                 app.launch();
-
                 Overlay::close();
             }
+            Button::Right => Settings::toggle_pinned(&exec),
+            _ => {}
         })
         .child(body)
 }
