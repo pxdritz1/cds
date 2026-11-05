@@ -451,8 +451,8 @@ fn dock_shape(
         }
     };
 
-    let radius = 30.0_f32.min(shape_height * 0.5);
-    let wing = 16.0_f32.min(shape_height * 0.5);
+    let radius = 30.0_f32.min(shape_height * 0.5).min(shape_width / 3.0);
+    let wing = 16.0_f32.min(shape_height * 0.5).min(shape_width / 6.0);
     let right = x0 + shape_width;
     let path = Path::new()
         .move_to(x0, map_y(0.0))
