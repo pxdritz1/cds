@@ -417,8 +417,7 @@ fn desktop_data_dirs() -> Vec<PathBuf> {
         dirs.push(home.join("applications"));
     }
     let system_dirs = env::var_os("XDG_DATA_DIRS")
-        .map(PathBuf::from)
-        .map(|_| env::split_paths(&env::var_os("XDG_DATA_DIRS").unwrap_or_default()).collect::<Vec<_>>())
+        .map(|dirs| env::split_paths(&dirs).collect::<Vec<_>>())
         .unwrap_or_else(|| vec![PathBuf::from("/usr/local/share"), PathBuf::from("/usr/share")]);
     dirs.extend(system_dirs.into_iter().map(|dir| dir.join("applications")));
     dirs
@@ -678,10 +677,15 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
             let menu_width = 190.0_f32;
             let menu_height = (desktop_actions(app).len() as f32 + 3.0) * 25.0 + 18.0;
             let item_height = (dock_height - 28.0).max(1.0);
-            let item_y = if dock_side < 0.0 {
-                dock_y + hide_offset + shape_y + 8.0 + item_height - icon_size_now - (8.0 + 10.0 * proximity) * dock_scale
+            let menu_shape_y = if dock_side < 0.0 {
+                base_body_height - (dock_height - 12.0).max(1.0)
             } else {
-                dock_y + hide_offset + shape_y + 8.0 + (8.0 + 10.0 * proximity) * dock_scale
+                0.0
+            };
+            let item_y = if dock_side < 0.0 {
+                dock_y + hide_offset + menu_shape_y + 8.0 + item_height - icon_size_now - (8.0 + 10.0 * proximity) * dock_scale
+            } else {
+                dock_y + hide_offset + menu_shape_y + 8.0 + (8.0 + 10.0 * proximity) * dock_scale
             };
             let menu_x = dock_x + row_cursor + slot * 0.5 - menu_width * 0.5;
             let menu_y = if dock_side < 0.0 { item_y - menu_height - 4.0 } else { item_y };
@@ -1258,6 +1262,7 @@ fn app_item(
     let scroll_key = key.clone();
     let click_window_ids = window_ids.to_vec();
     let scroll_window_ids = window_ids.to_vec();
+    let drag_exec = exec.clone();
     let window_count = window_ids.len();
 
     let icon: Box<dyn Widget> = match app.icon_path() {
@@ -1408,10 +1413,10 @@ fn app_item(
             let mut direction = 0isize;
             {
                 let mut state = DockUi::write();
-                if state.drag_exec.as_deref() != Some(launch.as_str())
+                if state.drag_exec.as_deref() != Some(drag_exec.as_str())
                     || state.drag_last_event.elapsed() > Duration::from_millis(300)
                 {
-                    state.drag_exec = Some(launch.clone());
+                    state.drag_exec = Some(drag_exec.clone());
                     state.drag_last_x = point.x;
                     state.drag_accum = 0.0;
                     state.drag_moved = false;
@@ -1432,7 +1437,7 @@ fn app_item(
                 }
             }
             for _ in 0..steps {
-                Settings::move_pinned(&launch, direction);
+                Settings::move_pinned(&drag_exec, direction);
             }
         })
         .on_scroll(move |scroll: Scroll| {
