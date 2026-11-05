@@ -59,16 +59,54 @@ fn read_running_windows() -> Vec<RunningWindow> {
     if !output.status.success() { return Vec::new(); }
 
     let json = String::from_utf8_lossy(&output.stdout);
-    let app_ids = json_string_values(&json, "app_id");
-    let window_ids = json_number_values(&json, "id");
-    if app_ids.len() != window_ids.len() { return Vec::new(); }
-
-    app_ids.into_iter().zip(window_ids)
-        .filter(|(app_id, _)| !app_id.is_empty())
-        .map(|(app_id, id)| RunningWindow { id, app_id })
-        .collect()
+    let mut windows = Vec::new();
+    for object in json_objects(&json) {
+        let app_ids = json_string_values(object, "app_id");
+        let ids = json_number_values(object, "id");
+        // Ignore parent objects and windows without an app_id; their nested
+        // fields must never be paired with another window's identifier.
+        if app_ids.len() != 1 || ids.len() != 1 { continue; }
+        let app_id = app_ids.into_iter().next().unwrap_or_default();
+        let id = ids[0];
+        if !app_id.is_empty() && !windows.iter().any(|window: &RunningWindow| window.id == id) {
+            windows.push(RunningWindow { id, app_id });
+        }
+    }
+    windows
 }
 
+fn json_objects(input: &str) -> Vec<&str> {
+    let mut starts = Vec::new();
+    let mut objects = Vec::new();
+    let mut in_string = false;
+    let mut escaped = false;
+
+    for (index, byte) in input.bytes().enumerate() {
+        if in_string {
+            if escaped {
+                escaped = false;
+            } else if byte == b'\\\\' {
+                escaped = true;
+            } else if byte == b'\"' {
+                in_string = false;
+            }
+            continue;
+        }
+
+        match byte {
+            b'\"' => in_string = true,
+            b'{' => starts.push(index),
+            b'}' => {
+                if let Some(start) = starts.pop() {
+                    objects.push(&input[start..=index]);
+                }
+            }
+            _ => {}
+        }
+    }
+
+    objects
+}
 fn json_number_values(input: &str, key: &str) -> Vec<u64> {
     let marker = format!("\"{}\"", key);
     let mut values = Vec::new();
