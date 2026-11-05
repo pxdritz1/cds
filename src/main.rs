@@ -59,6 +59,7 @@ fn main() {
         .ipc("tray", tray::command)
         .ipc("settings", ipc::settings)
         .ipc("mode", ipc::mode)
+        .ipc("ui", ipc::mode)
         .ipc("weather", weather::command)
         .ipc("theme", theme::command)
         .ipc("lock", ipc::open_lock)
