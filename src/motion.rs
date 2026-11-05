@@ -19,6 +19,45 @@ impl Service for FramePulse {
 }
 
 static FRAME_TIMER: OnceLock<Option<mpsc::Sender<u64>>> = OnceLock::new();
+// One shared transition timeline drives every Island and Dock surface.
+// It deliberately reuses the frame-pulse service instead of spawning a
+// per-window animation loop.
+static MODE_TRANSITION: OnceLock<Mutex<Option<(Instant, u8)>>> = OnceLock::new();
+const MODE_TRANSITION_DURATION: Duration = Duration::from_millis(720);
+
+pub fn begin_mode_transition(target_mode: u8) {
+    let state = MODE_TRANSITION.get_or_init(|| Mutex::new(None));
+    *state.lock().unwrap_or_else(|error| error.into_inner()) =
+        Some((Instant::now(), target_mode.clamp(1, 2)));
+}
+
+/// Returns the destination mode and eased progress while a switch is active.
+pub fn mode_transition() -> Option<(u8, f32)> {
+    let state = MODE_TRANSITION.get_or_init(|| Mutex::new(None));
+    let mut state = state.lock().unwrap_or_else(|error| error.into_inner());
+    let (started, target) = (*state)?;
+    let elapsed = started.elapsed();
+
+    if elapsed >= MODE_TRANSITION_DURATION {
+        *state = None;
+        return None;
+    }
+
+    request_frame_at_most(60);
+    let linear = (elapsed.as_secs_f32() / MODE_TRANSITION_DURATION.as_secs_f32()).clamp(0.0, 1.0);
+    let eased = linear * linear * (3.0 - 2.0 * linear);
+    Some((target, eased))
+}
+
+/// Scale for either interface: the outgoing one contracts as the incoming one grows.
+pub fn mode_scale(current_mode: u8, surface_mode: u8, transition: Option<(u8, f32)>) -> f32 {
+    match transition {
+        Some((target, progress)) if target == surface_mode => progress,
+        Some((_, progress)) => 1.0 - progress,
+        None if current_mode == surface_mode => 1.0,
+        None => 0.0,
+    }
+}
 
 /// Coalesce continuous animation redraws without running faster than requested.
 #[track_caller]
