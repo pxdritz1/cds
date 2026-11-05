@@ -85,7 +85,7 @@ fn json_objects(input: &str) -> Vec<&str> {
         if in_string {
             if escaped {
                 escaped = false;
-            } else if byte == b'\\\\' {
+            } else if byte == b'\\' {
                 escaped = true;
             } else if byte == b'\"' {
                 in_string = false;
