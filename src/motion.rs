@@ -52,7 +52,7 @@ pub fn mode_transition() -> Option<(u8, f32)> {
 /// Scale for either interface: the outgoing one contracts as the incoming one grows.
 pub fn mode_scale(current_mode: u8, surface_mode: u8, transition: Option<(u8, f32)>) -> f32 {
     match transition {
-        Some((3, progress)) => progress,
+        Some((3, _progress)) => 1.0,
         Some((target, progress)) if target == surface_mode => progress,
         Some((_, progress)) => 1.0 - progress,
         None if current_mode == 3 && matches!(surface_mode, 1 | 2) => 1.0,
