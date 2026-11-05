@@ -42,6 +42,7 @@ fn main() {
         .window_per_monitor(island::left)
         .window_per_monitor(island::view)
         .window_per_monitor(island::right)
+        .window_per_monitor(dock::reserve)
         .window_per_monitor(dock::view)
         .window_per_monitor(apps::view)
         .window_per_monitor(spotlight::view)
