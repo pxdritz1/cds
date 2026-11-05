@@ -8,7 +8,7 @@ use std::time::Duration;
 
 use amane::{
     Arc, Audio, Battery, Bluetooth, Button, Canvas, Cap, Center, Color, Image, Line, Media, Monitor, Network, Parent, Pointer, Rectangle,
-    Row, Service, Stack, Widget, Workspace, Workspaces,
+    Row, Service, Shape, Stack, Widget, Workspace, Workspaces,
 };
 
 use crate::clock::Clock;
