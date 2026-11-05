@@ -174,8 +174,8 @@ pub fn layer(
     };
 
     let panel = Rectangle::new()
-        .width(frame.width)
-        .height(frame.height)
+        .width(Parent)
+        .height(Parent)
         .fill(scheme.surface_container)
         .radius(if frame.full_screen { 0.0 } else { frame.radius })
         .clip()
@@ -191,6 +191,11 @@ pub fn layer(
         .translate(0.0, -14.0 * (1.0 - presence))
         .on_click(|_| {})
         .child(content);
+    let panel = if frame.full_screen {
+        panel
+    } else {
+        panel.width(frame.width).height(frame.height)
+    };
 
 
     let padding = match frame.place {
