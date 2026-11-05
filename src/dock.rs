@@ -17,9 +17,15 @@ use crate::theme::{Scheme, Theme, fade};
 const ACTION_ICON: f32 = 42.0;
 const MAGNIFICATION: f32 = 1.32;
 
+#[derive(Clone, PartialEq, Eq)]
+struct RunningWindow {
+    id: u64,
+    app_id: String,
+}
+
 #[derive(Default, PartialEq, Eq)]
 struct RunningApps {
-    app_ids: Vec<String>,
+    windows: Vec<RunningWindow>,
 }
 
 impl Service for RunningApps {
@@ -29,11 +35,11 @@ impl Service for RunningApps {
 
     fn listen() {
         loop {
-            let fresh = read_running_app_ids();
-            let changed = Self::read().app_ids != fresh;
+            let fresh = read_running_windows();
+            let changed = Self::read().windows != fresh;
 
             if changed {
-                Self::write().app_ids = fresh;
+                Self::write().windows = fresh;
                 crate::ui::Ui::refresh();
             }
 
@@ -42,7 +48,7 @@ impl Service for RunningApps {
     }
 }
 
-fn read_running_app_ids() -> Vec<String> {
+fn read_running_windows() -> Vec<RunningWindow> {
     let output = Command::new("niri")
         .args(["msg", "--json", "windows"])
         .stdout(Stdio::piped())
@@ -50,20 +56,36 @@ fn read_running_app_ids() -> Vec<String> {
         .output();
 
     let Ok(output) = output else { return Vec::new() };
-    if !output.status.success() {
-        return Vec::new();
-    }
+    if !output.status.success() { return Vec::new(); }
 
     let json = String::from_utf8_lossy(&output.stdout);
-    let mut ids = Vec::new();
+    let app_ids = json_string_values(&json, "app_id");
+    let window_ids = json_number_values(&json, "id");
+    if app_ids.len() != window_ids.len() { return Vec::new(); }
 
-    for app_id in json_string_values(&json, "app_id") {
-        if !app_id.is_empty() && !ids.iter().any(|existing| existing == &app_id) {
-            ids.push(app_id);
+    app_ids.into_iter().zip(window_ids)
+        .filter(|(app_id, _)| !app_id.is_empty())
+        .map(|(app_id, id)| RunningWindow { id, app_id })
+        .collect()
+}
+
+fn json_number_values(input: &str, key: &str) -> Vec<u64> {
+    let marker = format!("\"{}\"", key);
+    let mut values = Vec::new();
+    let mut offset = 0;
+    while let Some(found) = input[offset..].find(&marker) {
+        let key_end = offset + found + marker.len();
+        let Some(colon) = input[key_end..].find(':') else { break };
+        let mut index = key_end + colon + 1;
+        while input.as_bytes().get(index).is_some_and(u8::is_ascii_whitespace) { index += 1; }
+        let start = index;
+        while input.as_bytes().get(index).is_some_and(u8::is_ascii_digit) { index += 1; }
+        if start < index {
+            if let Ok(value) = input[start..index].parse::<u64>() { values.push(value); }
         }
+        offset = index.max(key_end + 1);
     }
-
-    ids
+    values
 }
 
 fn json_string_values(input: &str, key: &str) -> Vec<String> {
