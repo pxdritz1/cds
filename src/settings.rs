@@ -682,7 +682,7 @@ impl Settings {
         );
 
         for (name, value) in &self.status_positions {
-            text.push_str(&format!("status_position.{name}={value}\\n"));
+            text.push_str(&format!("status_position.{name}={value}\n"));
         }
 
         for (name, value) in &self.flags {
