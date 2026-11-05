@@ -206,7 +206,7 @@ pub fn left(monitor: &Monitor) -> LayerWindow {
         .namespace("cds-left");
     let window = if transition.is_some() { window.click_through() } else { window };
     window
-input_region(vec![InputArea {
+        .input_region(vec![
             x: if alignment == "right" {
                 (LEFT_WIDTH - width).max(0.0) as i32
             } else {
@@ -347,6 +347,7 @@ pub fn right(monitor: &Monitor) -> LayerWindow {
         .keyboard(keyboard)
         .namespace("cds-right");
     let window = if transition.is_some() { window.click_through() } else { window };
+    window
         .input_region(region)
         .on_key(|key| {
             if key == Key::Escape {
