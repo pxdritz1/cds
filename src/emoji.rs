@@ -145,7 +145,13 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
                     .radius(14.0).cursor(Pointer)
                     .on_click(move |_| copy(value))
                     .align_child(Center, Center)
-                    .child(m3::text(value, 27.0, if active { scheme.on_secondary_container } else { scheme.on_surface }, amane::Weight::Regular))
+                    // Force Google's color emoji family instead of inheriting Google Sans.
+                    // The normal text helper uses the UI font and can render different glyphs.
+                    .child(amane::Text::new(value)
+                        .font("Noto Color Emoji")
+                        .size(27.0)
+                        .color(if active { scheme.on_secondary_container } else { scheme.on_surface })
+                        .weight(amane::Weight::Regular))
             )
         }).collect()).gap(6.0))
     }).collect();
