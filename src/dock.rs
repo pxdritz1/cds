@@ -184,7 +184,7 @@ fn app_item(app: &DesktopApp, scheme: &Scheme) -> Rectangle {
             _ => {}
         })
         .align_child(Center, Center)
-        .child(icon)
+        .child(amane::Stack::new(vec![icon]))
 }
 
 fn action_item(
