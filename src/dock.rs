@@ -1265,7 +1265,7 @@ fn action_item(
             Rectangle::new()
                 .width(action_size * scale)
                 .height(action_size * scale)
-                .translate(0.0, dock_side * 8.0 * proximity * transition_scale)
+                .translate(0.0, dock_side * (8.0 + 10.0 * proximity) * transition_scale)
                 .radius(14.0)
                 .fill(scheme.surface_container_highest)
                 .align_child(Center, Center)
