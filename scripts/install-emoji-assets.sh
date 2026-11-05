@@ -8,7 +8,7 @@ destination="$data_home/chloe-dynamic-shell/emoji"
 upstream="https://raw.githubusercontent.com/googlefonts/noto-emoji/main/2D/svg"
 
 if ! command -v curl >/dev/null 2>&1; then
-    printf 'CDS: curl is required to download the Noto Emoji artwork.\\n' >&2
+    printf 'CDS: curl is required to download the Noto Emoji artwork.\n' >&2
     exit 1
 fi
 
@@ -27,8 +27,8 @@ upstream = sys.argv[3]
 # Parse only the actual Rust emoji catalog. Do not scan the rest of the file:
 # comments and string literals contain braces and other non-emoji characters.
 catalog_start = source.index("const EMOJIS: &[(&str, &str)] = &[")
-catalog = source[catalog_start:].split("\\n];", 1)[0]
-emojis = dict.fromkeys(re.findall(r'\\("([^"]+)"\\s*,', catalog))
+catalog = source[catalog_start:].split("\n];", 1)[0]
+emojis = dict.fromkeys(re.findall(r'\("([^"]+)"\s*,', catalog))
 
 if not emojis:
     raise SystemExit("Could not parse the emoji catalog in src/emoji.rs")
