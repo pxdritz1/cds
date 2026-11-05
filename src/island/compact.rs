@@ -145,25 +145,21 @@ pub fn clock(scheme: &Scheme, alpha: f32) -> (Box<dyn Widget>, f32) {
         )
     };
 
-    let clock_content: Box<dyn Widget> = if analog {
-        boxed(
-            Row::new(vec![
-                boxed(analog_clock(clock.time(true), scheme)),
-                boxed(date),
-            ])
-            .gap(10.0)
-            .align(Center),
-        )
+    let clock_content = if analog {
+        Row::new(vec![
+            boxed(analog_clock(clock.time(true), scheme)),
+            boxed(date),
+        ])
+        .gap(10.0)
+        .align(Center)
     } else {
-        boxed(
-            Row::new(vec![
-                boxed(time),
-                boxed(icon("·", 10.0, fade(scheme.on_surface_variant, 140))),
-                boxed(date),
-            ])
-            .gap(6.0)
-            .align(Center),
-        )
+        Row::new(vec![
+            boxed(time),
+            boxed(icon("·", 10.0, fade(scheme.on_surface_variant, 140))),
+            boxed(date),
+        ])
+        .gap(6.0)
+        .align(Center)
     };
 
     let apps_button = Rectangle::new()
