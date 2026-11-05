@@ -232,9 +232,9 @@ pub fn window() -> Window {
             ]).gap(8.0).width(Parent)),
             Box::new(section(TUNE, crate::lang::text("Visibilidade das ilhas", "Island visibility"), scheme)),
             Box::new(Row::new(vec![
-                boxed(chip("sv:show-workspaces", crate::lang::text("Espaços", "Workspaces"), 112.0, show_workspaces, scheme, || Settings::set_flag("show_workspaces", !Settings::read().flag("show_workspaces")))),
-                boxed(chip("sv:show-center", crate::lang::text("Centro", "Center"), 100.0, show_center_island, scheme, || Settings::set_flag("show_center_island", !Settings::read().flag("show_center_island")))),
-                boxed(chip("sv:show-status", crate::lang::text("Status", "Status"), 100.0, show_status, scheme, || Settings::set_flag("show_status", !Settings::read().flag("show_status")))),
+                boxed(chip("sv:show-workspaces", crate::lang::text("Espaços", "Workspaces"), 112.0, show_workspaces, scheme, || Settings::toggle_flag("show_workspaces"))),
+                boxed(chip("sv:show-center", crate::lang::text("Centro", "Center"), 100.0, show_center_island, scheme, || Settings::toggle_flag("show_center_island"))),
+                boxed(chip("sv:show-status", crate::lang::text("Status", "Status"), 100.0, show_status, scheme, || Settings::toggle_flag("show_status"))),
             ]).gap(8.0).width(Parent)),
         ])
         .gap(10.0)
