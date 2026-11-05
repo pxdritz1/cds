@@ -7,7 +7,7 @@ use std::f32::consts::TAU;
 use std::time::Duration;
 
 use amane::{
-    Apps, Arc, Audio, Battery, Bluetooth, Button, Canvas, Cap, Center, Color, Image, Line, Media, Monitor, Network, Parent, Pointer, Rectangle,
+    Arc, Audio, Battery, Bluetooth, Button, Canvas, Cap, Center, Color, Image, Line, Media, Monitor, Network, Parent, Pointer, Rectangle,
     Row, Service, Stack, Widget, Workspace, Workspaces,
 };
 
@@ -238,9 +238,13 @@ pub fn workspaces(monitor: &Monitor, scheme: &Scheme) -> (Box<dyn Widget>, f32) 
 
     drop(workspaces);
 
-    let (focused_title, focused_app) = {
+    let (focused_title, focused_app, focused_icon) = {
         let focused = FocusedWindow::read();
-        (String::from(focused.title()), String::from(focused.app_id()))
+        (
+            String::from(focused.title()),
+            String::from(focused.app_id()),
+            focused.icon_path().map(String::from),
+        )
     };
 
     let mut children: Vec<Box<dyn Widget>> = Vec::new();
@@ -252,20 +256,7 @@ pub fn workspaces(monitor: &Monitor, scheme: &Scheme) -> (Box<dyn Widget>, f32) 
     }
 
     if !focused_title.is_empty() {
-        let apps = Apps::read();
-        let app_id = focused_app.to_lowercase();
-        let icon_path = apps
-            .list()
-            .iter()
-            .find(|app| {
-                app.name().eq_ignore_ascii_case(&focused_app)
-                    || (!app_id.is_empty() && app.exec().to_lowercase().contains(&app_id))
-            })
-            .and_then(|app| app.icon_path())
-            .map(|path| path.to_path_buf());
-        drop(apps);
-
-        let icon_widget: Box<dyn Widget> = match icon_path.as_deref() {
+        let icon_widget: Box<dyn Widget> = match focused_icon.as_deref() {
             Some(path) if Image::loaded(path) => boxed(
                 Rectangle::new()
                     .width(24.0)
