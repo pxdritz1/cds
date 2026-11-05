@@ -338,6 +338,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
             height: HEIGHT,
             radius: m3::shape::XL,
             place: overlay::Place::Spot,
+            full_screen: false,
         },
         content,
         move |key| match key {
