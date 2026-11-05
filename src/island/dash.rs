@@ -3,9 +3,11 @@
  * tonal cards on the right. every card has an exact size and the sizes
  * add up to the content area, so nothing overflows or drifts.
  */
+use std::f32::consts::TAU;
+
 use amane::{
-    Audio, Battery, Brightness, Button, Center, Column, Cpu, Image, Media, Memory, Notifications, Parent,
-    Pointer, Rectangle, Row, ScrollArea, Service, SpaceBetween, Start, Widget,
+    Arc, Audio, Battery, Brightness, Button, Canvas, Cap, Center, Column, Cpu, Image, Line, Media, Memory, Notifications, Parent,
+    Pointer, Rectangle, Row, ScrollArea, Service, Shape, SpaceBetween, Start, Widget,
 };
 
 use crate::art::artwork;
@@ -155,19 +157,89 @@ fn home(scheme: &Scheme) -> Box<dyn Widget> {
 fn hero(scheme: &Scheme) -> Rectangle {
     let clock = Clock::read();
     let color = scheme.on_primary_container;
+    let analog = Settings::read().flag("clock_analog");
+
+    let clock_view: Box<dyn Widget> = if analog {
+        boxed(
+            Row::new(vec![
+                boxed(analog_clock(clock.time(true), scheme)),
+                boxed(
+                    Column::new(vec![
+                        boxed(scale(Type::TitleLarge, clock.time(true), color)),
+                        boxed(scale_label(Type::BodySmall, clock.date(), color, 2)),
+                    ])
+                    .gap(4.0)
+                    .justify(Center),
+                ),
+            ])
+            .gap(8.0)
+            .align(Center),
+        )
+    } else {
+        boxed(
+            Column::new(vec![
+                boxed(scale(Type::DisplayMedium, clock.time(true), color)),
+                boxed(scale_label(Type::BodySmall, clock.date(), color, 1)),
+            ])
+            .gap(2.0)
+            .align(Start),
+        )
+    };
 
     card(HERO, ROW_A, scheme.primary_container).child(
         Column::new(vec![
             boxed(scale(Type::LabelLarge, clock.greeting(), fade(color, 220))),
-            boxed(scale(Type::DisplayMedium, clock.time(true), color)),
-            boxed(scale_label(Type::BodySmall, clock.date(), color, 1)),
+            clock_view,
         ])
-        .gap(2.0)
+        .gap(8.0)
         .width(Parent)
         .height(Parent)
         .align(Start)
         .justify(Center),
     )
+}
+
+fn analog_clock(time: &str, scheme: &Scheme) -> Canvas {
+    let (hour, minute) = time.split_once(':').unwrap_or(("0", "0"));
+    let hour = hour.parse::<f32>().unwrap_or(0.0) % 12.0;
+    let minute = minute.parse::<f32>().unwrap_or(0.0);
+    let minute_angle = minute / 60.0 * TAU - TAU / 4.0;
+    let hour_angle = (hour + minute / 60.0) / 12.0 * TAU - TAU / 4.0;
+    let center = 36.0;
+    let radius = 32.0;
+
+    let mut shapes: Vec<Box<dyn Shape>> = vec![
+        Box::new(Arc::new().stroke(1.8, scheme.outline_variant)),
+    ];
+
+    for tick in 0..12 {
+        let angle = tick as f32 / 12.0 * TAU - TAU / 4.0;
+        let inner = radius - 4.0;
+        shapes.push(Box::new(
+            Line::new()
+                .from(center + angle.cos() * inner, center + angle.sin() * inner)
+                .to(center + angle.cos() * radius, center + angle.sin() * radius)
+                .stroke(1.2, scheme.on_primary_container)
+                .cap(Cap::Round),
+        ));
+    }
+
+    shapes.push(Box::new(
+        Line::new()
+            .from(center, center)
+            .to(center + hour_angle.cos() * 17.0, center + hour_angle.sin() * 17.0)
+            .stroke(3.2, scheme.primary)
+            .cap(Cap::Round),
+    ));
+    shapes.push(Box::new(
+        Line::new()
+            .from(center, center)
+            .to(center + minute_angle.cos() * 25.0, center + minute_angle.sin() * 25.0)
+            .stroke(2.0, scheme.on_primary_container)
+            .cap(Cap::Round),
+    ));
+
+    Canvas::new().width(72.0).height(72.0).shapes(shapes)
 }
 
 fn weather_card(scheme: &Scheme) -> Rectangle {
