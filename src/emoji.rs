@@ -202,7 +202,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
         .child(Column::new(vec![boxed(search), grid, boxed(footer)]).gap(12.0).width(Parent).height(Parent));
 
     overlay::layer("emoji", "cds-emoji", &monitor.name, open, &scheme,
-        overlay::Frame { width: WIDTH, height: HEIGHT, radius: m3::shape::XL, place: overlay::Place::Spot },
+        overlay::Frame { width: WIDTH, height: HEIGHT, radius: m3::shape::XL, place: overlay::Place::Spot, full_screen: false },
         content,
         move |key| match key {
             Key::Down | Key::Right => EmojiPicker::move_by(1, count),
