@@ -4,13 +4,14 @@ use std::process::{Command, Stdio};
 use std::thread;
 use std::time::Duration;
 
-use amane::Service;
+use amane::{Apps, Service};
 
 /// The focused Niri window, refreshed off the rendering thread.
 #[derive(Clone, Default, PartialEq, Eq)]
 pub struct FocusedWindow {
     title: String,
     app_id: String,
+    icon_path: Option<String>,
 }
 
 impl Service for FocusedWindow {
@@ -71,6 +72,10 @@ impl FocusedWindow {
     pub fn app_id(&self) -> &str {
         &self.app_id
     }
+
+    pub fn icon_path(&self) -> Option<&str> {
+        self.icon_path.as_deref()
+    }
 }
 
 fn publish(fresh: Option<FocusedWindow>) {
@@ -96,9 +101,28 @@ fn read() -> Option<FocusedWindow> {
     let mut json = String::new();
     BufReader::new(stream).read_line(&mut json).ok()?;
 
+    let title = json_string(&json, "title").unwrap_or_default();
+    let app_id = json_string(&json, "app_id").unwrap_or_default();
+    let app_id_lower = app_id.to_lowercase();
+
+    // Resolve the icon only when focus changes, not on every bar redraw.
+    let apps = Apps::read();
+    let icon_path = apps
+        .list()
+        .iter()
+        .find(|app| {
+            app.name().eq_ignore_ascii_case(&app_id)
+                || (!app_id_lower.is_empty()
+                    && app.exec().to_lowercase().contains(&app_id_lower))
+        })
+        .and_then(|app| app.icon_path())
+        .map(|path| path.to_string_lossy().into_owned());
+    drop(apps);
+
     Some(FocusedWindow {
-        title: json_string(&json, "title").unwrap_or_default(),
-        app_id: json_string(&json, "app_id").unwrap_or_default(),
+        title,
+        app_id,
+        icon_path,
     })
 }
 
