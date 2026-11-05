@@ -159,6 +159,7 @@ pub fn window() -> Window {
     let show_workspaces = settings.flag("show_workspaces");
     let show_center_island = settings.flag("show_center_island");
     let show_status = settings.flag("show_status");
+    let clock_analog = settings.flag("clock_analog");
 
     let current = String::from(settings.scheme_name());
 
@@ -229,6 +230,11 @@ pub fn window() -> Window {
                 boxed(chip("sv:dock-left", crate::lang::text("Esquerda", "Left"), 100.0, dock_alignment == "left", scheme, || Settings::set_dock_alignment("left"))),
                 boxed(chip("sv:dock-center", crate::lang::text("Centro", "Center"), 100.0, dock_alignment == "center", scheme, || Settings::set_dock_alignment("center"))),
                 boxed(chip("sv:dock-right", crate::lang::text("Direita", "Right"), 100.0, dock_alignment == "right", scheme, || Settings::set_dock_alignment("right"))),
+            ]).gap(8.0).width(Parent)),
+            Box::new(section(TUNE, crate::lang::text("Relógio central", "Center clock"), scheme)),
+            Box::new(Row::new(vec![
+                boxed(chip("sv:clock-digital", crate::lang::text("Digital", "Digital"), 100.0, !clock_analog, scheme, || Settings::set_flag("clock_analog", false))),
+                boxed(chip("sv:clock-analog", crate::lang::text("Analógico", "Analog"), 100.0, clock_analog, scheme, || Settings::set_flag("clock_analog", true))),
             ]).gap(8.0).width(Parent)),
             Box::new(section(TUNE, crate::lang::text("Visibilidade das ilhas", "Island visibility"), scheme)),
             Box::new(Row::new(vec![
