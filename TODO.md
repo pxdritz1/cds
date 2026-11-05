@@ -6,7 +6,7 @@
 - [x] Close the Dash on outside click without blocking underlying windows.
 - [x] Move the tray to the right Island.
 - [ ] Complete StatusNotifierItem support, including D-Bus context menus for tray apps.
-- [ ] Show the focused window title and app icon beside the workspaces.
+- [x] Show the focused window title and app icon beside the workspaces.
 - [x] Add Spotlight and weather shortcuts to the center Island.
 
 ## Appearance
@@ -21,9 +21,9 @@
 
 - [x] Keep Settings in a dedicated window.
 - [x] Add Brazilian Portuguese and English.
-- [ ] Add controls for Island layout and visibility.
+- [x] Add controls for Island layout and visibility.
 - [ ] Allow repositioning shell elements (left/right/center, including dock and individual indicators).
-- [ ] Apply all appearance settings without restarting the shell.
+- [x] Apply all appearance settings without restarting the shell.
 - [x] Keep the Matugen regeneration hint and regenerate action pinned to the bottom of the Settings window.
 - [x] Add a setting to switch CPU, memory and battery meters between the standard palette and transgender-flag colors.
 
@@ -31,7 +31,7 @@
 
 - [x] Replace animated usage meters with static colored bars; provide standard and transgender-flag palettes in Settings.
 - [x] Open the weather tab when its card is clicked.
-- [ ] Allow switching the clock card between digital and analog.
+- [x] Allow switching the clock card between digital and analog.
 
 ## Spotlight and Launcher
 
@@ -39,7 +39,7 @@
 - [x] Improve icon fallback for apps without a GTK icon.
 - [x] Make Enter activate the selected Spotlight result.
 - [x] Add right-click pin/unpin support for apps in Spotlight and Launcher.
-- [ ] Add a full-screen app-grid launcher with an app-grid button in the shell.
+- [x] Add a full-screen app-grid launcher with an app-grid button in the shell.
 
 ## Utilities
 
@@ -50,7 +50,7 @@
 
 - [x] Mode 1: current shell layout (Islands and one bar).
 - [ ] Mode 2: standalone macOS-like app dock, with magnification on hover, optional trash target supporting drag-and-drop, and an app-grid button.
-- [ ] Mode 3: dock plus bar, centered main Island combining existing shell controls and additional content.
+- [x] Mode 3: dock plus bar, centered main Island combining existing shell controls and additional content.
 - [ ] Add per-element position controls so users can place the dock, main Island and individual indicators on different screen edges/sides.
 
 ## Notifications
