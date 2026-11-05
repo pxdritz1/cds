@@ -239,8 +239,10 @@ impl Settings {
 
     pub fn set_shell_mode(value: u8) {
         let mut settings = Self::write();
-        settings.shell_mode = value.clamp(1, 3);
+        settings.shell_mode = value.clamp(1, 2);
         settings.save();
+        drop(settings);
+        crate::ui::Ui::refresh();
     }
 
     pub fn set_motion_style(value: &str) {
@@ -622,7 +624,7 @@ impl Settings {
                 "wallpaper_interval_minutes" => {
                     self.wallpaper_interval_minutes = value.parse::<u32>().unwrap_or(30).clamp(1, 1440)
                 },
-                "shell_mode" => self.shell_mode = value.parse::<u8>().unwrap_or(1).clamp(1, 3),
+                "shell_mode" => self.shell_mode = match value.parse::<u8>().unwrap_or(1) { 1 => 1, 2 | 3 => 2, _ => 1 },
                 "motion_style" => self.motion_style = if value == "fluent" { String::from("fluent") } else { String::from("m3") },
                 "dock_position" => self.dock_position = if value == "top" { String::from("top") } else { String::from("bottom") },
                 "dock_alignment" => self.dock_alignment = match value { "left" => String::from("left"), "right" => String::from("right"), _ => String::from("center") },
