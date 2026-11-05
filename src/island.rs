@@ -48,11 +48,11 @@ pub(crate) fn set_notice_hover(id: u32, inside: bool) {
 
 pub(crate) fn notification_preview_active() -> bool {
     let notifications = Notifications::read();
-    let ids: Vec<u32> = notifications.list().iter().map(Notification::id).collect();
     let timers = notice_timers().lock().unwrap_or_else(|error| error.into_inner());
 
     timers.iter().any(|(id, timer)| {
-        ids.contains(id) && timer.remaining > Duration::ZERO
+        timer.remaining > Duration::ZERO
+            && notifications.list().iter().any(|notification| notification.id() == *id)
     })
 }
 
