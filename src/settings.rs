@@ -451,7 +451,7 @@ impl Settings {
             let value = value.trim();
 
             match key.trim() {
-                "wallpaper" => self.wallpaper = String::from(value),
+                "wallpaper" => self.wallpaper = expand_home_path(value).to_string_lossy().into_owned(),
                 "scheme" => self.scheme = String::from(value),
                 "dark" => self.dark = value != "false",
                 "directory" => self.directory = expand_home_path(value),
@@ -545,13 +545,16 @@ fn scan_directory(directory: &Path) -> Option<Vec<String>> {
  * after the colors exist, while the views spawn it and stay responsive.
  */
 fn expand_home_path(path: &str) -> PathBuf {
-    if path == "~" {
-        return home_directory("HOME", "");
-    }
-    if let Some(rest) = path.strip_prefix("~/") {
-        return home_directory("HOME", "").join(rest);
-    }
-    PathBuf::from(path)
+    let expanded = if path == "~" {
+        home_directory("HOME", "")
+    } else if let Some(rest) = path.strip_prefix("~/") {
+        home_directory("HOME", "").join(rest)
+    } else {
+        PathBuf::from(path)
+    };
+
+    // Store one stable absolute representation whenever the target exists.
+    fs::canonicalize(&expanded).unwrap_or(expanded)
 }
 
 fn display_path(path: &std::path::Path) -> String {

@@ -15,7 +15,7 @@
 - [x] Validate generated palettes before replacing active colors.
 - [x] Accept home-relative and absolute wallpaper paths.
 - [x] Add automatic wallpaper rotation and an interval setting.
-- [ ] Use consistent wallpaper path formatting across panels.
+- [x] Use consistent wallpaper path formatting across panels.
 
 ## Settings
 
