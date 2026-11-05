@@ -22,7 +22,8 @@
 - [x] Keep Settings in a dedicated window.
 - [x] Add Brazilian Portuguese and English.
 - [x] Add controls for Island layout and visibility.
-- [ ] Allow repositioning shell elements (left/right/center, including dock and individual indicators).
+- [x] Add independent left/right/center placement for the workspace group, center Island, status group and dock.
+- [ ] Allow repositioning each status indicator independently.
 - [x] Apply all appearance settings without restarting the shell.
 - [x] Keep the Matugen regeneration hint and regenerate action pinned to the bottom of the Settings window.
 - [x] Add a setting to switch CPU, memory and battery meters between the standard palette and transgender-flag colors.
@@ -49,7 +50,8 @@
 ## UI modes
 
 - [x] Mode 1: current shell layout (Islands and one bar).
-- [ ] Mode 2: standalone macOS-like app dock, with magnification on hover, optional trash target supporting drag-and-drop, and an app-grid button.
+- [x] Mode 2: standalone macOS-like app dock, with magnification on hover, a trash launcher and an app-grid button.
+- [ ] Add drag-and-drop support to the dock trash target.
 - [x] Mode 3: dock plus bar, centered main Island combining existing shell controls and additional content.
 - [ ] Add per-element position controls so users can place the dock, main Island and individual indicators on different screen edges/sides.
 
