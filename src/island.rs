@@ -368,25 +368,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
     }
     let notice = recent(&notifications);
 
-    // Never acquire the Ui write lock while a Ui read guard is alive.
-    // The media sheet is click-only, so clear a stale hover before taking
-    // the read guard used to build this frame.
-    let clear_media_hover = {
-        let ui = Ui::read();
-        !ui.dash()
-            && notice.is_none()
-            && has_media
-            && !ui.media_sheet()
-            && ui.hover()
-    };
-
-    if clear_media_hover {
-        Ui::set_hover(false);
-    }
-
     let ui = Ui::read();
-
-    let media_hover_key = format!("media-island:{}", monitor.name);
 
     let mode = if ui.dash() {
         IslandMode::Dash
@@ -441,17 +423,14 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
             }
         },
 
-        // Keep the media player inside the exact same 260x40 footprint as
-        // the regular center island. Playback changes content, never geometry.
-        IslandMode::Media => {
-            let expanded = motion::hover(&media_hover_key) > 0.5;
-            (
-                peek::media(scheme, alpha, expanded),
-                if expanded { peek::media_width().min(520.0) } else { 260.0 },
-                if expanded { peek::MEDIA_HEIGHT } else { BAR_HEIGHT },
-                if expanded { peek::MEDIA_HEIGHT / 2.0 } else { crate::m3::shape::ISLAND_COMPACT },
-            )
-        },
+        // Media always uses the full player layout; its geometry does not
+        // change with pointer position.
+        IslandMode::Media => (
+            peek::media(scheme, alpha),
+            peek::media_width().min(520.0),
+            peek::MEDIA_HEIGHT,
+            peek::MEDIA_HEIGHT / 2.0,
+        ),
 
         IslandMode::Compact => {
             let (content, width) = compact::clock(scheme, alpha);
@@ -472,14 +451,9 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
 
     let mut island = surface(width, height, radius, fill, scheme);
 
-    // The media sheet is click-only: hovering it never reveals the dash.
+    // The media player has its own controls; hovering never reveals the dash.
     if mode == IslandMode::Media {
-        let hover_key = media_hover_key;
-        island = island
-            .cursor(Pointer)
-            .on_hover(move |inside| {
-                motion::set_hover(hover_key.clone(), inside);
-            });
+        island = island.cursor(Pointer);
     } else {
         island = island.on_hover(Ui::set_hover);
     }

@@ -16,8 +16,7 @@ use super::widgets::{
 };
 
 pub const MEDIA_WIDTH: f32 = 300.0;
-pub const MEDIA_COMPACT_HEIGHT: f32 = 40.0;
-pub const MEDIA_HEIGHT: f32 = 71.0;
+pub const MEDIA_HEIGHT: f32 = 69.0;
 pub const NOTICE_COMPACT_WIDTH: f32 = 260.0;
 pub const NOTICE_COMPACT_HEIGHT: f32 = 40.0;
 pub const NOTICE_WIDTH: f32 = 364.0;
@@ -69,7 +68,7 @@ fn media_title_label(content: String, size: f32, color: amane::Color, weight: am
         .child(m3::text(content, size, color, weight))
 }
 
-pub fn media(scheme: &Scheme, alpha: f32, expanded: bool) -> Box<dyn Widget> {
+pub fn media(scheme: &Scheme, alpha: f32) -> Box<dyn Widget> {
     let media = Media::read();
     let playing = media.playing();
     let glyph = if playing { m3::PAUSE } else { m3::PLAY };
@@ -103,20 +102,20 @@ pub fn media(scheme: &Scheme, alpha: f32, expanded: bool) -> Box<dyn Widget> {
             boxed(m3::scale_label(Type::LabelMedium, clock.time(true), scheme.on_surface, 1)),
             boxed(m3::scale_label(Type::LabelSmall, clock.short_date(), scheme.on_surface_variant, 1)),
         ]).gap(1.0).width(42.0).align(Center);
-        let clock_height = if expanded { 46.0 } else { 34.0 };
+        let clock_height = 46.0;
         Some(boxed(Rectangle::new().width(42.0).height(clock_height).align_child(Center, Center).child(clock_column)))
     } else { None };
 
     let mut row_children: Vec<Box<dyn Widget>> = Vec::new();
     if show_artwork {
-        let artwork_size = if expanded { 38.0 } else { 28.0 };
+        let artwork_size = 38.0;
         row_children.push(boxed(artwork(media.art_url(), artwork_size, 12.0, scheme)));
     }
     if let Some(info) = info { row_children.push(info); }
     row_children.push(boxed(m3::round_button(
         "peek-play",
         glyph,
-        if expanded { 34.0 } else { 30.0 },
+        34.0,
         scheme.primary,
         scheme.on_primary,
         Media::play_pause,
@@ -124,14 +123,14 @@ pub fn media(scheme: &Scheme, alpha: f32, expanded: bool) -> Box<dyn Widget> {
     row_children.push(boxed(m3::round_button(
         "peek-next",
         m3::NEXT,
-        if expanded { 30.0 } else { 28.0 },
+        30.0,
         scheme.secondary_container,
         scheme.on_secondary_container,
         Media::next,
     )));
     if let Some(clock_view) = clock_view { row_children.push(clock_view); }
 
-    let row_height = if expanded { 46.0 } else { 34.0 };
+    let row_height = 46.0;
     let row = Row::new(row_children).gap(5.0).align(Center).width(Parent).height(row_height);
 
     let position = media.position().as_secs();
@@ -169,9 +168,7 @@ pub fn media(scheme: &Scheme, alpha: f32, expanded: bool) -> Box<dyn Widget> {
     .height(18.0);
 
     let mut content_children = vec![boxed(row)];
-    if expanded {
-        content_children.push(boxed(timeline));
-    }
+    content_children.push(boxed(timeline));
 
     let content = Column::new(content_children)
         .gap(1.0)
@@ -185,9 +182,8 @@ pub fn media(scheme: &Scheme, alpha: f32, expanded: bool) -> Box<dyn Widget> {
             .opacity(alpha)
             .cursor(amane::Pointer)
             .padding(Padding {
-                top: 3.0,
+                top: 2.0,
                 right: 10.0,
-                bottom: 3.0,
                 left: 10.0,
             })
             .child(content),
