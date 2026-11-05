@@ -624,7 +624,7 @@ impl Settings {
         );
 
         for app in &self.pinned_apps {
-            text.push_str(&format!("pinned_app={app}\\n"));
+            text.push_str(&format!("pinned_app={app}\n"));
         }
 
         for (name, value) in &self.status_positions {
