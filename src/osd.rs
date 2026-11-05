@@ -168,7 +168,9 @@ fn observe(monitor: &str, now: Snapshot) -> Option<(Kind, Duration, f32)> {
 
 #[cfg(test)]
 mod tests {
-    use super::{Kind, Snapshot, observe};
+    use std::time::{Duration, Instant};
+
+    use super::{Kind, MEMORY, SHOWN, Snapshot, observe};
 
     #[test]
     fn queues_simultaneous_volume_and_microphone_changes() {
@@ -192,6 +194,12 @@ mod tests {
             observe("test-simultaneous-osd", after),
             Some((Kind::Volume, _, _))
         ));
+        MEMORY.with(|memory| {
+            let mut memory = memory.borrow_mut();
+            memory.get_mut("test-simultaneous-osd").unwrap().since =
+                Some(Instant::now() - SHOWN - Duration::from_millis(1));
+        });
+
         assert!(matches!(
             observe("test-simultaneous-osd", after),
             Some((Kind::Microphone, _, _))
