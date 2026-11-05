@@ -104,7 +104,6 @@ pub fn reserve(monitor: &Monitor) -> LayerWindow {
         && !ui.dash()
         && !notification_preview_active();
     let notice_active = notification_preview_active() && !ui.dash();
-    let media_expanded = motion::hover(&format!("media-island:{}", monitor.name)) > 0.5;
     let reserved_height = if media_visible {
         RESERVED
     } else if notice_active && ui.hover() {
