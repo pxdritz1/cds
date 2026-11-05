@@ -156,6 +156,9 @@ pub fn window() -> Window {
     let motion_style = String::from(settings.motion_style());
     let dock_position = String::from(settings.dock_position());
     let dock_alignment = String::from(settings.dock_alignment());
+    let workspaces_alignment = String::from(settings.workspaces_alignment());
+    let center_alignment = String::from(settings.center_alignment());
+    let status_alignment = String::from(settings.status_alignment());
     let show_workspaces = settings.flag("show_workspaces");
     let show_center_island = settings.flag("show_center_island");
     let show_status = settings.flag("show_status");
@@ -246,6 +249,30 @@ pub fn window() -> Window {
             ]).gap(8.0).width(Parent)),
         ])
         .gap(10.0)
+        .width(Parent),
+    );
+
+    let positions = settings_card(WIDTH - PADDING * 2.0, 250.0, scheme.surface_container_low).child(
+        Column::new(vec![
+            Box::new(section(TUNE, crate::lang::text("Posição dos elementos", "Element placement"), scheme)),
+            Box::new(section(TUNE, crate::lang::text("Espaços de trabalho", "Workspaces"), scheme)),
+            Box::new(Row::new(vec![
+                boxed(chip("sv:workspaces-left", crate::lang::text("Esquerda", "Left"), 100.0, workspaces_alignment == "left", scheme, || Settings::set_workspaces_alignment("left"))),
+                boxed(chip("sv:workspaces-right", crate::lang::text("Direita", "Right"), 100.0, workspaces_alignment == "right", scheme, || Settings::set_workspaces_alignment("right"))),
+            ]).gap(8.0).width(Parent)),
+            Box::new(section(TUNE, crate::lang::text("Ilha central", "Center Island"), scheme)),
+            Box::new(Row::new(vec![
+                boxed(chip("sv:center-left", crate::lang::text("Esquerda", "Left"), 100.0, center_alignment == "left", scheme, || Settings::set_center_alignment("left"))),
+                boxed(chip("sv:center-center", crate::lang::text("Centro", "Center"), 100.0, center_alignment == "center", scheme, || Settings::set_center_alignment("center"))),
+                boxed(chip("sv:center-right", crate::lang::text("Direita", "Right"), 100.0, center_alignment == "right", scheme, || Settings::set_center_alignment("right"))),
+            ]).gap(8.0).width(Parent)),
+            Box::new(section(TUNE, crate::lang::text("Indicadores de status", "Status indicators"), scheme)),
+            Box::new(Row::new(vec![
+                boxed(chip("sv:status-left", crate::lang::text("Esquerda", "Left"), 100.0, status_alignment == "left", scheme, || Settings::set_status_alignment("left"))),
+                boxed(chip("sv:status-right", crate::lang::text("Direita", "Right"), 100.0, status_alignment == "right", scheme, || Settings::set_status_alignment("right"))),
+            ]).gap(8.0).width(Parent)),
+        ])
+        .gap(8.0)
         .width(Parent),
     );
 
@@ -490,6 +517,7 @@ pub fn window() -> Window {
                         Column::new(vec![
                             Box::new(appearance),
                             Box::new(interface),
+                            Box::new(positions),
                             Box::new(media_settings),
                             Box::new(behavior),
                             Box::new(wallpapers),
