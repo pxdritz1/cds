@@ -135,6 +135,39 @@ fn field(
     .width(Parent)
 }
 
+fn indicator_position(name: &str, indicator: &'static str, selected: &str, scheme: &Scheme) -> Row {
+    Row::new(vec![
+        boxed(label(name, 12.0, scheme.on_surface_variant, amane::Weight::Medium, 1)),
+        boxed(chip(
+            &format!("sv:{indicator}:left"),
+            crate::lang::text("Esq.", "Left"),
+            68.0,
+            selected == "left",
+            scheme,
+            move || Settings::set_status_position(indicator, "left"),
+        )),
+        boxed(chip(
+            &format!("sv:{indicator}:center"),
+            crate::lang::text("Centro", "Center"),
+            76.0,
+            selected == "center",
+            scheme,
+            move || Settings::set_status_position(indicator, "center"),
+        )),
+        boxed(chip(
+            &format!("sv:{indicator}:right"),
+            crate::lang::text("Dir.", "Right"),
+            68.0,
+            selected == "right",
+            scheme,
+            move || Settings::set_status_position(indicator, "right"),
+        )),
+    ])
+    .gap(6.0)
+    .align(Center)
+    .width(Parent)
+}
+
 pub fn window() -> Window {
     let theme = Theme::read();
     let scheme = theme.scheme();
@@ -162,6 +195,11 @@ pub fn window() -> Window {
     let workspaces_alignment = String::from(settings.workspaces_alignment());
     let center_alignment = String::from(settings.center_alignment());
     let status_alignment = String::from(settings.status_alignment());
+    let network_position = String::from(settings.status_position("network"));
+    let bluetooth_position = String::from(settings.status_position("bluetooth"));
+    let volume_position = String::from(settings.status_position("volume"));
+    let microphone_position = String::from(settings.status_position("microphone"));
+    let battery_position = String::from(settings.status_position("battery"));
     let show_workspaces = settings.flag("show_workspaces");
     let show_center_island = settings.flag("show_center_island");
     let show_status = settings.flag("show_status");
@@ -263,7 +301,7 @@ pub fn window() -> Window {
         .width(Parent),
     );
 
-    let positions = settings_card(WIDTH - PADDING * 2.0, 290.0, scheme.surface_container_low).child(
+    let positions = settings_card(WIDTH - PADDING * 2.0, 500.0, scheme.surface_container_low).child(
         Column::new(vec![
             Box::new(section(TUNE, crate::lang::text("Posição dos elementos", "Element placement"), scheme)),
             Box::new(section(TUNE, crate::lang::text("Espaços de trabalho", "Workspaces"), scheme)),
@@ -277,11 +315,17 @@ pub fn window() -> Window {
                 boxed(chip("sv:center-center", crate::lang::text("Centro", "Center"), 100.0, center_alignment == "center", scheme, || Settings::set_center_alignment("center"))),
                 boxed(chip("sv:center-right", crate::lang::text("Direita", "Right"), 100.0, center_alignment == "right", scheme, || Settings::set_center_alignment("right"))),
             ]).gap(8.0).width(Parent)),
-            Box::new(section(TUNE, crate::lang::text("Indicadores de status", "Status indicators"), scheme)),
+            Box::new(section(TUNE, crate::lang::text("Posição do grupo de status", "Status group position"), scheme)),
             Box::new(Row::new(vec![
                 boxed(chip("sv:status-left", crate::lang::text("Esquerda", "Left"), 100.0, status_alignment == "left", scheme, || Settings::set_status_alignment("left"))),
                 boxed(chip("sv:status-right", crate::lang::text("Direita", "Right"), 100.0, status_alignment == "right", scheme, || Settings::set_status_alignment("right"))),
             ]).gap(8.0).width(Parent)),
+            Box::new(section(TUNE, crate::lang::text("Posição de cada indicador", "Individual indicator placement"), scheme)),
+            boxed(indicator_position(crate::lang::text("Wi-Fi", "Wi-Fi"), "network", &network_position, scheme)),
+            boxed(indicator_position(crate::lang::text("Bluetooth", "Bluetooth"), "bluetooth", &bluetooth_position, scheme)),
+            boxed(indicator_position(crate::lang::text("Volume", "Volume"), "volume", &volume_position, scheme)),
+            boxed(indicator_position(crate::lang::text("Microfone", "Microphone"), "microphone", &microphone_position, scheme)),
+            boxed(indicator_position(crate::lang::text("Bateria", "Battery"), "battery", &battery_position, scheme)),
         ])
         .gap(8.0)
         .width(Parent),
