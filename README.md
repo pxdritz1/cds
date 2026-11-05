@@ -15,7 +15,29 @@ A Wayland desktop shell written in Rust with Amane and a Material 3-inspired int
 
 ## Requirements
 
-The shell targets a Wayland session. Runtime integrations include niri, Matugen, wl-clipboard, pactl and PAM. Some features depend on the compositor and services available in the session.
+The shell targets a Wayland compositor with layer-shell support. It integrates with Niri, Matugen, wl-clipboard, PulseAudio-compatible `pactl`, PAM and `hyprpicker` for the screen eyedropper. Weather lookup and the bundled emoji-asset installer use `curl`.
+
+### Arch Linux / CachyOS
+
+Install the runtime dependencies:
+
+```bash
+sudo pacman -S --needed matugen wl-clipboard libpulse pam curl python
+```
+
+Install Niri if you want to use the included Niri configuration, and install `hyprpicker` to enable the screen eyedropper:
+
+```bash
+sudo pacman -S --needed niri hyprpicker
+```
+
+The emoji selector uses Google's official Noto Emoji SVG artwork, not the system emoji font. Download the assets once after cloning the repository:
+
+```bash
+bash scripts/install-emoji-assets.sh
+```
+
+This places the SVGs in `~/.local/share/chloe-dynamic-shell/emoji`. The original Unicode characters are still copied to the clipboard. The artwork is from the Noto Emoji project; see its included license and [upstream repository](https://github.com/googlefonts/noto-emoji).
 
 ## Run
 
