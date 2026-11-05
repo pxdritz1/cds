@@ -5,7 +5,7 @@ use std::time::Duration;
 
 use amane::{
     Apps, Button, Center, DesktopApp, Horizontal, Image, Layer, LayerWindow, Margin, Monitor,
-    Parent, Pointer, Rectangle, Row, Service, Shadow, Vertical, Widget, Zone,
+    Parent, Pointer, Rectangle, Row, Service, Shadow, Text, Vertical, Widget, Zone,
 };
 
 use crate::m3;
@@ -203,7 +203,7 @@ fn app_matches_id(app: &DesktopApp, app_id: &str) -> bool {
         || (!target.is_empty() && (target.contains(&name) || name.contains(&target)))
 }
 
-pub fn view(_monitor: &Monitor) -> LayerWindow {
+pub fn view(monitor: &Monitor) -> LayerWindow {
     crate::ui::Ui::watch();
 
     let settings = Settings::read();
@@ -232,57 +232,64 @@ pub fn view(_monitor: &Monitor) -> LayerWindow {
     drop(settings);
 
     let running_windows = RunningApps::read().windows.clone();
-    let mut items: Vec<(DesktopApp, bool, Option<u64>)> = Vec::new();
+    let mut items: Vec<(DesktopApp, Vec<u64>)> = Vec::new();
 
     for exec in &pinned {
         if let Some(app) = apps.list().iter().find(|app| app.exec() == exec) {
-            let window_id = running_windows.iter()
-                .find(|window| app_matches_id(app, &window.app_id))
-                .map(|window| window.id);
-            items.push((app.clone(), window_id.is_some(), window_id));
+            let window_ids = running_windows.iter()
+                .filter(|window| app_matches_id(app, &window.app_id))
+                .map(|window| window.id)
+                .collect();
+            items.push((app.clone(), window_ids));
         }
     }
 
     for window in &running_windows {
         if let Some(app) = apps.list().iter().find(|app| app_matches_id(app, &window.app_id)) {
-            if !items.iter().any(|(existing, _, _)| existing.exec() == app.exec()) {
-                items.push((app.clone(), true, Some(window.id)));
+            if !items.iter().any(|(existing, _)| existing.exec() == app.exec()) {
+                let window_ids = running_windows.iter()
+                    .filter(|candidate| app_matches_id(app, &candidate.app_id))
+                    .map(|candidate| candidate.id)
+                    .collect();
+                items.push((app.clone(), window_ids));
             }
         }
     }
     drop(apps);
 
-    // Slots and the reserved layer both grow with the configured icon size.
-    // This keeps large icons from being clipped and makes the slider visible.
-    let base_slot = (icon_size * MAGNIFICATION + 20.0).max(64.0);
-    let base_height = (icon_size * MAGNIFICATION + 40.0).max(96.0);
+    // Keep enough headroom for icons to grow upward without resizing the layer.
+    let base_slot = (icon_size * MAGNIFICATION + 24.0).max(72.0);
+    let base_height = (icon_size * MAGNIFICATION + 48.0).max(112.0);
     let base_width = (items.len() as f32 + 2.0) * (base_slot + 4.0) + 16.0;
     let slot = (base_slot * dock_scale).max(1.0);
     let dock_height = (base_height * dock_scale).max(1.0);
     let dock_width = (base_width * dock_scale).max(1.0);
+    let pointer_key = format!("dock:pointer:{}", monitor.name);
+    let pointer_x = motion::pointer_x(&pointer_key);
 
     let mut children: Vec<Box<dyn Widget>> = items
         .iter()
-        .map(|(app, running, window_id)| {
-            Box::new(app_item(app, scheme, icon_size * dock_scale, magnification, *running, *window_id, slot, dock_height))
-                as Box<dyn Widget>
+        .enumerate()
+        .map(|(index, (app, window_ids))| {
+            let center = 8.0 + index as f32 * (slot + 4.0) + slot * 0.5;
+            let proximity = pointer_x.map_or(0.0, |x| gaussian((x - center) / 46.0));
+            Box::new(app_item(
+                app, scheme, icon_size * dock_scale, magnification,
+                window_ids, proximity, slot, dock_height,
+            )) as Box<dyn Widget>
         })
         .collect();
 
+    let apps_center = 8.0 + items.len() as f32 * (slot + 4.0) + slot * 0.5;
+    let apps_proximity = pointer_x.map_or(0.0, |x| gaussian((x - apps_center) / 46.0));
     children.push(Box::new(action_item(
-        "dock:apps",
-        m3::APPS,
-        scheme,
-        slot,
-        dock_height,
+        "dock:apps", m3::APPS, scheme, slot, dock_height, apps_proximity,
         || Overlay::toggle(crate::overlay::Panel::Apps),
     )));
+    let trash_center = apps_center + slot + 4.0;
+    let trash_proximity = pointer_x.map_or(0.0, |x| gaussian((x - trash_center) / 46.0));
     children.push(Box::new(action_item(
-        "dock:trash",
-        m3::DELETE,
-        scheme,
-        slot,
-        dock_height,
+        "dock:trash", m3::DELETE, scheme, slot, dock_height, trash_proximity,
         || amane::spawn("xdg-open trash:///"),
     )));
 
@@ -332,13 +339,25 @@ pub fn view(_monitor: &Monitor) -> LayerWindow {
         .namespace("cds-dock")
         .visible(true);
     let window = if transition.is_some() { window.click_through() } else { window };
+    let pointer_move_key = pointer_key.clone();
+    let pointer_leave_key = pointer_key;
     window.child(
         Rectangle::new()
             .width(Parent)
             .height(Parent)
+            .on_move(move |point| motion::set_pointer_x(pointer_move_key.clone(), Some(point.x)))
+            .on_hover(move |inside| {
+                if !inside {
+                    motion::set_pointer_x(pointer_leave_key.clone(), None);
+                }
+            })
             .align_child(Center, Center)
             .child(bar),
     )
+}
+
+fn gaussian(distance: f32) -> f32 {
+    (-distance * distance).exp()
 }
 
 fn app_item(
@@ -346,23 +365,27 @@ fn app_item(
     scheme: &Scheme,
     icon_base: f32,
     magnification: bool,
-    running: bool,
-    window_id: Option<u64>,
+    window_ids: &[u64],
+    proximity: f32,
     slot: f32,
     dock_height: f32,
 ) -> Rectangle {
     let exec = String::from(app.exec());
     let key = format!("dock:{}", exec);
     let hover = motion::hover(&key);
+    let proximity = if magnification { proximity.max(hover) } else { 0.0 };
     let scale = motion::number(
         &format!("{key}:scale"),
-        if magnification && hover > 0.5 { MAGNIFICATION } else { 1.0 },
-        motion::style_duration(180, 130),
+        1.0 + 0.62 * proximity,
+        motion::style_duration(90, 90),
     );
     let size = icon_base * scale;
+    let rise = (8.0 + 10.0 * proximity)
+        * dock_height / (icon_base * MAGNIFICATION + 48.0).max(1.0);
     let owned = key.clone();
     let launch = exec.clone();
-    let window_id = window_id.map(|id| id.to_string());
+    let window_id = window_ids.first().map(|id| id.to_string());
+    let window_count = window_ids.len();
 
     let icon: Box<dyn Widget> = match app.icon_path() {
         Some(path) if Image::loaded(path) => Box::new(
@@ -389,7 +412,7 @@ fn app_item(
     };
 
     let mut layers = vec![icon];
-    if running {
+    if window_count > 0 {
         layers.push(Box::new(
             Rectangle::new()
                 .width(7.0)
@@ -398,6 +421,19 @@ fn app_item(
                 .fill(scheme.primary)
                 .border(1.0, scheme.surface_container_high)
                 .translate(0.0, size * 0.5 - 3.0),
+        ));
+    }
+    if window_count > 1 {
+        layers.push(Box::new(
+            Rectangle::new()
+                .width(19.0)
+                .height(19.0)
+                .radius(10.0)
+                .fill(scheme.primary)
+                .border(2.0, scheme.surface_container_high)
+                .translate(size * 0.34, -size * 0.36)
+                .align_child(Center, Center)
+                .child(Text::new(window_count.to_string()).size(9.5).color(scheme.on_primary).weight(amane::Weight::Bold).tight()),
         ));
     }
 
@@ -421,7 +457,13 @@ fn app_item(
             _ => {}
         })
         .align_child(Center, Center)
-        .child(amane::Stack::new(layers).width(size).height(size))
+        .child(
+            Rectangle::new()
+                .width(size)
+                .height(size)
+                .translate(0.0, -rise)
+                .child(amane::Stack::new(layers).width(size).height(size)),
+        )
 }
 
 fn action_item(
@@ -430,14 +472,16 @@ fn action_item(
     scheme: &Scheme,
     slot: f32,
     dock_height: f32,
+    proximity: f32,
     action: impl Fn() + 'static,
 ) -> Rectangle {
     let hover = motion::hover(key);
     let action_size = ACTION_ICON.min((dock_height - 28.0).max(1.0) * 0.72);
+    let proximity = proximity.max(hover);
     let scale = motion::number(
         &format!("{key}:scale"),
-        if hover > 0.5 { 1.18 } else { 1.0 },
-        motion::style_duration(160, 120),
+        1.0 + 0.48 * proximity,
+        motion::style_duration(90, 90),
     );
     let owned = String::from(key);
 
@@ -465,6 +509,7 @@ fn action_item(
             Rectangle::new()
                 .width(action_size * scale)
                 .height(action_size * scale)
+                .translate(0.0, -8.0 * proximity)
                 .radius(14.0)
                 .fill(scheme.surface_container_highest)
                 .align_child(Center, Center)
