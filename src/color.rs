@@ -4,7 +4,7 @@ use std::time::Duration;
 
 use amane::{
     Center, Column, Key, LayerWindow, Monitor, Padding, Parent, Rectangle, Row, Service,
-    TextInput, Widget,
+    TextInput,
 };
 
 use crate::m3::{self, Type, boxed};
