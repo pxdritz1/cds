@@ -76,10 +76,12 @@ pub fn request_frame_at_most(fps: u64) {
 
     if let Some(sender) = sender {
         if sender.send(interval_ms).is_err() {
-            drop(FramePulse::write());
+            // The timer thread is gone; avoid turning the fallback into a
+            // self-sustaining redraw loop.
+            amane::request_frame();
         }
     } else {
-        drop(FramePulse::write());
+        amane::request_frame();
     }
 }
 
