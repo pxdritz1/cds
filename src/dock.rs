@@ -150,10 +150,9 @@ pub fn view(_monitor: &Monitor) -> LayerWindow {
     let mode = settings.shell_mode();
     let position = String::from(settings.dock_position());
     let alignment = String::from(settings.dock_alignment());
-    let dock_enabled = settings.flag("show_dock");
     drop(settings);
 
-    if !dock_enabled || (mode != 2 && mode != 3) {
+    if mode != 2 {
         return LayerWindow::new()
             .width(1.0)
             .height(1.0)
@@ -203,6 +202,14 @@ pub fn view(_monitor: &Monitor) -> LayerWindow {
         })
         .collect();
 
+    children.push(Box::new(action_item(
+        "dock:apps",
+        m3::APPS,
+        scheme,
+        slot,
+        dock_height,
+        || Overlay::toggle(crate::overlay::Panel::Apps),
+    )));
     children.push(Box::new(action_item(
         "dock:trash",
         m3::DELETE,
