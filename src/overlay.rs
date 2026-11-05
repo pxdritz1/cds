@@ -177,6 +177,7 @@ pub fn layer(
         .width(frame.width)
         .height(frame.height)
         .fill(scheme.surface_container)
+        .radius(if frame.full_screen { 0.0 } else { frame.radius })
         .clip()
         .border(1.0, fade(scheme.outline_variant, 70))
         .shadow(
@@ -191,11 +192,6 @@ pub fn layer(
         .on_click(|_| {})
         .child(content);
 
-    let panel = if frame.full_screen {
-        panel.width(Full).height(Full).radius(0.0)
-    } else {
-        panel.width(frame.width).height(frame.height).radius(frame.radius)
-    };
 
     let padding = match frame.place {
         Place::Under => Padding {
