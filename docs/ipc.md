@@ -57,13 +57,8 @@ amane ipc call settings directory <path>
 amane ipc call settings location <latitude,longitude>
 amane ipc call settings location auto
 amane ipc call settings refresh
-amane ipc call settings layout 1       # islands
-amane ipc call settings layout 2       # standalone dock
-amane ipc call settings layout 3       # dock + bar
 amane ipc call settings motion m3      # Material 3 timing
 amane ipc call settings motion fluent  # Fluent timing
-amane ipc call settings dock-position bottom
-amane ipc call settings dock-alignment center
 amane ipc call settings position workspaces left
 amane ipc call settings position center center
 amane ipc call settings position status right
@@ -71,7 +66,7 @@ amane ipc call settings clock analog
 amane ipc call settings clock digital
 ```
 
-The Settings window also exposes appearance, wallpaper folder, weather coordinates, hover behavior, language, shell layout, motion language, dock placement and clock style. Layout 2 shows the standalone dock; layout 3 combines the dock with the existing bar. The dock can be placed at the top or bottom and aligned left, center or right. Workspaces, the center Island and the status group can each be aligned independently.
+The Settings window also exposes appearance, wallpaper folder, weather coordinates, hover behavior, language, motion language and clock style. Workspaces, the center Island and the status group can each be aligned independently.
 
 Supported Matugen schemes: scheme-tonal-spot, scheme-content, scheme-expressive, scheme-neutral, scheme-vibrant, scheme-rainbow, scheme-fruit-salad and scheme-fidelity.
 

@@ -89,7 +89,7 @@ fn hidden_window(namespace: &'static str) -> LayerWindow {
 
 pub fn reserve(monitor: &Monitor) -> LayerWindow {
     let settings = Settings::read();
-    let enabled = settings.shell_mode() != 2 && settings.flag("show_center_island");
+    let enabled = settings.flag("show_center_island");
     drop(settings);
     if !enabled {
         return hidden_window("cds-reserve");
@@ -101,11 +101,8 @@ pub fn reserve(monitor: &Monitor) -> LayerWindow {
         && !ui.dash()
         && !notification_preview_active();
     let notice_active = notification_preview_active() && !ui.dash();
-    let media_expanded = motion::hover(&format!("media-island:{}", monitor.name)) > 0.5;
-    let reserved_height = if media_visible && media_expanded {
-        peek::MEDIA_HEIGHT + 6.0
-    } else if media_visible {
-        peek::MEDIA_COMPACT_HEIGHT + 6.0
+    let reserved_height = if media_visible {
+        RESERVED
     } else if notice_active && ui.hover() {
         peek::NOTICE_HEIGHT + 6.0
     } else if notice_active {
@@ -116,13 +113,21 @@ pub fn reserve(monitor: &Monitor) -> LayerWindow {
 
     LayerWindow::new()
         .width(Full)
-        .height(reserved_height)
+        .height(reserved_height * scale)
         .anchor_vertical(Vertical::Top)
         .layer(Layer::Bottom)
         .space(Zone::Reserve)
         .namespace("cds-reserve")
         .click_through()
         .child(Rectangle::new().width(Parent).height(Parent))
+}
+
+// windows sit flush with the screen edge so the drop shadow can fall off the
+// island naturally; the old margin moves into the window as padding
+fn shadow_room(sides: bool) -> Padding {
+    let side = if sides { MARGIN as f32 } else { 0.0 };
+
+    Padding { top: MARGIN as f32, right: side, bottom: 0.0, left: side }
 }
 
 // the surface every island shares: fill, soft border and the drop shadow
@@ -144,9 +149,10 @@ fn surface(width: f32, height: f32, radius: f32, fill: amane::Color, scheme: &Sc
 
 pub fn left(monitor: &Monitor) -> LayerWindow {
     let settings = Settings::read();
-    let enabled = settings.shell_mode() != 2 && settings.flag("show_workspaces");
+    let enabled = settings.flag("show_workspaces");
     let alignment = String::from(settings.workspaces_alignment());
     drop(settings);
+    let top_margin = 0;
     if !enabled {
         return hidden_window("cds-left");
     }
@@ -156,11 +162,7 @@ pub fn left(monitor: &Monitor) -> LayerWindow {
     } else {
         Horizontal::Left
     };
-    let side_margin = if alignment == "right" {
-        Margin { top: MARGIN, right: MARGIN, ..Margin::default() }
-    } else {
-        Margin { top: MARGIN, left: MARGIN, ..Margin::default() }
-    };
+    let side_margin = Margin { top: top_margin, ..Margin::default() };
 
     let theme = Theme::read();
     let scheme = theme.scheme();
@@ -178,7 +180,7 @@ pub fn left(monitor: &Monitor) -> LayerWindow {
     let island = surface(width, height, radius, compact::base_fill(scheme), scheme)
         .child(Stack::new(vec![Box::new(bar_row)]).width(Parent).height(Parent));
 
-    LayerWindow::new()
+    let window = LayerWindow::new()
         .width(LEFT_WIDTH)
         .height(LEFT_HEIGHT)
         .anchor_vertical(Vertical::Top)
@@ -186,14 +188,15 @@ pub fn left(monitor: &Monitor) -> LayerWindow {
         .layer(Layer::Top)
         .space(Zone::Ignore)
         .margin(side_margin)
-        .namespace("cds-left")
+        .namespace("cds-left");
+    window
         .input_region(vec![InputArea {
             x: if alignment == "right" {
-                (LEFT_WIDTH - width).max(0.0) as i32
+                (LEFT_WIDTH - width - MARGIN as f32).max(0.0) as i32
             } else {
-                0
+                MARGIN
             },
-            y: 0,
+            y: MARGIN,
             width: width.ceil() as i32,
             height: height.ceil() as i32,
         }])
@@ -201,6 +204,7 @@ pub fn left(monitor: &Monitor) -> LayerWindow {
             Rectangle::new()
                 .width(Parent)
                 .height(Parent)
+                .padding(shadow_room(true))
                 .align_child(if alignment == "right" { Align::from(End) } else { Align::from(Start) }, Start)
                 .child(island),
         )
@@ -208,9 +212,10 @@ pub fn left(monitor: &Monitor) -> LayerWindow {
 
 pub fn right(monitor: &Monitor) -> LayerWindow {
     let settings = Settings::read();
-    let enabled = settings.shell_mode() != 2 && settings.flag("show_status");
+    let enabled = settings.flag("show_status");
     let alignment = String::from(settings.status_alignment());
     drop(settings);
+    let top_margin = 0;
     if !enabled {
         return hidden_window("cds-right");
     }
@@ -220,11 +225,7 @@ pub fn right(monitor: &Monitor) -> LayerWindow {
     } else {
         Horizontal::Right
     };
-    let side_margin = if alignment == "left" {
-        Margin { top: MARGIN, left: MARGIN, ..Margin::default() }
-    } else {
-        Margin { top: MARGIN, right: MARGIN, ..Margin::default() }
-    };
+    let side_margin = Margin { top: top_margin, ..Margin::default() };
 
     let theme = Theme::read();
     let scheme = theme.scheme();
@@ -276,6 +277,7 @@ pub fn right(monitor: &Monitor) -> LayerWindow {
     };
 
     let (width, height, radius) = motion::follow(&format!("right:{}", monitor.name), width, height, radius);
+    let (width, height, radius) = (width * scale, height * scale, radius * scale);
 
     let island = surface(
         width,
@@ -295,15 +297,15 @@ pub fn right(monitor: &Monitor) -> LayerWindow {
 
     let (region, keyboard) = (
         vec![InputArea {
-            x: if alignment == "left" { 0 } else { (RIGHT_WIDTH - width).max(0.0) as i32 },
-            y: 0,
+            x: if alignment == "left" { MARGIN } else { (RIGHT_WIDTH - width - MARGIN as f32).max(0.0) as i32 },
+            y: MARGIN,
             width: width.ceil() as i32,
             height: height.ceil() as i32,
         }],
         if tray_open { Keyboard::OnDemand } else { Keyboard::None },
     );
 
-    LayerWindow::new()
+    let window = LayerWindow::new()
         .width(RIGHT_WIDTH)
         .height(RIGHT_HEIGHT)
         .anchor_vertical(Vertical::Top)
@@ -312,7 +314,8 @@ pub fn right(monitor: &Monitor) -> LayerWindow {
         .space(Zone::Ignore)
         .margin(side_margin)
         .keyboard(keyboard)
-        .namespace("cds-right")
+        .namespace("cds-right");
+    window
         .input_region(region)
         .on_key(|key| {
             if key == Key::Escape {
@@ -335,6 +338,7 @@ pub fn right(monitor: &Monitor) -> LayerWindow {
                         Tray::close();
                     }
                 })
+                .padding(shadow_room(true))
                 .align_child(if alignment == "left" { Align::from(Start) } else { Align::from(End) }, Start)
                 .child(island),
         )
@@ -342,7 +346,7 @@ pub fn right(monitor: &Monitor) -> LayerWindow {
 
 pub fn view(monitor: &Monitor) -> LayerWindow {
     let settings = Settings::read();
-    let enabled = settings.shell_mode() != 2 && settings.flag("show_center_island");
+    let enabled = settings.flag("show_center_island");
     let alignment = String::from(settings.center_alignment());
     drop(settings);
     if !enabled {
@@ -354,11 +358,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
         "right" => Horizontal::Right,
         _ => Horizontal::Middle,
     };
-    let side_margin = match alignment.as_str() {
-        "left" => Margin { top: MARGIN, left: MARGIN, ..Margin::default() },
-        "right" => Margin { top: MARGIN, right: MARGIN, ..Margin::default() },
-        _ => Margin { top: MARGIN, ..Margin::default() },
-    };
+    let side_margin = Margin::default();
 
     let theme = Theme::read();
     let scheme = theme.scheme();
@@ -388,7 +388,6 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
     let ui = Ui::read();
 
     let media_hover_key = format!("media-island:{}", monitor.name);
-    let media_expanded = motion::hover(&media_hover_key) > 0.5;
 
     let mode = if ui.dash() {
         IslandMode::Dash
@@ -443,20 +442,17 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
             }
         },
 
-        IslandMode::Media => (
-            peek::media(scheme, alpha, media_expanded),
-            peek::media_width(),
-            if media_expanded {
-                peek::MEDIA_HEIGHT
-            } else {
-                peek::MEDIA_COMPACT_HEIGHT
-            },
-            if media_expanded {
-                crate::m3::shape::ISLAND_EXPANDED
-            } else {
-                crate::m3::shape::ISLAND_COMPACT
-            },
-        ),
+        // Keep the media player inside the exact same 260x40 footprint as
+        // the regular center island. Playback changes content, never geometry.
+        IslandMode::Media => {
+            let expanded = motion::hover(&media_hover_key) > 0.5;
+            (
+                peek::media(scheme, alpha, expanded),
+                if expanded { peek::media_width().min(520.0) } else { 260.0 },
+                if expanded { peek::MEDIA_HEIGHT } else { BAR_HEIGHT },
+                if expanded { peek::MEDIA_HEIGHT / 2.0 } else { crate::m3::shape::ISLAND_COMPACT },
+            )
+        },
 
         IslandMode::Compact => {
             let (content, width) = compact::clock(scheme, alpha);
@@ -466,6 +462,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
     };
 
     let (width, height, radius) = motion::follow(&monitor.name, width, height, radius);
+    let (width, height, radius) = (width * scale, height * scale, radius * scale);
 
     let target = if mode == IslandMode::Dash {
         scheme.surface_container
@@ -480,9 +477,11 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
     // The media sheet is click-only: hovering it never reveals the dash.
     if mode == IslandMode::Media {
         let hover_key = media_hover_key;
-        island = island.on_hover(move |inside| {
-            motion::set_hover(hover_key.clone(), inside);
-        });
+        island = island
+            .cursor(Pointer)
+            .on_hover(move |inside| {
+                motion::set_hover(hover_key.clone(), inside);
+            });
     } else {
         island = island.on_hover(Ui::set_hover);
     }
@@ -516,8 +515,8 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
         (0.0, CENTER_WIDTH)
     } else {
         let x = match alignment.as_str() {
-            "left" => 0.0,
-            "right" => (CENTER_WIDTH - width).max(0.0),
+            "left" => MARGIN as f32,
+            "right" => (CENTER_WIDTH - width - MARGIN as f32).max(0.0),
             _ => ((CENTER_WIDTH - width) / 2.0).max(0.0),
         };
         (x, width)
@@ -540,7 +539,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
         .namespace("cds-island")
         .input_region(vec![InputArea {
             x: region_x as i32,
-            y: 0,
+            y: if overlay_open { 0 } else { MARGIN },
             width: region_width.ceil() as i32,
             height: region_height.ceil() as i32,
         }])
@@ -553,9 +552,10 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
             Rectangle::new()
                 .width(Parent)
                 .height(Parent)
+                .padding(shadow_room(alignment != "center"))
                 .align_child(match alignment.as_str() { "left" => Align::from(Start), "right" => Align::from(End), _ => Center.into() }, Start)
-                .on_click(|button| {
-                    if button == Button::Left {
+                .on_click(move |button| {
+                    if button == Button::Left && mode != IslandMode::Media {
                         Ui::close();
                     }
                 })

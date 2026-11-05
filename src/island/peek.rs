@@ -183,6 +183,7 @@ pub fn media(scheme: &Scheme, alpha: f32, expanded: bool) -> Box<dyn Widget> {
             .width(Parent)
             .height(Parent)
             .opacity(alpha)
+            .cursor(amane::Pointer)
             .padding(Padding {
                 top: 3.0,
                 right: 10.0,

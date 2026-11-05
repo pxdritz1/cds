@@ -29,6 +29,8 @@ const DOT_GAP: f32 = 7.0;
 const SIDE: f32 = 14.0;
 const ICON: f32 = 18.0;
 const ITEM_GAP: f32 = 10.0;
+const EDGE: f32 = 8.0;
+const TRAY_BUTTON: f32 = 28.0;
 const CLOCK_WIDTH: f32 = 260.0;
 const CLOCK_CENTER_WIDTH: f32 = 166.0;
 
@@ -252,45 +254,58 @@ pub fn status(scheme: &Scheme) -> (Box<dyn Widget>, f32) {
     let dim = fade(scheme.on_surface_variant, 130);
     let color = scheme.on_surface_variant;
     let mut groups: [Vec<Box<dyn Widget>>; 3] = [Vec::new(), Vec::new(), Vec::new()];
-    let mut width = SIDE * 2.0 - 4.0 + 28.0 + ITEM_GAP * 2.0;
+    let mut widths = [0.0_f32; 3];
 
-    // Keep the tray chevron before the first indicator, independent of grouping.
     groups[0].push(boxed(tray_button(scheme)));
+    widths[0] = TRAY_BUTTON;
 
-    let mut push = |index: usize, widget: Box<dyn Widget>, extra_width: f32| {
+    let mut push = |index: usize, widget: Box<dyn Widget>, natural: f32| {
         let group = match positions[index].as_str() {
             "center" => 1,
             "right" => 2,
             _ => 0,
         };
+
+        if !groups[group].is_empty() {
+            widths[group] += ITEM_GAP;
+        }
+
         groups[group].push(widget);
-        width += ITEM_GAP + extra_width;
+        widths[group] += natural;
     };
 
-    push(0, boxed(icon(
+    let wifi = icon(
         glyphs::wifi(&network),
         ICON,
         if network.connected() { color } else { dim },
-    )), ICON);
+    );
+    let natural = m3::measured(&wifi);
+    push(0, boxed(wifi), natural);
 
     if bluetooth.available() {
         let connected = bluetooth.devices().iter().any(|device| device.connected());
-        push(1, boxed(icon(
+        let glyph = icon(
             glyphs::bluetooth(true, bluetooth.powered(), connected, false),
             ICON,
             if bluetooth.powered() { color } else { dim },
-        )), ICON);
+        );
+        let natural = m3::measured(&glyph);
+        push(1, boxed(glyph), natural);
     }
 
     let silent = audio.muted() || audio.volume() == 0;
-    push(2, boxed(icon(
+    let volume = icon(
         glyphs::volume(audio.volume(), audio.muted()),
         ICON,
         if silent { dim } else { color },
-    )), ICON);
+    );
+    let natural = m3::measured(&volume);
+    push(2, boxed(volume), natural);
 
     if audio.microphone_muted() {
-        push(3, boxed(icon(glyphs::MIC_OFF, ICON, scheme.error)), ICON);
+        let mic = icon(glyphs::MIC_OFF, ICON, scheme.error);
+        let natural = m3::measured(&mic);
+        push(3, boxed(mic), natural);
     }
 
     if battery.present() {
@@ -306,28 +321,62 @@ pub fn status(scheme: &Scheme) -> (Box<dyn Widget>, f32) {
             color
         };
 
-        push(4, boxed(
-            Row::new(vec![
-                boxed(icon(glyphs::battery(percent, charging), ICON, tint)),
-                boxed(text(format!("{percent}%"), 12.0, tint, amane::Weight::Medium)),
-            ])
-            .gap(4.0)
-            .align(Center),
-        ), ICON + 4.0 + if percent >= 100 { 32.0 } else { 26.0 });
+        let glyph = icon(glyphs::battery(percent, charging), ICON, tint);
+        let label = text(format!("{percent}%"), 12.0, tint, amane::Weight::Medium);
+        let natural = m3::measured(&glyph) + 4.0 + m3::measured(&label);
+
+        push(
+            4,
+            boxed(
+                Row::new(vec![boxed(glyph), boxed(label)])
+                    .gap(4.0)
+                    .align(Center),
+            ),
+            natural,
+        );
     }
 
-    let row = Row::new(vec![
-        boxed(Row::new(groups[0].drain(..).collect()).gap(ITEM_GAP).align(Center)),
-        boxed(Row::new(groups[1].drain(..).collect()).gap(ITEM_GAP).align(Center)),
-        boxed(Row::new(groups[2].drain(..).collect()).gap(ITEM_GAP).align(Center)),
-    ])
-    .gap(ITEM_GAP)
-    .align(Center)
-    .width(Parent)
-    .height(Parent)
-    .justify(amane::SpaceBetween);
+    // only groups that hold something take part, so no empty slot adds space
+    let visible: Vec<usize> = (0..3).filter(|&index| !groups[index].is_empty()).collect();
 
-    (boxed(row), width)
+    let content = visible.iter().map(|&index| widths[index]).sum::<f32>()
+        + ITEM_GAP * visible.len().saturating_sub(1) as f32;
+
+    let rows: Vec<Box<dyn Widget>> = visible
+        .iter()
+        .map(|&index| {
+            boxed(
+                Row::new(groups[index].drain(..).collect())
+                    .gap(ITEM_GAP)
+                    .align(Center),
+            )
+        })
+        .collect();
+
+    let row = Row::new(rows)
+        .gap(ITEM_GAP)
+        .align(Center)
+        .width(Parent)
+        .height(Parent);
+
+    let row = if visible == [1] {
+        row.justify(Center)
+    } else {
+        row.justify(amane::SpaceBetween)
+    };
+
+    let padded = Rectangle::new()
+        .width(Parent)
+        .height(Parent)
+        .padding(amane::Padding {
+            top: 0.0,
+            right: EDGE,
+            bottom: 0.0,
+            left: EDGE,
+        })
+        .child(row);
+
+    (boxed(padded), content + EDGE * 2.0)
 }
 
 // the right island lights up while the control center is open

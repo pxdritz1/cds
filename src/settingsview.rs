@@ -186,12 +186,7 @@ pub fn window() -> Window {
     let media_title_max_width = settings.media_title_max_width();
     let wallpaper_rotation = settings.wallpaper_rotation();
     let wallpaper_interval_minutes = settings.wallpaper_interval_minutes();
-    let shell_mode = settings.shell_mode();
     let motion_style = String::from(settings.motion_style());
-    let dock_position = String::from(settings.dock_position());
-    let dock_alignment = String::from(settings.dock_alignment());
-    let dock_icon_size = settings.dock_icon_size();
-    let dock_magnification = settings.flag("dock_magnification");
     let workspaces_alignment = String::from(settings.workspaces_alignment());
     let center_alignment = String::from(settings.center_alignment());
     let status_alignment = String::from(settings.status_alignment());
@@ -203,7 +198,6 @@ pub fn window() -> Window {
     let show_workspaces = settings.flag("show_workspaces");
     let show_center_island = settings.flag("show_center_island");
     let show_status = settings.flag("show_status");
-    let show_dock = settings.flag("show_dock");
 
     let current = String::from(settings.scheme_name());
 
@@ -251,50 +245,18 @@ pub fn window() -> Window {
         })
         .collect();
 
-    let interface = settings_card(WIDTH - PADDING * 2.0, 610.0, scheme.surface_container_low).child(
+    let interface = settings_card(WIDTH - PADDING * 2.0, 250.0, scheme.surface_container_low).child(
         Column::new(vec![
-            Box::new(section(TUNE, crate::lang::text("Layout da interface", "Interface layout"), scheme)),
-            Box::new(Row::new(vec![
-                boxed(chip("sv:layout-1", crate::lang::text("Ilhas", "Islands"), 88.0, shell_mode == 1, scheme, || Settings::set_shell_mode(1))),
-                boxed(chip("sv:layout-2", "Dock", 88.0, shell_mode == 2, scheme, || Settings::set_shell_mode(2))),
-                boxed(chip("sv:layout-3", crate::lang::text("Dock + barra", "Dock + bar"), 124.0, shell_mode == 3, scheme, || Settings::set_shell_mode(3))),
-            ]).gap(8.0).width(Parent)),
             Box::new(section(TUNE, crate::lang::text("Linguagem de movimento", "Motion language"), scheme)),
             Box::new(Row::new(vec![
                 boxed(chip("sv:motion-m3", "Material 3", 116.0, motion_style == "m3", scheme, || Settings::set_motion_style("m3"))),
                 boxed(chip("sv:motion-fluent", "Fluent", 100.0, motion_style == "fluent", scheme, || Settings::set_motion_style("fluent"))),
-            ]).gap(8.0).width(Parent)),
-            Box::new(section(TUNE, crate::lang::text("Posição do dock", "Dock position"), scheme)),
-            Box::new(Row::new(vec![
-                boxed(chip("sv:dock-top", crate::lang::text("Topo", "Top"), 88.0, dock_position == "top", scheme, || Settings::set_dock_position("top"))),
-                boxed(chip("sv:dock-bottom", crate::lang::text("Base", "Bottom"), 88.0, dock_position == "bottom", scheme, || Settings::set_dock_position("bottom"))),
-            ]).gap(8.0).width(Parent)),
-            Box::new(section(TUNE, crate::lang::text("Alinhamento do dock", "Dock alignment"), scheme)),
-            Box::new(Row::new(vec![
-                boxed(chip("sv:dock-left", crate::lang::text("Esquerda", "Left"), 100.0, dock_alignment == "left", scheme, || Settings::set_dock_alignment("left"))),
-                boxed(chip("sv:dock-center", crate::lang::text("Centro", "Center"), 100.0, dock_alignment == "center", scheme, || Settings::set_dock_alignment("center"))),
-                boxed(chip("sv:dock-right", crate::lang::text("Direita", "Right"), 100.0, dock_alignment == "right", scheme, || Settings::set_dock_alignment("right"))),
-            ]).gap(8.0).width(Parent)),
-            Box::new(section(TUNE, crate::lang::text("Tamanho dos ícones do Dock", "Dock icon size"), scheme)),
-            boxed(m3::slider(
-                "sv:dock-size",
-                m3::APPS,
-                (dock_icon_size.saturating_sub(28) as f32 / 44.0).clamp(0.0, 1.0),
-                WIDTH - 120.0,
-                scheme,
-                |fraction| Settings::set_dock_icon_size(28 + (fraction * 44.0).round() as u32),
-            )),
-            Box::new(section(TUNE, crate::lang::text("Ampliação ao passar o mouse", "Magnify on hover"), scheme)),
-            Box::new(Row::new(vec![
-                boxed(chip("sv:dock-magnify-on", crate::lang::text("Ativada", "On"), 100.0, dock_magnification, scheme, || Settings::set_flag("dock_magnification", true))),
-                boxed(chip("sv:dock-magnify-off", crate::lang::text("Desativada", "Off"), 100.0, !dock_magnification, scheme, || Settings::set_flag("dock_magnification", false))),
             ]).gap(8.0).width(Parent)),
             Box::new(section(TUNE, crate::lang::text("Visibilidade das ilhas", "Island visibility"), scheme)),
             Box::new(Row::new(vec![
                 boxed(chip("sv:show-workspaces", crate::lang::text("Espaços", "Workspaces"), 112.0, show_workspaces, scheme, || Settings::toggle_flag("show_workspaces"))),
                 boxed(chip("sv:show-center", crate::lang::text("Centro", "Center"), 100.0, show_center_island, scheme, || Settings::toggle_flag("show_center_island"))),
                 boxed(chip("sv:show-status", crate::lang::text("Status", "Status"), 100.0, show_status, scheme, || Settings::toggle_flag("show_status"))),
-                boxed(chip("sv:show-dock", "Dock", 88.0, show_dock, scheme, || Settings::toggle_flag("show_dock"))),
             ]).gap(8.0).width(Parent)),
         ])
         .gap(10.0)

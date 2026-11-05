@@ -19,7 +19,6 @@ impl Service for FramePulse {
 }
 
 static FRAME_TIMER: OnceLock<Option<mpsc::Sender<u64>>> = OnceLock::new();
-
 /// Coalesce continuous animation redraws without running faster than requested.
 #[track_caller]
 pub fn request_frame_at_most(fps: u64) {

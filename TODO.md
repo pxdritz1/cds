@@ -23,7 +23,7 @@
 - [x] Keep Settings in a dedicated window.
 - [x] Add Brazilian Portuguese and English.
 - [x] Add controls for Island layout and visibility.
-- [x] Add independent left/right/center placement for the workspace group, center Island, status group and dock.
+- [x] Add independent left/right/center placement for the workspace group, center Island and status group.
 - [x] Allow repositioning each status indicator independently.
 - [x] Apply all appearance settings without restarting the shell.
 - [x] Keep the Matugen regeneration hint and regenerate action pinned to the bottom of the Settings window.
@@ -47,15 +47,6 @@
 
 - [x] Add a color picker with HEX input and copy.
 - [x] Add an emoji picker with search and copy.
-
-## UI modes
-
-- [x] Mode 1: current shell layout (Islands and one bar).
-- [x] Mode 2: standalone macOS-like app dock, with magnification on hover, a trash launcher and an app-grid button.
-- [x] Add drag-and-drop support to the dock trash target.
-- [x] Mode 3: dock plus bar, centered main Island combining existing shell controls and additional content.
-- [x] Add independent placement controls for the dock, main Island, workspace group and status group.
-- [x] Add Material 3 and Fluent motion presets with bubble transitions between panels.
 
 ## Notifications
 

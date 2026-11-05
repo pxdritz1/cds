@@ -35,15 +35,10 @@ pub struct Settings {
     flags: BTreeMap<String, bool>,
     hover_delay_ms: u64,
     language: String,
-    pinned_apps: Vec<String>,
-    dock_icon_size: u32,
     media_title_max_width: u32,
     wallpaper_rotation: bool,
     wallpaper_interval_minutes: u32,
-    shell_mode: u8,
     motion_style: String,
-    dock_position: String,
-    dock_alignment: String,
     workspaces_alignment: String,
     center_alignment: String,
     status_alignment: String,
@@ -66,15 +61,10 @@ impl Service for Settings {
             flags: BTreeMap::new(),
             hover_delay_ms: 500,
             language: String::from("pt-BR"),
-            pinned_apps: Vec::new(),
-            dock_icon_size: 48,
             media_title_max_width: 320,
             wallpaper_rotation: false,
             wallpaper_interval_minutes: 30,
-            shell_mode: 1,
             motion_style: String::from("m3"),
-            dock_position: String::from("bottom"),
-            dock_alignment: String::from("center"),
             workspaces_alignment: String::from("left"),
             center_alignment: String::from("center"),
             status_alignment: String::from("right"),
@@ -180,26 +170,6 @@ impl Settings {
         self.wallpaper_interval_minutes
     }
 
-    pub fn shell_mode(&self) -> u8 {
-        self.shell_mode
-    }
-
-    pub fn motion_style(&self) -> &str {
-        &self.motion_style
-    }
-
-    pub fn dock_icon_size(&self) -> u32 { self.dock_icon_size }
-
-    pub fn pinned_apps(&self) -> &[String] { &self.pinned_apps }
-
-    pub fn dock_position(&self) -> &str {
-        &self.dock_position
-    }
-
-    pub fn dock_alignment(&self) -> &str {
-        &self.dock_alignment
-    }
-
     pub fn workspaces_alignment(&self) -> &str {
         &self.workspaces_alignment
     }
@@ -237,39 +207,9 @@ impl Settings {
         crate::ui::Ui::refresh();
     }
 
-    pub fn set_shell_mode(value: u8) {
-        let mut settings = Self::write();
-        settings.shell_mode = value.clamp(1, 3);
-        settings.save();
-    }
-
     pub fn set_motion_style(value: &str) {
         let mut settings = Self::write();
         settings.motion_style = if value == "fluent" { String::from("fluent") } else { String::from("m3") };
-        settings.save();
-    }
-
-    pub fn set_dock_icon_size(value: u32) {
-        let mut settings = Self::write();
-        settings.dock_icon_size = value.clamp(28, 72);
-        settings.save();
-        drop(settings);
-        crate::ui::Ui::refresh();
-    }
-
-    pub fn set_dock_position(value: &str) {
-        let mut settings = Self::write();
-        settings.dock_position = if value == "top" { String::from("top") } else { String::from("bottom") };
-        settings.save();
-    }
-
-    pub fn set_dock_alignment(value: &str) {
-        let mut settings = Self::write();
-        settings.dock_alignment = match value {
-            "left" => String::from("left"),
-            "right" => String::from("right"),
-            _ => String::from("center"),
-        };
         settings.save();
     }
 
@@ -323,22 +263,6 @@ impl Settings {
         &self.language
     }
 
-    pub fn is_pinned(&self, exec: &str) -> bool {
-        self.pinned_apps.iter().any(|pinned| pinned == exec)
-    }
-
-    pub fn toggle_pinned(exec: &str) {
-        let mut settings = Self::write();
-        if let Some(index) = settings.pinned_apps.iter().position(|item| item == exec) {
-            settings.pinned_apps.remove(index);
-        } else {
-            settings.pinned_apps.push(String::from(exec));
-        }
-        settings.save();
-        drop(settings);
-        crate::ui::Ui::refresh();
-    }
-
     pub fn set_language(language: &str) {
         let mut settings = Self::write();
         settings.language = if language == "en" { String::from("en") } else { String::from("pt-BR") };
@@ -365,9 +289,10 @@ impl Settings {
 
     pub fn set_flag(name: &str, value: bool) {
         let mut settings = Self::write();
-
         settings.flags.insert(String::from(name), value);
         settings.save();
+        drop(settings);
+        crate::ui::Ui::refresh();
     }
 
     pub fn toggle_flag(name: &str) {
@@ -614,7 +539,6 @@ impl Settings {
                 "directory" => self.directory = expand_home_path(value),
                 "location" => self.location = String::from(value),
                 "language" => self.language = if value == "en" { String::from("en") } else { String::from("pt-BR") },
-                "pinned_app" => { if !self.pinned_apps.iter().any(|item| item == value) { self.pinned_apps.push(String::from(value)); } },
                 "media_title_max_width" => {
                     self.media_title_max_width = value.parse::<u32>().unwrap_or(320).clamp(104, 520)
                 },
@@ -622,11 +546,7 @@ impl Settings {
                 "wallpaper_interval_minutes" => {
                     self.wallpaper_interval_minutes = value.parse::<u32>().unwrap_or(30).clamp(1, 1440)
                 },
-                "shell_mode" => self.shell_mode = value.parse::<u8>().unwrap_or(1).clamp(1, 3),
                 "motion_style" => self.motion_style = if value == "fluent" { String::from("fluent") } else { String::from("m3") },
-                "dock_position" => self.dock_position = if value == "top" { String::from("top") } else { String::from("bottom") },
-                "dock_alignment" => self.dock_alignment = match value { "left" => String::from("left"), "right" => String::from("right"), _ => String::from("center") },
-                "dock_icon_size" => self.dock_icon_size = value.parse::<u32>().unwrap_or(48).clamp(28, 72),
                 "workspaces_alignment" => self.workspaces_alignment = if value == "right" { String::from("right") } else { String::from("left") },
                 "center_alignment" => self.center_alignment = match value { "left" => String::from("left"), "right" => String::from("right"), _ => String::from("center") },
                 "status_alignment" => self.status_alignment = if value == "left" { String::from("left") } else { String::from("right") },
@@ -645,7 +565,9 @@ impl Settings {
                 },
                 other => {
                     if let Some(name) = other.strip_prefix("flag.") {
-                        self.flags.insert(String::from(name), value == "true");
+                        if !matches!(name, "show_dock" | "dock_magnification" | "dock_reserve_space" | "dock_auto_hide") {
+                            self.flags.insert(String::from(name), value == "true");
+                        }
                     }
                 }
             }
@@ -660,7 +582,7 @@ impl Settings {
         }
 
         let mut text = format!(
-            "wallpaper={}\nscheme={}\ndark={}\ndirectory={}\nlocation={}\nhover_delay_ms={}\nlanguage={}\nmedia_title_max_width={}\nwallpaper_rotation={}\nwallpaper_interval_minutes={}\nshell_mode={}\nmotion_style={}\ndock_position={}\ndock_alignment={}\ndock_icon_size={}\nworkspaces_alignment={}\ncenter_alignment={}\nstatus_alignment={}\n",
+            "wallpaper={}\nscheme={}\ndark={}\ndirectory={}\nlocation={}\nhover_delay_ms={}\nlanguage={}\nmedia_title_max_width={}\nwallpaper_rotation={}\nwallpaper_interval_minutes={}\nmotion_style={}\nworkspaces_alignment={}\ncenter_alignment={}\nstatus_alignment={}\n",
             self.wallpaper,
             self.scheme,
             self.dark,
@@ -671,11 +593,7 @@ impl Settings {
             self.media_title_max_width,
             self.wallpaper_rotation,
             self.wallpaper_interval_minutes,
-            self.shell_mode,
             self.motion_style,
-            self.dock_position,
-            self.dock_alignment,
-            self.dock_icon_size,
             self.workspaces_alignment,
             self.center_alignment,
             self.status_alignment,
@@ -687,10 +605,6 @@ impl Settings {
 
         for (name, value) in &self.flags {
             text.push_str(&format!("flag.{name}={value}\n"));
-        }
-
-        for exec in &self.pinned_apps {
-            text.push_str(&format!("pinned_app={exec}\n"));
         }
 
         // Publish settings atomically: a crash or power loss must not leave
