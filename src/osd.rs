@@ -22,8 +22,8 @@ const WINDOW_WIDTH: f32 = 340.0;
 const WINDOW_HEIGHT: f32 = 96.0;
 const PILL_WIDTH: f32 = 288.0;
 const PILL_HEIGHT: f32 = 56.0;
-const SHOWN: Duration = Duration::from_millis(1600);
-const ALERT: Duration = Duration::from_millis(3200);
+const SHOWN: Duration = Duration::from_secs(5);
+const ALERT: Duration = Duration::from_secs(5);
 
 #[derive(Clone, Copy, PartialEq)]
 enum Kind {
