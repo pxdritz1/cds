@@ -285,7 +285,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
     };
 
     let mut children: Vec<Box<dyn Widget>> = Vec::new();
-    let mut row_cursor = 8.0;
+    let mut row_cursor = 10.0;
 
     for (index, (app, window_ids, _pinned)) in items.iter().enumerate() {
         if index == pinned_count && has_separator {
