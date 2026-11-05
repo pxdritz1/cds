@@ -246,7 +246,7 @@ pub fn workspaces(monitor: &Monitor, scheme: &Scheme) -> (Box<dyn Widget>, f32) 
             .iter()
             .find(|app| {
                 app.name().eq_ignore_ascii_case(&focused_app)
-                    || app.exec().to_lowercase().contains(&app_id)
+                    || (!app_id.is_empty() && app.exec().to_lowercase().contains(&app_id))
             })
             .and_then(|app| app.icon_path())
             .map(|path| path.to_path_buf());
