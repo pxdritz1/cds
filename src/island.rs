@@ -477,12 +477,15 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
 
         // Keep the media player inside the exact same 260x40 footprint as
         // the regular center island. Playback changes content, never geometry.
-        IslandMode::Media => (
-            peek::media(scheme, alpha, false),
-            260.0,
-            BAR_HEIGHT,
-            crate::m3::shape::ISLAND_COMPACT,
-        ),
+        IslandMode::Media => {
+            let expanded = motion::hover(&media_hover_key) > 0.5;
+            (
+                peek::media(scheme, alpha, expanded),
+                if expanded { peek::media_width().min(520.0) } else { 260.0 },
+                if expanded { peek::MEDIA_HEIGHT } else { BAR_HEIGHT },
+                if expanded { peek::MEDIA_HEIGHT / 2.0 } else { crate::m3::shape::ISLAND_COMPACT },
+            )
+        },
 
         IslandMode::Compact => {
             let (content, width) = compact::clock(scheme, alpha);
@@ -507,9 +510,11 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
     // The media sheet is click-only: hovering it never reveals the dash.
     if mode == IslandMode::Media {
         let hover_key = media_hover_key;
-        island = island.on_hover(move |inside| {
-            motion::set_hover(hover_key.clone(), inside);
-        });
+        island = island
+            .cursor(Pointer)
+            .on_hover(move |inside| {
+                motion::set_hover(hover_key.clone(), inside);
+            });
     } else {
         island = island.on_hover(Ui::set_hover);
     }
@@ -581,8 +586,8 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
                 .width(Parent)
                 .height(Parent)
                 .align_child(match alignment.as_str() { "left" => Align::from(Start), "right" => Align::from(End), _ => Center.into() }, Start)
-                .on_click(|button| {
-                    if button == Button::Left {
+                .on_click(move |button| {
+                    if button == Button::Left && mode != IslandMode::Media {
                         Ui::close();
                     }
                 })
