@@ -60,7 +60,7 @@ pub(crate) fn notification_preview_active() -> bool {
 const CENTER_WIDTH: f32 = 760.0;
 const CENTER_HEIGHT: f32 = 480.0;
 
-const LEFT_WIDTH: f32 = 340.0;
+const LEFT_WIDTH: f32 = 520.0;
 const LEFT_HEIGHT: f32 = 400.0;
 
 const RIGHT_WIDTH: f32 = 340.0;
