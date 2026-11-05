@@ -9,8 +9,8 @@ A Wayland desktop shell written in Rust with Amane and a Material 3-inspired int
 - Spotlight and application launcher.
 - Control center for Wi-Fi, Bluetooth, audio, microphone and brightness.
 - Session lock screen using ext-session-lock and PAM.
-- Searchable clipboard history.
-- Matugen themes and wallpaper settings.
+- Searchable clipboard history, emoji picker and HEX color picker.
+- Matugen themes, wallpaper settings and optional timed wallpaper rotation.
 - Brazilian Portuguese and English, selectable in Settings.
 
 ## Requirements

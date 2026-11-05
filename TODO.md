@@ -14,7 +14,7 @@
 - [x] Run Matugen outside the drawing thread and serialize theme jobs.
 - [x] Validate generated palettes before replacing active colors.
 - [x] Accept home-relative and absolute wallpaper paths.
-- [ ] Add automatic wallpaper rotation and an interval setting.
+- [x] Add automatic wallpaper rotation and an interval setting.
 - [ ] Use consistent wallpaper path formatting across panels.
 
 ## Settings
@@ -43,8 +43,8 @@
 
 ## Utilities
 
-- [ ] Add a color picker with HEX input and copy.
-- [ ] Add an emoji picker with search and copy.
+- [x] Add a color picker with HEX input and copy.
+- [x] Add an emoji picker with search and copy.
 
 ## UI modes
 
@@ -55,9 +55,9 @@
 
 ## Notifications
 
-- [ ] Show the source application's icon in notification previews.
+- [x] Show the source application's icon in notification previews.
 - [ ] Use conversation avatars when notification metadata provides them.
-- [ ] Define a fallback order for notification artwork.
+- [x] Define a fallback order for notification artwork.
 
 ## Validation
 
