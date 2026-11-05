@@ -152,7 +152,7 @@ pub fn left(monitor: &Monitor) -> LayerWindow {
     let enabled = settings.flag("show_workspaces");
     let alignment = String::from(settings.workspaces_alignment());
     drop(settings);
-    let top_margin = MARGIN;
+    let top_margin = 0;
     if !enabled {
         return hidden_window("cds-left");
     }
@@ -215,7 +215,7 @@ pub fn right(monitor: &Monitor) -> LayerWindow {
     let enabled = settings.flag("show_status");
     let alignment = String::from(settings.status_alignment());
     drop(settings);
-    let top_margin = MARGIN;
+    let top_margin = 0;
     if !enabled {
         return hidden_window("cds-right");
     }

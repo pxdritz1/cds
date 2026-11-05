@@ -564,7 +564,9 @@ impl Settings {
                     self.hover_delay_ms = value.parse::<u64>().unwrap_or(500).clamp(100, 2000)
                 },
                 other => {
-                    if let Some(name) = other.strip_prefix("flag.") {
+                    if let Some(name) = other.strip_prefix("flag.")
+                        && !matches!(name, "show_dock" | "dock_magnification" | "dock_reserve_space" | "dock_auto_hide")
+                    {
                         self.flags.insert(String::from(name), value == "true");
                     }
                 }
