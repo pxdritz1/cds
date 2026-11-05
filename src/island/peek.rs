@@ -15,8 +15,8 @@ use super::widgets::{
     BELL, CLOSE, boxed, icon, icon_button, label,
 };
 
-pub const MEDIA_WIDTH: f32 = 300.0;
-pub const MEDIA_HEIGHT: f32 = 69.0;
+pub const MEDIA_WIDTH: f32 = 304.0;
+pub const MEDIA_HEIGHT: f32 = 64.0;
 pub const NOTICE_COMPACT_WIDTH: f32 = 260.0;
 pub const NOTICE_COMPACT_HEIGHT: f32 = 40.0;
 pub const NOTICE_WIDTH: f32 = 364.0;
