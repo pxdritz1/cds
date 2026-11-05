@@ -166,6 +166,39 @@ fn observe(monitor: &str, now: Snapshot) -> Option<(Kind, Duration, f32)> {
     })
 }
 
+#[cfg(test)]
+mod tests {
+    use super::{Kind, Snapshot, observe};
+
+    #[test]
+    fn queues_simultaneous_volume_and_microphone_changes() {
+        let before = Snapshot {
+            volume: 35,
+            muted: false,
+            microphone_muted: false,
+            brightness: 60,
+            battery: 80,
+            charging: false,
+            battery_present: true,
+        };
+        let after = Snapshot {
+            volume: 48,
+            microphone_muted: true,
+            ..before
+        };
+
+        assert!(observe("test-simultaneous-osd", before).is_none());
+        assert!(matches!(
+            observe("test-simultaneous-osd", after),
+            Some((Kind::Volume, _, _))
+        ));
+        assert!(matches!(
+            observe("test-simultaneous-osd", after),
+            Some((Kind::Microphone, _, _))
+        ));
+    }
+}
+
 pub fn view(monitor: &Monitor) -> LayerWindow {
     let theme = Theme::read();
     let scheme = theme.scheme();
