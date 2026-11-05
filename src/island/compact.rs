@@ -12,7 +12,6 @@ use amane::{
 
 use crate::clock::Clock;
 use crate::focused::FocusedWindow;
-use crate::settings::Settings;
 use crate::glyphs;
 use crate::m3::{self, Type};
 use crate::motion;
