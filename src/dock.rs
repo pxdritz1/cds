@@ -540,7 +540,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
         0.0
     };
     children.push(Box::new(action_item(
-        "dock:apps", m3::APPS, scheme, slot, dock_height, apps_proximity, magnification_enabled, dock_scale, dock_side,
+        "dock:apps", m3::APPS, scheme, slot, dock_height, apps_proximity, magnification_enabled, dock_scale, dock_side, 0.0,
         || DockUi::toggle_drawer(),
     )));
     let trash_center = apps_center + slot + 4.0;
@@ -550,7 +550,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
         0.0
     };
     children.push(Box::new(action_item(
-        "dock:trash", m3::DELETE, scheme, slot, dock_height, trash_proximity, magnification_enabled, dock_scale, dock_side,
+        "dock:trash", m3::DELETE, scheme, slot, dock_height, trash_proximity, magnification_enabled, dock_scale, dock_side, -1.0,
         || amane::spawn("xdg-open trash:///"),
     )));
 
@@ -1233,6 +1233,7 @@ fn action_item(
     magnification: bool,
     transition_scale: f32,
     dock_side: f32,
+    horizontal_offset: f32,
     action: impl Fn() + 'static,
 ) -> Rectangle {
     let action_size = ACTION_ICON.min((dock_height - 28.0).max(1.0) * 0.72);
@@ -1265,7 +1266,7 @@ fn action_item(
             Rectangle::new()
                 .width(action_size * scale)
                 .height(action_size * scale)
-                .translate(0.0, dock_side * (8.0 + 10.0 * proximity) * transition_scale)
+                .translate(horizontal_offset, dock_side * (8.0 + 10.0 * proximity) * transition_scale)
                 .radius(14.0)
                 .fill(scheme.surface_container_highest)
                 .align_child(Center, Center)
