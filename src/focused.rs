@@ -111,7 +111,9 @@ fn read() -> Option<FocusedWindow> {
         .list()
         .iter()
         .find(|app| {
-            app.name().eq_ignore_ascii_case(&app_id)
+            let name = app.name().to_lowercase();
+            name == app_id_lower
+                || (!name.is_empty() && app_id_lower.contains(&name))
                 || (!app_id_lower.is_empty()
                     && app.exec().to_lowercase().contains(&app_id_lower))
         })
