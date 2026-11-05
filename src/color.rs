@@ -1,5 +1,6 @@
-use std::process::{Command, Stdio};
+use std::process::Command;
 use std::thread;
+use std::time::Duration;
 
 use amane::{
     Center, Column, Key, LayerWindow, Monitor, Padding, Parent, Rectangle, Row, Service,
@@ -41,35 +42,34 @@ impl ColorPicker {
         Overlay::open(Panel::Color);
     }
 
-    /// Launch a Wayland-native eyedropper and read the selected pixel from stdout.
-    /// The overlay is closed before starting it so it cannot intercept the screen click.
+    /// Run the eyedropper only after the overlay's 200 ms exit animation is gone.
+    /// This prevents the dimmed shell layer from being included in the screen capture.
     pub fn pick_from_screen() {
-        let child = Command::new("hyprpicker")
-            .args(["--format", "hex", "--no-fancy"])
-            .stdout(Stdio::piped())
-            .stderr(Stdio::null())
-            .spawn();
-
-        let Ok(child) = child else {
-            return;
-        };
-
         Overlay::close();
+        crate::ui::Ui::refresh();
+
         thread::spawn(move || {
-            let Ok(output) = child.wait_with_output() else {
-                return;
-            };
-            if !output.status.success() {
-                return;
+            thread::sleep(Duration::from_millis(240));
+
+            let output = Command::new("hyprpicker")
+                .args(["--format", "hex", "--no-fancy"])
+                .output();
+
+            let picked = output
+                .ok()
+                .filter(|output| output.status.success())
+                .and_then(|output| {
+                    let value = String::from_utf8_lossy(&output.stdout);
+                    normalize(value.trim())
+                });
+
+            if let Some(hex) = picked {
+                ColorPicker::set_hex(hex.clone());
+                TextInput::set_text(INPUT, &hex);
             }
 
-            let picked = String::from_utf8_lossy(&output.stdout);
-            let Some(hex) = normalize(picked.trim()) else {
-                return;
-            };
-
-            ColorPicker::set_hex(hex.clone());
-            TextInput::set_text(INPUT, &hex);
+            // Reopen even when the picker is cancelled or unavailable, keeping the
+            // previous HEX value visible instead of leaving the user without a panel.
             Overlay::open(Panel::Color);
             crate::ui::Ui::refresh();
         });
