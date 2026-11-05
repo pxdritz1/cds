@@ -125,6 +125,14 @@ pub fn reserve(monitor: &Monitor) -> LayerWindow {
         .child(Rectangle::new().width(Parent).height(Parent))
 }
 
+// windows sit flush with the screen edge so the drop shadow can fall off the
+// island naturally; the old margin moves into the window as padding
+fn shadow_room(sides: bool) -> Padding {
+    let side = if sides { MARGIN as f32 } else { 0.0 };
+
+    Padding { top: MARGIN as f32, right: side, bottom: 0.0, left: side }
+}
+
 // the surface every island shares: fill, soft border and the drop shadow
 fn surface(width: f32, height: f32, radius: f32, fill: amane::Color, scheme: &Scheme) -> Rectangle {
     Rectangle::new()
@@ -159,7 +167,7 @@ pub fn left(monitor: &Monitor) -> LayerWindow {
         Some((1, progress)) => (travel as f32 * (1.0 - progress)).round() as i32,
         _ => 0,
     };
-    let top_margin = MARGIN + vertical_offset;
+    let top_margin = vertical_offset;
     if !enabled || scale <= 0.001 {
         return hidden_window("cds-left");
     }
@@ -169,11 +177,7 @@ pub fn left(monitor: &Monitor) -> LayerWindow {
     } else {
         Horizontal::Left
     };
-    let side_margin = if alignment == "right" {
-        Margin { top: top_margin, right: MARGIN, ..Margin::default() }
-    } else {
-        Margin { top: top_margin, left: MARGIN, ..Margin::default() }
-    };
+    let side_margin = Margin { top: top_margin, ..Margin::default() };
 
     let theme = Theme::read();
     let scheme = theme.scheme();
@@ -204,11 +208,11 @@ pub fn left(monitor: &Monitor) -> LayerWindow {
     window
         .input_region(if transition.is_some() { Vec::new() } else { vec![InputArea {
             x: if alignment == "right" {
-                (LEFT_WIDTH - width).max(0.0) as i32
+                (LEFT_WIDTH - width - MARGIN as f32).max(0.0) as i32
             } else {
-                0
+                MARGIN
             },
-            y: 0,
+            y: MARGIN,
             width: width.ceil() as i32,
             height: height.ceil() as i32,
         }] })
@@ -216,6 +220,7 @@ pub fn left(monitor: &Monitor) -> LayerWindow {
             Rectangle::new()
                 .width(Parent)
                 .height(Parent)
+                .padding(shadow_room(true))
                 .align_child(if alignment == "right" { Align::from(End) } else { Align::from(Start) }, Start)
                 .child(island),
         )
@@ -238,7 +243,7 @@ pub fn right(monitor: &Monitor) -> LayerWindow {
         Some((1, progress)) => (travel as f32 * (1.0 - progress)).round() as i32,
         _ => 0,
     };
-    let top_margin = MARGIN + vertical_offset;
+    let top_margin = vertical_offset;
     if !enabled || scale <= 0.001 {
         return hidden_window("cds-right");
     }
@@ -248,11 +253,7 @@ pub fn right(monitor: &Monitor) -> LayerWindow {
     } else {
         Horizontal::Right
     };
-    let side_margin = if alignment == "left" {
-        Margin { top: top_margin, left: MARGIN, ..Margin::default() }
-    } else {
-        Margin { top: top_margin, right: MARGIN, ..Margin::default() }
-    };
+    let side_margin = Margin { top: top_margin, ..Margin::default() };
 
     let theme = Theme::read();
     let scheme = theme.scheme();
@@ -324,8 +325,8 @@ pub fn right(monitor: &Monitor) -> LayerWindow {
 
     let (region, keyboard) = (
         vec![InputArea {
-            x: if alignment == "left" { 0 } else { (RIGHT_WIDTH - width).max(0.0) as i32 },
-            y: 0,
+            x: if alignment == "left" { MARGIN } else { (RIGHT_WIDTH - width - MARGIN as f32).max(0.0) as i32 },
+            y: MARGIN,
             width: width.ceil() as i32,
             height: height.ceil() as i32,
         }],
@@ -365,6 +366,7 @@ pub fn right(monitor: &Monitor) -> LayerWindow {
                         Tray::close();
                     }
                 })
+                .padding(shadow_room(true))
                 .align_child(if alignment == "left" { Align::from(Start) } else { Align::from(End) }, Start)
                 .child(island),
         )
@@ -386,11 +388,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
         "right" => Horizontal::Right,
         _ => Horizontal::Middle,
     };
-    let side_margin = match alignment.as_str() {
-        "left" => Margin { top: MARGIN, left: MARGIN, ..Margin::default() },
-        "right" => Margin { top: MARGIN, right: MARGIN, ..Margin::default() },
-        _ => Margin { top: MARGIN, ..Margin::default() },
-    };
+    let side_margin = Margin::default();
 
     let theme = Theme::read();
     let scheme = theme.scheme();
@@ -547,8 +545,8 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
         (0.0, CENTER_WIDTH)
     } else {
         let x = match alignment.as_str() {
-            "left" => 0.0,
-            "right" => (CENTER_WIDTH - width).max(0.0),
+            "left" => MARGIN as f32,
+            "right" => (CENTER_WIDTH - width - MARGIN as f32).max(0.0),
             _ => ((CENTER_WIDTH - width) / 2.0).max(0.0),
         };
         (x, width)
@@ -571,7 +569,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
         .namespace("cds-island")
         .input_region(vec![InputArea {
             x: region_x as i32,
-            y: 0,
+            y: if overlay_open { 0 } else { MARGIN },
             width: region_width.ceil() as i32,
             height: region_height.ceil() as i32,
         }])
@@ -584,6 +582,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
             Rectangle::new()
                 .width(Parent)
                 .height(Parent)
+                .padding(shadow_room(alignment != "center"))
                 .align_child(match alignment.as_str() { "left" => Align::from(Start), "right" => Align::from(End), _ => Center.into() }, Start)
                 .on_click(move |button| {
                     if button == Button::Left && mode != IslandMode::Media {
