@@ -1,4 +1,4 @@
-use std::process::Command;
+use std::process::{Command, Stdio};
 use std::thread;
 
 use amane::{
@@ -39,6 +39,40 @@ impl ColorPicker {
     pub fn open() {
         Self::reset();
         Overlay::open(Panel::Color);
+    }
+
+    /// Launch a Wayland-native eyedropper and read the selected pixel from stdout.
+    /// The overlay is closed before starting it so it cannot intercept the screen click.
+    pub fn pick_from_screen() {
+        let child = Command::new("hyprpicker")
+            .args(["--format", "hex", "--no-fancy"])
+            .stdout(Stdio::piped())
+            .stderr(Stdio::null())
+            .spawn();
+
+        let Ok(child) = child else {
+            return;
+        };
+
+        Overlay::close();
+        thread::spawn(move || {
+            let Ok(output) = child.wait_with_output() else {
+                return;
+            };
+            if !output.status.success() {
+                return;
+            }
+
+            let picked = String::from_utf8_lossy(&output.stdout);
+            let Some(hex) = normalize(picked.trim()) else {
+                return;
+            };
+
+            ColorPicker::set_hex(hex.clone());
+            TextInput::set_text(INPUT, &hex);
+            Overlay::open(Panel::Color);
+            crate::ui::Ui::refresh();
+        });
     }
 
     pub fn copy_hex() {
@@ -101,6 +135,9 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
 
     let copy = m3::button("color-copy", crate::lang::text("Copiar HEX", "Copy HEX"),
         Some(crate::island::widgets::COPY), m3::Kind::Filled, &scheme, ColorPicker::copy_hex);
+    let eyedropper = m3::button("color-eyedropper",
+        crate::lang::text("Conta-gotas", "Eyedropper"),
+        None, m3::Kind::Tonal, &scheme, ColorPicker::pick_from_screen);
     let hint = if normalized.is_some() {
         crate::lang::text("Digite um valor HEX de 6 dígitos ou pressione Enter para copiar.", "Enter a 6-digit HEX value or press Enter to copy.")
     } else {
@@ -112,7 +149,8 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
         .child(Column::new(vec![
             boxed(m3::scale(Type::TitleMedium, crate::lang::text("Seletor de cores", "Color picker"), scheme.on_surface)),
             boxed(preview_box), boxed(input_box),
-            boxed(Row::new(vec![boxed(copy), boxed(m3::scale_label(Type::LabelSmall, hint, scheme.on_surface_variant, 2))]).gap(12.0).align(Center)),
+            boxed(Row::new(vec![boxed(eyedropper), boxed(copy)]).gap(8.0)),
+            boxed(m3::scale_label(Type::LabelSmall, hint, scheme.on_surface_variant, 2)),
         ]).gap(14.0).width(Parent).height(Parent));
 
     overlay::layer("color", "cds-color-picker", &monitor.name, open, &scheme,
