@@ -1,4 +1,5 @@
-use std::io::{BufRead, BufReader};
+use std::io::{BufRead, BufReader, Write};
+use std::os::unix::net::UnixStream;
 use std::process::{Command, Stdio};
 use std::thread;
 use std::time::Duration;
@@ -83,16 +84,12 @@ fn publish(fresh: Option<FocusedWindow>) {
 }
 
 fn read() -> Option<FocusedWindow> {
-    let output = Command::new("niri")
-        .args(["msg", "--json", "focused-window"])
-        .output()
-        .ok()?;
+    let socket = std::env::var_os("NIRI_SOCKET")?;
+    let mut stream = UnixStream::connect(socket).ok()?;
+    stream.write_all(b"\"FocusedWindow\"\\n").ok()?;
 
-    if !output.status.success() {
-        return None;
-    }
-
-    let json = String::from_utf8(output.stdout).ok()?;
+    let mut json = String::new();
+    BufReader::new(stream).read_line(&mut json).ok()?;
 
     Some(FocusedWindow {
         title: json_string(&json, "title").unwrap_or_default(),
