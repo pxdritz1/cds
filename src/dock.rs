@@ -218,7 +218,7 @@ pub fn view(_monitor: &Monitor) -> LayerWindow {
     // This keeps large icons from being clipped and makes the slider visible.
     let base_slot = (icon_size * MAGNIFICATION + 20.0).max(64.0);
     let base_height = (icon_size * MAGNIFICATION + 40.0).max(96.0);
-    let base_width = (items.len() as f32 + 1.0) * (base_slot + 4.0) + 16.0;
+    let base_width = (items.len() as f32 + 2.0) * (base_slot + 4.0) + 16.0;
     let slot = (base_slot * dock_scale).max(1.0);
     let dock_height = (base_height * dock_scale).max(1.0);
     let dock_width = (base_width * dock_scale).max(1.0);
