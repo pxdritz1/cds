@@ -130,7 +130,7 @@ fn read() -> Option<FocusedWindow> {
 
 /// Extract a JSON string without introducing a parser dependency just for
 /// two fields. Handles escaped quotes, slashes, control characters and
-/// UTF-16 code points emitted by Niri.
+/// Unicode surrogate pairs emitted by JSON serializers.
 fn json_string(input: &str, key: &str) -> Option<String> {
     let marker = format!("\"{key}\"");
     let start = input.find(&marker)? + marker.len();
@@ -164,7 +164,25 @@ fn json_string(input: &str, key: &str) -> Option<String> {
                     't' => value.push('\t'),
                     'u' => {
                         let digits: String = chars.by_ref().take(4).collect();
-                        let code = u32::from_str_radix(&digits, 16).ok()?;
+                        let mut code = u32::from_str_radix(&digits, 16).ok()?;
+
+                        // JSON encodes non-BMP characters as UTF-16 surrogate pairs.
+                        if (0xD800..=0xDBFF).contains(&code) {
+                            if chars.next()? != '\\' || chars.next()? != 'u' {
+                                return None;
+                            }
+
+                            let low_digits: String = chars.by_ref().take(4).collect();
+                            let low = u32::from_str_radix(&low_digits, 16).ok()?;
+                            if !(0xDC00..=0xDFFF).contains(&low) {
+                                return None;
+                            }
+
+                            code = 0x10000 + ((code - 0xD800) << 10) + (low - 0xDC00);
+                        } else if (0xDC00..=0xDFFF).contains(&code) {
+                            return None;
+                        }
+
                         value.push(char::from_u32(code)?);
                     }
                     _ => return None,
@@ -197,4 +215,12 @@ mod tests {
             Some(String::from("Chloe ✨")),
         );
     }
+    #[test]
+    fn parses_unicode_surrogate_pairs() {
+        assert_eq!(
+            json_string(r#"{"title":"\\uD83D\\uDE80"}"#, "title"),
+            Some(String::from("🚀")),
+        );
+    }
+
 }
