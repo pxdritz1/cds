@@ -353,6 +353,22 @@ impl Settings {
         crate::ui::Ui::refresh();
     }
 
+    pub fn move_pinned(exec: &str, direction: isize) {
+        let mut settings = Self::write();
+        let Some(index) = settings.pinned_apps.iter().position(|item| item == exec) else {
+            return;
+        };
+        let target = (index as isize + direction)
+            .clamp(0, settings.pinned_apps.len().saturating_sub(1) as isize) as usize;
+        if target != index {
+            let item = settings.pinned_apps.remove(index);
+            settings.pinned_apps.insert(target, item);
+            settings.save();
+        }
+        drop(settings);
+        crate::ui::Ui::refresh();
+    }
+
     pub fn set_language(language: &str) {
         let mut settings = Self::write();
         settings.language = if language == "en" { String::from("en") } else { String::from("pt-BR") };
