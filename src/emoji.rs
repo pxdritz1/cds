@@ -2,9 +2,10 @@ use std::process::Command;
 use std::thread;
 
 use amane::{
-    Center, Column, Key, LayerWindow, Monitor, Padding, Parent, Pointer, Rectangle, Row,
+    Center, Column, Image, Key, LayerWindow, Monitor, Padding, Parent, Pointer, Rectangle, Row,
     ScrollArea, Service, TextInput, Widget,
 };
+use std::path::PathBuf;
 
 use crate::m3::{self, boxed};
 use crate::overlay::{self, Overlay, Panel};
@@ -14,6 +15,24 @@ const INPUT: &str = "cds-emoji-search";
 const WIDTH: f32 = 620.0;
 const HEIGHT: f32 = 500.0;
 const COLUMNS: usize = 8;
+
+fn emoji_asset(emoji: &str) -> Option<PathBuf> {
+    let data_home = std::env::var_os("XDG_DATA_HOME")
+        .map(PathBuf::from)
+        .or_else(|| std::env::var_os("HOME").map(|home| PathBuf::from(home).join(".local/share")))?;
+
+    let codepoints = emoji
+        .chars()
+        .filter(|character| *character != '\u{fe0f}')
+        .map(|character| format!("{:x}", character as u32))
+        .collect::<Vec<_>>()
+        .join("_");
+    let path = data_home
+        .join("chloe-dynamic-shell/emoji")
+        .join(format!("emoji_u{codepoints}.svg"));
+
+    path.is_file().then_some(path)
+}
 
 // Keep the catalog small, searchable and dependency-free. Aliases are translated
 // by matching both the emoji and its stable English keyword.
@@ -145,13 +164,21 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
                     .radius(14.0).cursor(Pointer)
                     .on_click(move |_| copy(value))
                     .align_child(Center, Center)
-                    // Force Google's color emoji family instead of inheriting Google Sans.
-                    // The normal text helper uses the UI font and can render different glyphs.
-                    .child(amane::Text::new(value)
-                        .font("Noto Color Emoji")
-                        .size(27.0)
-                        .color(if active { scheme.on_secondary_container } else { scheme.on_surface })
-                        .weight(amane::Weight::Regular))
+                    // Amane's text rasterizer draws font outlines, not Noto's CBDT/CBLC
+                    // color bitmaps. Use the official Noto SVG asset for the visible glyph;
+                    // the original Unicode string is still what gets copied to the clipboard.
+                    .child(if let Some(path) = emoji_asset(value) {
+                        boxed(Rectangle::new()
+                            .width(34.0)
+                            .height(34.0)
+                            .align_child(Center, Center)
+                            .fill(Image::contain(path).thumbnail(96, 96)))
+                    } else {
+                        boxed(amane::Text::new(value)
+                            .size(27.0)
+                            .color(if active { scheme.on_secondary_container } else { scheme.on_surface })
+                            .weight(amane::Weight::Regular))
+                    })
             )
         }).collect()).gap(6.0))
     }).collect();
