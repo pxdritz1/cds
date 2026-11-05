@@ -1,3 +1,4 @@
+use std::path::PathBuf;
 use std::process::{Command, Stdio};
 use std::thread;
 use std::time::Duration;
@@ -364,6 +365,15 @@ fn action_item(
             if button == Button::Left {
                 action();
             }
+        })
+        .on_drop(|paths: Vec<PathBuf>| {
+            // GIO moves dropped files to the desktop trash using the
+            // freedesktop trash specification (including restore metadata).
+            thread::spawn(move || {
+                let mut command = Command::new("gio");
+                command.arg("trash").args(paths);
+                let _ = command.spawn();
+            });
         })
         .align_child(Center, Center)
         .child(
