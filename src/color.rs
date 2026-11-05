@@ -100,7 +100,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
         .align_child(Center, Center).child(field);
 
     let copy = m3::button("color-copy", crate::lang::text("Copiar HEX", "Copy HEX"),
-        Some(m3::PASTE), m3::Kind::Filled, &scheme, ColorPicker::copy_hex);
+        Some(crate::island::widgets::COPY), m3::Kind::Filled, &scheme, ColorPicker::copy_hex);
     let hint = if normalized.is_some() {
         crate::lang::text("Digite um valor HEX de 6 dígitos ou pressione Enter para copiar.", "Enter a 6-digit HEX value or press Enter to copy.")
     } else {

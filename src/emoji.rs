@@ -6,7 +6,7 @@ use amane::{
     ScrollArea, Service, TextInput, Widget,
 };
 
-use crate::m3::{self, Type, boxed};
+use crate::m3::{self, boxed};
 use crate::overlay::{self, Overlay, Panel};
 use crate::theme::Theme;
 
@@ -76,9 +76,9 @@ impl EmojiPicker {
         state.selected = 0;
     }
 
-    fn matches(&self) -> Vec<&'static (&'static str, &'static str)> {
+    fn matches(&self) -> Vec<(&'static str, &'static str)> {
         let needle = self.query.trim().to_lowercase();
-        EMOJIS.iter().filter(|(_, names)| needle.is_empty() || names.contains(&needle)).collect()
+        EMOJIS.iter().copied().filter(|(emoji, names)| needle.is_empty() || emoji.contains(&needle) || names.contains(&needle)).collect()
     }
 
     pub fn move_by(delta: isize, count: usize) {
