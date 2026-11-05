@@ -250,7 +250,7 @@ pub fn view(_monitor: &Monitor) -> LayerWindow {
 
     let bar = Rectangle::new()
         .width(dock_width)
-        .height(dock_height - 12.0)
+        .height((dock_height - 12.0).max(1.0))
         .fill(scheme.surface_container_high)
         .radius(30.0)
         .clip()
@@ -364,7 +364,7 @@ fn app_item(
 
     Rectangle::new()
         .width(slot)
-        .height(dock_height - 28.0)
+        .height((dock_height - 28.0).max(1.0))
         .cursor(Pointer)
         .on_hover(move |inside| motion::set_hover(owned.clone(), inside))
         .on_click(move |button| match button {
@@ -394,6 +394,7 @@ fn action_item(
     action: impl Fn() + 'static,
 ) -> Rectangle {
     let hover = motion::hover(key);
+    let action_size = ACTION_ICON.min((dock_height - 28.0).max(1.0) * 0.72);
     let scale = motion::number(
         &format!("{key}:scale"),
         if hover > 0.5 { 1.18 } else { 1.0 },
@@ -423,11 +424,11 @@ fn action_item(
         .align_child(Center, Center)
         .child(
             Rectangle::new()
-                .width(ACTION_ICON * scale)
-                .height(ACTION_ICON * scale)
+                .width(action_size * scale)
+                .height(action_size * scale)
                 .radius(14.0)
                 .fill(scheme.surface_container_highest)
                 .align_child(Center, Center)
-                .child(m3::icon(glyph, ACTION_ICON * 0.58 * scale, scheme.on_surface)),
+                .child(m3::icon(glyph, action_size * 0.58 * scale, scheme.on_surface)),
         )
 }
