@@ -349,7 +349,7 @@ fn app_matches_id(app: &DesktopApp, app_id: &str) -> bool {
 pub fn reserve(monitor: &Monitor) -> LayerWindow {
     let settings = Settings::read();
     let mode = settings.shell_mode();
-    let enabled = settings.flag("show_dock");
+    let enabled = settings.flag("show_dock") && settings.flag("dock_reserve_space");
     let icon_size = settings.dock_icon_size() as f32;
     let position = String::from(settings.dock_position());
     drop(settings);
@@ -447,7 +447,6 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
     // The mapped surface reserves headroom for the enlarged icons and badges.
     // The visible capsule remains compact and is anchored to the selected edge.
     let base_body_height = (icon_size * MAGNIFICATION + 32.0).max(96.0);
-    let base_height = (base_body_height + 64.0).max(160.0);
     let has_separator = pinned_count > 0 && pinned_count < items.len();
     let base_width = (items.len() as f32 + 2.0) * (base_slot + 4.0)
         + 16.0 + if has_separator { 6.0 } else { 0.0 };
@@ -503,7 +502,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
             picker_anchor = Some(center);
         }
         let proximity = if magnification_enabled {
-            pointer_x.map_or(0.0, |x| gaussian((x - center) / 46.0))
+            pointer_x.map_or(0.0, |x| if (x - center).abs() <= slot * 0.5 { 1.0 } else { 0.0 })
         } else {
             0.0
         };
@@ -516,7 +515,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
 
     let apps_center = row_cursor + slot * 0.5;
     let apps_proximity = if magnification_enabled {
-        pointer_x.map_or(0.0, |x| gaussian((x - apps_center) / 46.0))
+        pointer_x.map_or(0.0, |x| if (x - apps_center).abs() <= slot * 0.5 { 1.0 } else { 0.0 })
     } else {
         0.0
     };
@@ -526,7 +525,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
     )));
     let trash_center = apps_center + slot + 4.0;
     let trash_proximity = if magnification_enabled {
-        pointer_x.map_or(0.0, |x| gaussian((x - trash_center) / 46.0))
+        pointer_x.map_or(0.0, |x| if (x - trash_center).abs() <= slot * 0.5 { 1.0 } else { 0.0 })
     } else {
         0.0
     };
@@ -724,7 +723,12 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
             .width(Parent)
             .height(Parent)
             .on_move(move |point| {
-                motion::set_pointer_x(pointer_move_key.clone(), Some(point.x - dock_x));
+                let dock_top = dock_y + hide_offset;
+                let over_dock = point.y >= dock_top && point.y <= dock_top + base_body_height;
+                motion::set_pointer_x(
+                    pointer_move_key.clone(),
+                    if over_dock { Some(point.x - dock_x) } else { None },
+                );
             })
             .on_hover(move |inside| {
                 DockUi::set_hovered(inside);
