@@ -89,6 +89,20 @@ impl Overlay {
         Self::write().panel = Panel::None;
     }
 
+    /// Close the active overlay without playing its exit animation.
+    pub fn close_immediately() {
+        let panel = Self::read().panel;
+
+        if panel == Panel::None {
+            return;
+        }
+
+        Self::write().panel = Panel::None;
+        motion::presence_immediately(panel.name(), false);
+        Ui::refresh();
+        amane::request_frame();
+    }
+
     pub fn toggle(panel: Panel) {
         if Self::read().panel == panel {
             Self::close();
