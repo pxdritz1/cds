@@ -55,6 +55,27 @@ Keep slow work out of the drawing path:
 - Coalesce repeated work when only the latest request matters.
 - Use the shared motion scheduler for continuous animations.
 
+## Shell layouts and motion
+
+The shell has three runtime layouts, selected in Settings or with
+`amane ipc call settings layout <1|2|3>`:
+
+- Layout 1 keeps the original three-island bar.
+- Layout 2 hides the bar and shows the standalone app dock.
+- Layout 3 combines the dock with the existing bar and center Island.
+
+The dock has independent top/bottom placement and left/center/right alignment.
+Workspace, center-Island, status and dock visibility can be changed at runtime.
+The center clock can be digital or analog.
+
+Overlay transitions use a restrained bubble burst behind the panel. The motion
+language can be switched between Material 3 and Fluent timing presets. Animation
+frames are requested through the shared frame-pulse service so only windows
+subscribed to active motion are woken.
+
+The focused-window service reads Niri's focused-window IPC response off the
+rendering thread and publishes only changed title/app-id metadata.
+
 ## Overlays
 
 Panels are separate layer windows created through overlay::layer. The helper handles monitor focus, keyboard exclusivity, backdrop, placement and visibility transitions.
