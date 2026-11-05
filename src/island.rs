@@ -421,7 +421,6 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
     let ui = Ui::read();
 
     let media_hover_key = format!("media-island:{}", monitor.name);
-    let media_expanded = motion::hover(&media_hover_key) > 0.5;
 
     let mode = if ui.dash() {
         IslandMode::Dash
