@@ -195,7 +195,7 @@ pub fn left(monitor: &Monitor) -> LayerWindow {
     let island = surface(width, height, radius, compact::base_fill(scheme), scheme)
         .child(Stack::new(vec![Box::new(bar_row)]).width(Parent).height(Parent));
 
-    LayerWindow::new()
+    let window = LayerWindow::new()
         .width(LEFT_WIDTH)
         .height(LEFT_HEIGHT)
         .anchor_vertical(Vertical::Top)
@@ -203,8 +203,10 @@ pub fn left(monitor: &Monitor) -> LayerWindow {
         .layer(Layer::Top)
         .space(Zone::Ignore)
         .margin(side_margin)
-        .namespace("cds-left")
-        .input_region(vec![InputArea {
+        .namespace("cds-left");
+    let window = if transition.is_some() { window.click_through() } else { window };
+    window
+input_region(vec![InputArea {
             x: if alignment == "right" {
                 (LEFT_WIDTH - width).max(0.0) as i32
             } else {
@@ -334,7 +336,7 @@ pub fn right(monitor: &Monitor) -> LayerWindow {
         if tray_open { Keyboard::OnDemand } else { Keyboard::None },
     );
 
-    LayerWindow::new()
+    let window = LayerWindow::new()
         .width(RIGHT_WIDTH)
         .height(RIGHT_HEIGHT)
         .anchor_vertical(Vertical::Top)
@@ -343,7 +345,8 @@ pub fn right(monitor: &Monitor) -> LayerWindow {
         .space(Zone::Ignore)
         .margin(side_margin)
         .keyboard(keyboard)
-        .namespace("cds-right")
+        .namespace("cds-right");
+    let window = if transition.is_some() { window.click_through() } else { window };
         .input_region(region)
         .on_key(|key| {
             if key == Key::Escape {
@@ -572,7 +575,8 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
         .margin(side_margin)
         .keyboard(keyboard)
         .namespace("cds-island")
-        .input_region(vec![InputArea {
+    window
+input_region(vec![InputArea {
             x: region_x as i32,
             y: 0,
             width: region_width.ceil() as i32,
