@@ -262,16 +262,25 @@ pub fn presence_immediately(key: &str, open: bool) {
 
 // pointer state layers: 0 when the pointer is away, 1 while it is over
 pub fn set_hover(key: impl Into<String>, inside: bool) {
-    HOVERS.with(|hovers| {
+    let changed = HOVERS.with(|hovers| {
         let mut hovers = hovers.borrow_mut();
         let entry = hovers
             .entry(key.into())
             .or_insert_with(|| (false, Track::new(0.0, STATE)));
 
-        entry.0 = inside;
+        if entry.0 == inside {
+            false
+        } else {
+            entry.0 = inside;
+            true
+        }
     });
 
-    crate::ui::Ui::refresh();
+    // Pointer backends may repeat the same state. Avoid waking every UI
+    // subscriber when the hover target did not actually change.
+    if changed {
+        crate::ui::Ui::refresh();
+    }
 }
 
 pub fn hover(key: &str) -> f32 {
