@@ -5,7 +5,7 @@ use std::time::Duration;
 
 use amane::{
     Align, Apps, Button, Canvas, Center, Column, DesktopApp, Horizontal, Image, InputArea, Keyboard, Key, Layer, LayerWindow, Monitor,
-    End, Full, Parent, Path, Pointer, Rectangle, Row, Scroll, ScrollArea, Service, Shadow, Shape, Start, Text, TextInput, Vertical, Widget,
+    End, Parent, Path, Pointer, Rectangle, Row, Scroll, ScrollArea, Service, Shadow, Shape, Start, Text, TextInput, Vertical, Widget,
     Zone,
 };
 
@@ -594,8 +594,8 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
 
     let keyboard = if drawer_open { Keyboard::OnDemand } else { Keyboard::None };
     let window = LayerWindow::new()
-        .width(Full)
-        .height(Full)
+        .width(monitor.width as f32)
+        .height(monitor.height as f32)
         .anchor_vertical(Vertical::Top)
         .anchor_horizontal(Horizontal::Left)
         .layer(Layer::Top)
