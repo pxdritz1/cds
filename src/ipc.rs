@@ -1,7 +1,7 @@
 /*
  * the ipc surface. short, plain names, no "overlay" namespace to greet:
  *
- *   amane ipc call open launcher|apps|spotlight|clipboard|power|control|config
+ *   amane ipc call open launcher|apps|spotlight|clipboard|power|control|config|color|emoji
  *   amane ipc call closed
  *   amane ipc call dash [home|media|clima|papeis|alertas]
  *   amane ipc call tray [toggle|close|list|focus <id>|close-window <id>]
@@ -69,7 +69,7 @@ pub fn root(arguments: &[String]) -> String {
         "weather" | "clima" => crate::weather::command(rest),
         "theme" => crate::theme::command(rest),
         // the panel may name itself: `open clipboard` == `clipboard`
-        "launcher" | "apps" | "spotlight" | "clipboard" | "power" | "control" | "config" => {
+        "launcher" | "apps" | "spotlight" | "clipboard" | "power" | "control" | "config" | "color" | "emoji" => {
             show(arguments)
         }
         _ => format!("failed: unknown command {action}"),
@@ -93,6 +93,8 @@ fn show(arguments: &[String]) -> String {
         "power" => Panel::Power,
         "control" => Panel::Control,
         "config" | "settings" => Panel::Config,
+        "color" | "color-picker" => Panel::Color,
+        "emoji" | "emoji-picker" => Panel::Emoji,
         _ => return format!("failed: unknown panel {name}"),
     };
 

@@ -19,6 +19,8 @@ pub enum Panel {
     Power,
     Control,
     Config,
+    Color,
+    Emoji,
 }
 
 impl Panel {
@@ -32,6 +34,8 @@ impl Panel {
             Panel::Power => "power",
             Panel::Control => "control",
             Panel::Config => "config",
+            Panel::Color => "color",
+            Panel::Emoji => "emoji",
         }
     }
 }
