@@ -33,7 +33,8 @@ Mod+P           { spawn-sh "amane ipc call open color"; }
 Mod+Shift+V     { spawn-sh "amane ipc call open clipboard"; }
 Mod+Comma       { spawn-sh "amane ipc call open config"; }
 Mod+Shift+E     { spawn-sh "amane ipc call open power"; }
-Mod+Shift+D     { spawn-sh "amane ipc call mode toggle"; }\nMod+Shift+C     { spawn-sh "amane ipc call open control"; }
+Mod+Shift+D     { spawn-sh "amane ipc call mode toggle"; }
+Mod+Shift+C     { spawn-sh "amane ipc call open control"; }
 Mod+Shift+W     { spawn-sh "amane ipc call dash wallpapers"; }
 Mod+Shift+L     { spawn-sh "amane ipc call lock"; }
 Escape          { spawn-sh "amane ipc call closed"; }
