@@ -549,6 +549,8 @@ impl Tray {
         };
 
         let service = item.service.clone();
+        let item_path = item.path.clone();
+        let item_interface = item.interface.clone();
         {
             let mut tray = Self::write();
             tray.open = true;
@@ -577,8 +579,8 @@ impl Tray {
                 let args = [Argument::from(0_i32), Argument::from(0_i32)];
                 fallback.call(
                     &service,
-                    "/StatusNotifierItem",
-                    ITEM_INTERFACE,
+                    &item_path,
+                    &item_interface,
                     "ContextMenu",
                     &args,
                 );
