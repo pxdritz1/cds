@@ -100,7 +100,8 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
             width: WIDTH,
             height: HEIGHT,
             radius: m3::shape::XL,
-            place: overlay::Place::Under,
+            place: overlay::Place::Middle,
+            full_screen: true,
         },
         content,
         |key| {
