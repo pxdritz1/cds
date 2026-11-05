@@ -461,6 +461,10 @@ impl Settings {
 
     // changes the matugen scheme and regenerates everything with it
     pub fn set_scheme(scheme: &str) -> String {
+        if !SCHEMES.iter().any(|(name, _)| *name == scheme) {
+            return String::from("failed: unsupported Matugen scheme");
+        }
+
         let (wallpaper, dark) = {
             let mut settings = Self::write();
 
@@ -474,6 +478,10 @@ impl Settings {
     }
 
     pub fn set_scheme_live(scheme: &str) {
+        if !SCHEMES.iter().any(|(name, _)| *name == scheme) {
+            return;
+        }
+
         let (wallpaper, dark) = {
             let mut settings = Self::write();
 
@@ -504,7 +512,11 @@ impl Settings {
 
             match key.trim() {
                 "wallpaper" => self.wallpaper = expand_home_path(value).to_string_lossy().into_owned(),
-                "scheme" => self.scheme = String::from(value),
+                "scheme" => {
+                    if SCHEMES.iter().any(|(name, _)| *name == value) {
+                        self.scheme = String::from(value);
+                    }
+                },
                 "dark" => self.dark = value != "false",
                 "directory" => self.directory = expand_home_path(value),
                 "location" => self.location = String::from(value),
