@@ -341,7 +341,7 @@ pub fn window() -> Window {
         .width(Parent),
     );
 
-    let wallpaper_rotation_card = settings_card(WIDTH - PADDING * 2.0, 126.0, scheme.surface_container_low).child(
+    let wallpaper_rotation_card = settings_card(WIDTH - PADDING * 2.0, 148.0, scheme.surface_container_low).child(
         Column::new(vec![
             Box::new(section(OPEN_NEW, crate::lang::text("Rotação automática", "Automatic rotation"), scheme)),
             Box::new(chip(

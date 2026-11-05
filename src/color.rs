@@ -91,7 +91,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
         .child(Rectangle::new().width(Parent).height(Parent)
             .padding(16.0)
             .align_child(amane::End, Center)
-            .child(m3::text(normalized.clone().unwrap_or_else(|| String::from("HEX inválido")), 13.0,
+            .child(m3::text(normalized.clone().unwrap_or_else(|| String::from(crate::lang::text("HEX inválido", "Invalid HEX"))), 13.0,
                 if normalized.is_some() { amane::Color::WHITE } else { scheme.on_error }, amane::Weight::SemiBold)));
 
     let input_box = Rectangle::new().width(Parent).height(54.0)
