@@ -94,6 +94,16 @@ const SELECT: Duration = Duration::from_millis(200);
 const OVERLAY_IN: Duration = Duration::from_millis(300);
 const OVERLAY_OUT: Duration = Duration::from_millis(200);
 
+/// Pick a duration from the active motion language. M3 is more expressive;
+/// Fluent keeps desktop transitions brisk and direct.
+pub fn style_duration(m3_ms: u64, fluent_ms: u64) -> Duration {
+    if crate::settings::Settings::read().motion_style() == "fluent" {
+        Duration::from_millis(fluent_ms)
+    } else {
+        Duration::from_millis(m3_ms)
+    }
+}
+
 /*
  * one value moving toward a target. retargeting only happens when the
  * target itself changes, so an animation already on its way is never
@@ -173,7 +183,11 @@ pub fn follow(monitor: &str, width: f32, height: f32, radius: f32) -> (f32, f32,
 
         let area = width * height;
         let before = morph.width.value() * morph.height.value();
-        let duration = if area >= before { EXPAND } else { COLLAPSE };
+        let duration = if area >= before {
+            style_duration(EXPAND.as_millis() as u64, 333)
+        } else {
+            style_duration(COLLAPSE.as_millis() as u64, 167)
+        };
 
         morph.width.to(width, duration);
         morph.height.to(height, duration);
@@ -222,7 +236,11 @@ pub fn presence(key: &str, open: bool) -> f32 {
 
         track.to(
             if open { 1.0 } else { 0.0 },
-            if open { OVERLAY_IN } else { OVERLAY_OUT },
+            if open {
+                style_duration(OVERLAY_IN.as_millis() as u64, 250)
+            } else {
+                style_duration(OVERLAY_OUT.as_millis() as u64, 167)
+            },
         );
 
         track.value()
@@ -263,7 +281,10 @@ pub fn hover(key: &str) -> f32 {
             return 0.0;
         };
 
-        track.to(if *inside { 1.0 } else { 0.0 }, STATE);
+        track.to(
+            if *inside { 1.0 } else { 0.0 },
+            style_duration(STATE.as_millis() as u64, 120),
+        );
 
         track.value()
     })
