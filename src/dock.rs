@@ -1,5 +1,9 @@
+use std::collections::HashMap;
+use std::env;
+use std::fs;
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
+use std::sync::{Mutex, OnceLock};
 use std::thread;
 use std::time::{Duration, Instant};
 
@@ -26,6 +30,12 @@ struct RunningWindow {
     title: String,
 }
 
+#[derive(Clone)]
+struct DesktopAction {
+    name: String,
+    exec: String,
+}
+
 #[derive(Default, PartialEq, Eq)]
 struct RunningApps {
     windows: Vec<RunningWindow>,
@@ -39,6 +49,11 @@ struct DockUi {
     last_activity: Instant,
     auto_hidden: bool,
     context_exec: Option<String>,
+    drag_exec: Option<String>,
+    drag_last_x: f32,
+    drag_accum: f32,
+    drag_moved: bool,
+    drag_last_event: Instant,
 }
 
 impl Default for DockUi {
@@ -51,6 +66,11 @@ impl Default for DockUi {
             last_activity: Instant::now(),
             auto_hidden: false,
             context_exec: None,
+            drag_exec: None,
+            drag_last_x: 0.0,
+            drag_accum: 0.0,
+            drag_moved: false,
+            drag_last_event: Instant::now(),
         }
     }
 }
@@ -364,6 +384,127 @@ fn app_matches_id(app: &DesktopApp, app_id: &str) -> bool {
         || (!target.is_empty() && (target.contains(&name) || name.contains(&target)))
 }
 
+fn desktop_action_cache() -> &'static Mutex<HashMap<String, Vec<DesktopAction>>> {
+    static CACHE: OnceLock<Mutex<HashMap<String, Vec<DesktopAction>>>> = OnceLock::new();
+    CACHE.get_or_init(|| Mutex::new(HashMap::new()))
+}
+
+fn clean_desktop_exec(value: &str) -> String {
+    let mut cleaned = String::with_capacity(value.len());
+    let mut chars = value.chars();
+    while let Some(character) = chars.next() {
+        if character == '%' {
+            if let Some(code) = chars.next() {
+                if !matches!(code, '%' | 'f' | 'F' | 'u' | 'U' | 'i' | 'c' | 'k') {
+                    cleaned.push('%');
+                    cleaned.push(code);
+                } else if code == '%' {
+                    cleaned.push('%');
+                }
+            }
+        } else {
+            cleaned.push(character);
+        }
+    }
+    cleaned.trim().to_string()
+}
+
+fn desktop_data_dirs() -> Vec<PathBuf> {
+    let mut dirs = Vec::new();
+    if let Some(home) = env::var_os("XDG_DATA_HOME").map(PathBuf::from)
+        .or_else(|| env::var_os("HOME").map(|home| PathBuf::from(home).join(".local/share")))
+    {
+        dirs.push(home.join("applications"));
+    }
+    let system_dirs = env::var_os("XDG_DATA_DIRS")
+        .map(PathBuf::from)
+        .map(|_| env::split_paths(&env::var_os("XDG_DATA_DIRS").unwrap_or_default()).collect::<Vec<_>>())
+        .unwrap_or_else(|| vec![PathBuf::from("/usr/local/share"), PathBuf::from("/usr/share")]);
+    dirs.extend(system_dirs.into_iter().map(|dir| dir.join("applications")));
+    dirs
+}
+
+fn collect_desktop_files(directory: &PathBuf, files: &mut Vec<PathBuf>, depth: usize) {
+    if depth > 6 { return; }
+    let Ok(entries) = fs::read_dir(directory) else { return };
+    for entry in entries.flatten() {
+        let path = entry.path();
+        let Ok(kind) = entry.file_type() else { continue };
+        if kind.is_dir() {
+            collect_desktop_files(&path, files, depth + 1);
+        } else if kind.is_file() && path.extension().is_some_and(|extension| extension == "desktop") {
+            files.push(path);
+        }
+    }
+}
+
+fn desktop_actions(app: &DesktopApp) -> Vec<DesktopAction> {
+    let key = String::from(app.exec());
+    if let Ok(cache) = desktop_action_cache().lock() {
+        if let Some(actions) = cache.get(&key) { return actions.clone(); }
+    }
+
+    let app_command = clean_desktop_exec(app.exec());
+    let app_binary = app_command.split_whitespace().next().unwrap_or("");
+    let mut files = Vec::new();
+    for directory in desktop_data_dirs() {
+        collect_desktop_files(&directory, &mut files, 0);
+    }
+
+    let mut result = Vec::new();
+    for path in files {
+        let Ok(contents) = fs::read_to_string(path) else { continue };
+        let mut section = String::new();
+        let mut main_name = String::new();
+        let mut main_exec = String::new();
+        let mut sections: Vec<(String, String)> = Vec::new();
+
+        for line in contents.lines().map(str::trim) {
+            if line.starts_with('[') && line.ends_with(']') {
+                section = line[1..line.len() - 1].to_string();
+                if section.starts_with("Desktop Action ") {
+                    sections.push((String::new(), String::new()));
+                }
+                continue;
+            }
+            let Some((field, value)) = line.split_once('=') else { continue };
+            match section.as_str() {
+                "Desktop Entry" => match field.trim() {
+                    "Name" => main_name = value.trim().to_string(),
+                    "Exec" => main_exec = clean_desktop_exec(value.trim()),
+                    _ => {}
+                },
+                name if name.starts_with("Desktop Action ") => {
+                    if let Some((action_name, action_exec)) = sections.last_mut() {
+                        match field.trim() {
+                            "Name" => *action_name = value.trim().to_string(),
+                            "Exec" => *action_exec = clean_desktop_exec(value.trim()),
+                            _ => {}
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        let main_binary = main_exec.split_whitespace().next().unwrap_or("");
+        let command_matches = !app_binary.is_empty() && main_binary == app_binary;
+        let name_matches = main_name.eq_ignore_ascii_case(app.name());
+        if !command_matches && !name_matches { continue; }
+
+        result = sections.into_iter()
+            .filter(|(name, exec)| !name.trim().is_empty() && !exec.trim().is_empty())
+            .map(|(name, exec)| DesktopAction { name, exec })
+            .collect();
+        break;
+    }
+
+    if let Ok(mut cache) = desktop_action_cache().lock() {
+        cache.insert(key, result.clone());
+    }
+    result
+}
+
 
 pub fn reserve(monitor: &Monitor) -> LayerWindow {
     let settings = Settings::read();
@@ -503,6 +644,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
     let mut children: Vec<Box<dyn Widget>> = Vec::new();
     let mut row_cursor = 10.0;
     let mut picker_anchor = None;
+    let mut context_region = None;
 
     for (index, (app, window_ids, _pinned)) in items.iter().enumerate() {
         if index == pinned_count && has_separator {
@@ -525,10 +667,36 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
         } else {
             0.0
         };
+        let context_open = context_exec.as_deref() == Some(app.exec());
+        if context_open {
+            let scale = motion::number(
+                &format!("dock:{}:scale", app.exec()),
+                1.0 + 0.62 * if magnification_enabled { proximity } else { 0.0 },
+                motion::style_duration(190, 170),
+            );
+            let icon_size_now = icon_size * dock_scale * scale;
+            let menu_width = 190.0_f32;
+            let menu_height = (desktop_actions(app).len() as f32 + 3.0) * 25.0 + 18.0;
+            let item_height = (dock_height - 28.0).max(1.0);
+            let item_y = if dock_side < 0.0 {
+                dock_y + hide_offset + shape_y + 8.0 + item_height - icon_size_now - (8.0 + 10.0 * proximity) * dock_scale
+            } else {
+                dock_y + hide_offset + shape_y + 8.0 + (8.0 + 10.0 * proximity) * dock_scale
+            };
+            let menu_x = dock_x + row_cursor + slot * 0.5 - menu_width * 0.5;
+            let menu_y = if dock_side < 0.0 { item_y - menu_height - 4.0 } else { item_y };
+            context_region = Some(InputArea {
+                x: menu_x.floor().max(0.0) as i32,
+                y: menu_y.floor().max(0.0) as i32,
+                width: menu_width.ceil().min(monitor.width as f32) as i32,
+                height: menu_height.ceil().min(monitor.height as f32) as i32,
+            });
+        }
+        let actions = if context_open { desktop_actions(app) } else { Vec::new() };
         children.push(Box::new(app_item(
             app, scheme, icon_size * dock_scale, magnification_enabled,
             window_ids, proximity, slot, dock_height, dock_scale, dock_side,
-            *_pinned, context_exec.as_deref() == Some(app.exec()),
+            *_pinned, context_open, actions,
         )));
         row_cursor += slot + 4.0;
     }
@@ -711,6 +879,9 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
         }
         if let Some(drawer) = drawer_region {
             regions.push(drawer);
+        }
+        if let Some(context) = context_region {
+            regions.push(context);
         }
         regions
     };
@@ -1069,6 +1240,7 @@ fn app_item(
     dock_side: f32,
     pinned: bool,
     context_open: bool,
+    desktop_actions: Vec<DesktopAction>,
 ) -> Rectangle {
     let exec = String::from(app.exec());
     let key = format!("dock:{}", exec);
@@ -1142,17 +1314,41 @@ fn app_item(
         let pin_exec = exec.clone();
         let left_exec = exec.clone();
         let right_exec = exec.clone();
+        let menu_width = 190.0_f32;
+        let menu_height = (desktop_actions.len() as f32 + 3.0) * 25.0 + 18.0;
+        let mut options: Vec<Box<dyn Widget>> = Vec::new();
+
+        for action in desktop_actions {
+            let action_exec = action.exec;
+            options.push(Box::new(context_option(&action.name, scheme, move || {
+                amane::spawn(&action_exec);
+                DockUi::close_context();
+            })));
+        }
+        options.push(Box::new(context_option(
+            if pinned { crate::lang::text("Desafixar do Dock", "Unpin from Dock") } else { crate::lang::text("Fixar no Dock", "Pin to Dock") },
+            scheme,
+            move || { Settings::toggle_pinned(&pin_exec); DockUi::close_context(); },
+        )));
+        options.push(Box::new(context_option(
+            crate::lang::text("Mover para esquerda", "Move left"),
+            scheme,
+            move || { Settings::move_pinned(&left_exec, -1); DockUi::close_context(); },
+        )));
+        options.push(Box::new(context_option(
+            crate::lang::text("Mover para direita", "Move right"),
+            scheme,
+            move || { Settings::move_pinned(&right_exec, 1); DockUi::close_context(); },
+        )));
+
         let menu = Rectangle::new()
-            .width(156.0).height(72.0)
-            .translate(-50.0, if dock_side < 0.0 { -76.0 } else { 0.0 })
+            .width(menu_width).height(menu_height)
+            .translate(-(menu_width - size) * 0.5, if dock_side < 0.0 { -menu_height - 4.0 } else { 0.0 })
             .radius(14.0).fill(scheme.surface_container)
             .border(1.0, fade(scheme.outline_variant, 150))
             .shadow(Shadow::drop(scheme.shadow).opacity(0.34).blur(18.0).offset(0.0, 5.0))
-            .child(Column::new(vec![
-                Box::new(context_option(if pinned { crate::lang::text("Desafixar", "Unpin") } else { crate::lang::text("Fixar no Dock", "Pin to Dock") }, scheme, move || { Settings::toggle_pinned(&pin_exec); DockUi::close_context(); })),
-                Box::new(context_option(crate::lang::text("Mover para esquerda", "Move left"), scheme, move || { Settings::move_pinned(&left_exec, -1); DockUi::close_context(); })),
-                Box::new(context_option(crate::lang::text("Mover para direita", "Move right"), scheme, move || { Settings::move_pinned(&right_exec, 1); DockUi::close_context(); })),
-            ]).gap(1.0).width(Parent).height(Parent));
+            .padding(6.0)
+            .child(Column::new(options).gap(1.0).width(Parent).height(Parent));
         layers.push(Box::new(menu));
     }
 
@@ -1179,6 +1375,17 @@ fn app_item(
         .cursor(Pointer)
         .on_click(move |button| match button {
             Button::Left => {
+                let was_dragged = {
+                    let mut state = DockUi::write();
+                    let dragged = state.drag_exec.as_deref() == Some(launch.as_str()) && state.drag_moved;
+                    if state.drag_exec.as_deref() == Some(launch.as_str()) {
+                        state.drag_exec = None;
+                        state.drag_accum = 0.0;
+                        state.drag_moved = false;
+                    }
+                    dragged
+                };
+                if was_dragged { return; }
                 motion::trigger_bounce(bounce_key.clone());
                 if click_window_ids.len() > 1 {
                     DockUi::toggle_picker(&launch);
@@ -1194,6 +1401,39 @@ fn app_item(
             }
             Button::Right => DockUi::toggle_context(&launch),
             _ => {}
+        })
+        .on_drag(move |point| {
+            if !pinned || context_open { return; }
+            let mut steps = 0usize;
+            let mut direction = 0isize;
+            {
+                let mut state = DockUi::write();
+                if state.drag_exec.as_deref() != Some(launch.as_str())
+                    || state.drag_last_event.elapsed() > Duration::from_millis(300)
+                {
+                    state.drag_exec = Some(launch.clone());
+                    state.drag_last_x = point.x;
+                    state.drag_accum = 0.0;
+                    state.drag_moved = false;
+                    state.drag_last_event = Instant::now();
+                    return;
+                }
+
+                let delta = point.x - state.drag_last_x;
+                state.drag_last_x = point.x;
+                state.drag_last_event = Instant::now();
+                state.drag_accum += delta;
+                let threshold = (slot * 0.55).max(24.0);
+                if state.drag_accum.abs() >= threshold {
+                    direction = if state.drag_accum < 0.0 { -1 } else { 1 };
+                    steps = (state.drag_accum.abs() / threshold).floor() as usize;
+                    state.drag_accum -= direction as f32 * threshold * steps as f32;
+                    state.drag_moved = true;
+                }
+            }
+            for _ in 0..steps {
+                Settings::move_pinned(&launch, direction);
+            }
         })
         .on_scroll(move |scroll: Scroll| {
             if scroll_window_ids.len() < 2 || scroll.y == 0.0 {
