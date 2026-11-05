@@ -5,7 +5,7 @@ use std::time::Duration;
 
 use amane::{
     Apps, Button, Center, DesktopApp, Horizontal, Image, Layer, LayerWindow, Margin, Monitor,
-    Parent, Pointer, Rectangle, Row, Service, Shadow, Text, Vertical, Widget, Zone,
+    End, Parent, Pointer, Rectangle, Row, Service, Shadow, Start, Text, Vertical, Widget, Zone,
 };
 
 use crate::m3;
@@ -259,11 +259,16 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
 
     // Keep enough headroom for icons to grow upward without resizing the layer.
     let base_slot = (icon_size * MAGNIFICATION + 24.0).max(72.0);
-    let base_height = (icon_size * MAGNIFICATION + 48.0).max(112.0);
+    // The mapped surface reserves headroom for the enlarged icons and badges.
+    // The visible capsule remains compact and is anchored to the selected edge.
+    let base_body_height = (icon_size * MAGNIFICATION + 32.0).max(96.0);
+    let base_height = (base_body_height + 64.0).max(160.0);
     let base_width = (items.len() as f32 + 2.0) * (base_slot + 4.0) + 16.0;
     let slot = (base_slot * dock_scale).max(1.0);
-    let dock_height = (base_height * dock_scale).max(1.0);
+    let dock_height = (base_body_height * dock_scale).max(1.0);
     let dock_width = (base_width * dock_scale).max(1.0);
+    let dock_side = if position == "top" { 1.0 } else { -1.0 };
+    let magnification_enabled = magnification;
     let pointer_key = format!("dock:pointer:{}", monitor.name);
     let pointer_x = motion::pointer_x(&pointer_key);
 
@@ -272,24 +277,36 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
         .enumerate()
         .map(|(index, (app, window_ids))| {
             let center = 8.0 + index as f32 * (slot + 4.0) + slot * 0.5;
-            let proximity = pointer_x.map_or(0.0, |x| gaussian((x - center) / 46.0));
+            let proximity = if magnification_enabled {
+                pointer_x.map_or(0.0, |x| gaussian((x - center) / 46.0))
+            } else {
+                0.0
+            };
             Box::new(app_item(
-                app, scheme, icon_size * dock_scale, magnification,
-                window_ids, proximity, slot, dock_height,
+                app, scheme, icon_size * dock_scale, magnification_enabled,
+                window_ids, proximity, slot, dock_height, dock_scale, dock_side,
             )) as Box<dyn Widget>
         })
         .collect();
 
     let apps_center = 8.0 + items.len() as f32 * (slot + 4.0) + slot * 0.5;
-    let apps_proximity = pointer_x.map_or(0.0, |x| gaussian((x - apps_center) / 46.0));
+    let apps_proximity = if magnification_enabled {
+        pointer_x.map_or(0.0, |x| gaussian((x - apps_center) / 46.0))
+    } else {
+        0.0
+    };
     children.push(Box::new(action_item(
-        "dock:apps", m3::APPS, scheme, slot, dock_height, apps_proximity,
+        "dock:apps", m3::APPS, scheme, slot, dock_height, apps_proximity, dock_scale, dock_side,
         || Overlay::toggle(crate::overlay::Panel::Apps),
     )));
     let trash_center = apps_center + slot + 4.0;
-    let trash_proximity = pointer_x.map_or(0.0, |x| gaussian((x - trash_center) / 46.0));
+    let trash_proximity = if magnification_enabled {
+        pointer_x.map_or(0.0, |x| gaussian((x - trash_center) / 46.0))
+    } else {
+        0.0
+    };
     children.push(Box::new(action_item(
-        "dock:trash", m3::DELETE, scheme, slot, dock_height, trash_proximity,
+        "dock:trash", m3::DELETE, scheme, slot, dock_height, trash_proximity, dock_scale, dock_side,
         || amane::spawn("xdg-open trash:///"),
     )));
 
@@ -298,7 +315,6 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
         .height((dock_height - 12.0).max(1.0))
         .fill(scheme.surface_container_high)
         .radius(30.0)
-        .clip()
         .border(1.0, fade(scheme.outline_variant, 90))
         .shadow(
             Shadow::drop(scheme.shadow)
@@ -351,7 +367,10 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
                     motion::set_pointer_x(pointer_leave_key.clone(), None);
                 }
             })
-            .align_child(Center, Center)
+            .align_child(
+                Center,
+                if position == "top" { Start } else { End },
+            )
             .child(bar),
     )
 }
@@ -369,6 +388,8 @@ fn app_item(
     proximity: f32,
     slot: f32,
     dock_height: f32,
+    transition_scale: f32,
+    dock_side: f32,
 ) -> Rectangle {
     let exec = String::from(app.exec());
     let key = format!("dock:{}", exec);
@@ -380,8 +401,7 @@ fn app_item(
         motion::style_duration(90, 90),
     );
     let size = icon_base * scale;
-    let rise = (8.0 + 10.0 * proximity)
-        * dock_height / (icon_base * MAGNIFICATION + 48.0).max(1.0);
+    let rise = (8.0 + 10.0 * proximity) * transition_scale * -dock_side;
     let owned = key.clone();
     let launch = exec.clone();
     let window_id = window_ids.first().map(|id| id.to_string());
@@ -420,7 +440,7 @@ fn app_item(
                 .radius(4.0)
                 .fill(scheme.primary)
                 .border(1.0, scheme.surface_container_high)
-                .translate(0.0, size * 0.5 - 3.0),
+                .translate(0.0, -dock_side * (size * 0.5 - 3.0)),
         ));
     }
     if window_count > 1 {
@@ -431,7 +451,7 @@ fn app_item(
                 .radius(10.0)
                 .fill(scheme.primary)
                 .border(2.0, scheme.surface_container_high)
-                .translate(size * 0.34, -size * 0.36)
+                .translate(size * 0.34, dock_side * size * 0.36)
                 .align_child(Center, Center)
                 .child(Text::new(window_count.to_string()).size(9.5).color(scheme.on_primary).weight(amane::Weight::Bold).tight()),
         ));
@@ -461,7 +481,7 @@ fn app_item(
             Rectangle::new()
                 .width(size)
                 .height(size)
-                .translate(0.0, -rise)
+                .translate(0.0, dock_side * rise)
                 .child(amane::Stack::new(layers).width(size).height(size)),
         )
 }
@@ -473,10 +493,12 @@ fn action_item(
     slot: f32,
     dock_height: f32,
     proximity: f32,
+    transition_scale: f32,
+    dock_side: f32,
     action: impl Fn() + 'static,
 ) -> Rectangle {
     let hover = motion::hover(key);
-    let action_size = ACTION_ICON.min((dock_height - 28.0).max(1.0) * 0.72);
+    let action_size = ACTION_ICON.min((dock_height - 28.0).max(1.0) * 0.72) * transition_scale;
     let proximity = proximity.max(hover);
     let scale = motion::number(
         &format!("{key}:scale"),
@@ -509,7 +531,7 @@ fn action_item(
             Rectangle::new()
                 .width(action_size * scale)
                 .height(action_size * scale)
-                .translate(0.0, -8.0 * proximity)
+                .translate(0.0, -dock_side * 8.0 * proximity * transition_scale)
                 .radius(14.0)
                 .fill(scheme.surface_container_highest)
                 .align_child(Center, Center)
