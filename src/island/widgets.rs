@@ -32,12 +32,17 @@ pub const OPEN_NEW: &str = "\u{e89e}";
 pub const DARK_MODE: &str = "\u{e51c}";
 pub const LIGHT_MODE: &str = "\u{e518}";
 
-// weather
-pub const SUNNY: &str = "\u{e81a}";
+// weather (Material Symbols)
+pub const CLEAR_DAY: &str = "\u{f157}";
+pub const PARTLY_CLOUDY: &str = "\u{f60b}";
 pub const FOGGY: &str = "\u{e818}";
+pub const DRIZZLE: &str = "\u{f61e}";
 pub const RAINY: &str = "\u{f176}";
+pub const RAINY_HEAVY: &str = "\u{f61f}";
+pub const HAIL: &str = "\u{f67f}";
 pub const STORM: &str = "\u{ebdb}";
 pub const CLOUDY: &str = "\u{f15c}";
+pub const CLOUDY_SNOWING: &str = "\u{e810}";
 pub const SNOWING: &str = "\u{e80f}";
 
 const PROGRESS: Duration = Duration::from_millis(180);

@@ -125,11 +125,8 @@ impl Ui {
     }
 
     pub fn toggle_media_sheet() {
-        {
-            let mut ui = Self::write();
-            ui.media_sheet = !ui.media_sheet;
-        }
-        Self::refresh();
+        let mut ui = Self::write();
+        ui.media_sheet = !ui.media_sheet;
     }
 
     pub fn reset_media_sheet() {

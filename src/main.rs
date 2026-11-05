@@ -7,6 +7,8 @@ mod art;
 mod clipboard;
 mod clock;
 mod control;
+mod color;
+mod emoji;
 mod glyphs;
 mod ipc;
 mod island;
@@ -44,6 +46,8 @@ fn main() {
         .window_per_monitor(clipboard::view)
         .window_per_monitor(power::view)
         .window_per_monitor(control::view)
+        .window_per_monitor(color::view)
+        .window_per_monitor(emoji::view)
         .window_per_monitor(osd::view)
         .lock(lockscreen::view)
         .ipc("open", ipc::open)

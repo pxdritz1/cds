@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -35,10 +35,14 @@ pub struct Settings {
     flags: BTreeMap<String, bool>,
     hover_delay_ms: u64,
     language: String,
+    pinned_apps: BTreeSet<String>,
+    media_title_max_width: u32,
+    wallpaper_rotation: bool,
+    wallpaper_interval_minutes: u32,
 }
 
 fn default_flag(name: &str) -> bool {
-    !matches!(name, "dnd")
+    !matches!(name, "dnd" | "trans_meter_colors")
 }
 
 impl Service for Settings {
@@ -53,6 +57,10 @@ impl Service for Settings {
             flags: BTreeMap::new(),
             hover_delay_ms: 500,
             language: String::from("pt-BR"),
+            pinned_apps: BTreeSet::new(),
+            media_title_max_width: 320,
+            wallpaper_rotation: false,
+            wallpaper_interval_minutes: 30,
         };
 
         settings.load();
@@ -68,6 +76,7 @@ impl Service for Settings {
     fn listen() {
         let mut scanned_generation = 0;
         let mut last_scan: Option<Instant> = None;
+        let mut last_rotation = Instant::now();
 
         loop {
             let generation = SCAN_GENERATION.load(Ordering::Relaxed);
@@ -94,6 +103,27 @@ impl Service for Settings {
                 }
             }
 
+            let rotation = {
+                let settings = Self::read();
+                if !settings.wallpaper_rotation || settings.wallpapers.len() < 2
+                    || last_rotation.elapsed() < Duration::from_secs(settings.wallpaper_interval_minutes as u64 * 60)
+                {
+                    None
+                } else {
+                    let next = settings.wallpapers.iter()
+                        .position(|path| path == &settings.wallpaper)
+                        .map_or(0, |current| (current + 1) % settings.wallpapers.len());
+                    Some(settings.wallpapers[next].clone())
+                }
+            };
+
+            if let Some(path) = rotation {
+                Self::set_wallpaper_live(&path);
+                last_rotation = Instant::now();
+            } else if !Self::read().wallpaper_rotation {
+                last_rotation = Instant::now();
+            }
+
             thread::sleep(Duration::from_secs(1));
         }
     }
@@ -116,8 +146,57 @@ impl Settings {
         self.hover_delay_ms
     }
 
+
+    pub fn media_title_max_width(&self) -> u32 {
+        self.media_title_max_width
+    }
+
+    pub fn wallpaper_rotation(&self) -> bool {
+        self.wallpaper_rotation
+    }
+
+    pub fn wallpaper_interval_minutes(&self) -> u32 {
+        self.wallpaper_interval_minutes
+    }
+
+    pub fn set_wallpaper_rotation(enabled: bool) {
+        let mut settings = Self::write();
+        settings.wallpaper_rotation = enabled;
+        settings.save();
+        drop(settings);
+        crate::ui::Ui::refresh();
+    }
+
+    pub fn set_wallpaper_interval_minutes(value: u32) {
+        let mut settings = Self::write();
+        settings.wallpaper_interval_minutes = value.clamp(1, 1440);
+        settings.save();
+        drop(settings);
+        crate::ui::Ui::refresh();
+    }
+
+    pub fn set_media_title_max_width(value: u32) {
+        let mut settings = Self::write();
+        settings.media_title_max_width = value.clamp(104, 520);
+        settings.save();
+        drop(settings);
+        crate::ui::Ui::refresh();
+    }
+
     pub fn language(&self) -> &str {
         &self.language
+    }
+
+    pub fn is_pinned(&self, exec: &str) -> bool {
+        self.pinned_apps.contains(exec)
+    }
+
+    pub fn toggle_pinned(exec: &str) {
+        let mut settings = Self::write();
+        if !settings.pinned_apps.remove(exec) {
+            settings.pinned_apps.insert(String::from(exec));
+        }
+        settings.save();
     }
 
     pub fn set_language(language: &str) {
@@ -372,12 +451,20 @@ impl Settings {
             let value = value.trim();
 
             match key.trim() {
-                "wallpaper" => self.wallpaper = String::from(value),
+                "wallpaper" => self.wallpaper = expand_home_path(value).to_string_lossy().into_owned(),
                 "scheme" => self.scheme = String::from(value),
                 "dark" => self.dark = value != "false",
                 "directory" => self.directory = expand_home_path(value),
                 "location" => self.location = String::from(value),
                 "language" => self.language = if value == "en" { String::from("en") } else { String::from("pt-BR") },
+                "pinned_app" => { self.pinned_apps.insert(String::from(value)); },
+                "media_title_max_width" => {
+                    self.media_title_max_width = value.parse::<u32>().unwrap_or(320).clamp(104, 520)
+                },
+                "wallpaper_rotation" => self.wallpaper_rotation = value == "true",
+                "wallpaper_interval_minutes" => {
+                    self.wallpaper_interval_minutes = value.parse::<u32>().unwrap_or(30).clamp(1, 1440)
+                },
                 "hover_delay_ms" => {
                     self.hover_delay_ms = value.parse::<u64>().unwrap_or(500).clamp(100, 2000)
                 },
@@ -398,7 +485,7 @@ impl Settings {
         }
 
         let mut text = format!(
-            "wallpaper={}\nscheme={}\ndark={}\ndirectory={}\nlocation={}\nhover_delay_ms={}\nlanguage={}\n",
+            "wallpaper={}\nscheme={}\ndark={}\ndirectory={}\nlocation={}\nhover_delay_ms={}\nlanguage={}\nmedia_title_max_width={}\nwallpaper_rotation={}\nwallpaper_interval_minutes={}\n",
             self.wallpaper,
             self.scheme,
             self.dark,
@@ -406,10 +493,17 @@ impl Settings {
             self.location,
             self.hover_delay_ms,
             self.language,
+            self.media_title_max_width,
+            self.wallpaper_rotation,
+            self.wallpaper_interval_minutes,
         );
 
         for (name, value) in &self.flags {
             text.push_str(&format!("flag.{name}={value}\n"));
+        }
+
+        for exec in &self.pinned_apps {
+            text.push_str(&format!("pinned_app={exec}\n"));
         }
 
         // Publish settings atomically: a crash or power loss must not leave
@@ -451,13 +545,16 @@ fn scan_directory(directory: &Path) -> Option<Vec<String>> {
  * after the colors exist, while the views spawn it and stay responsive.
  */
 fn expand_home_path(path: &str) -> PathBuf {
-    if path == "~" {
-        return home_directory("HOME", "");
-    }
-    if let Some(rest) = path.strip_prefix("~/") {
-        return home_directory("HOME", "").join(rest);
-    }
-    PathBuf::from(path)
+    let expanded = if path == "~" {
+        home_directory("HOME", "")
+    } else if let Some(rest) = path.strip_prefix("~/") {
+        home_directory("HOME", "").join(rest)
+    } else {
+        PathBuf::from(path)
+    };
+
+    // Store one stable absolute representation whenever the target exists.
+    fs::canonicalize(&expanded).unwrap_or(expanded)
 }
 
 fn display_path(path: &std::path::Path) -> String {

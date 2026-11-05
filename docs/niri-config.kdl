@@ -1,0 +1,172 @@
+// Personal Niri configuration, ported to use Chloe Dynamic Shell (CDS)
+// instead of Noctalia/DMS panels. Keep compositor-only settings here.
+
+prefer-no-csd
+
+spawn-sh-at-startup "sleep 5 && exec goofcord"
+spawn-sh-at-startup "sleep 5 && exec pkill -f blueman-applet"
+spawn-sh-at-startup "sleep 5 && exec pkill -f nm-applet"
+
+spawn-at-startup "amane" "run"
+spawn-at-startup "swayidle" "-w" "timeout" "300" "amane ipc call lock" "timeout" "600" "systemctl suspend"
+spawn-at-startup "bash" "/home/px/.config/niri/scripts/pip-follow.sh"
+
+window-rule {
+    geometry-corner-radius 10
+    clip-to-geometry true
+}
+
+window-rule {
+    match title="(?i)^Picture-in-Picture$"
+    open-floating true
+    default-column-width { fixed 400; }
+    default-window-height { fixed 200; }
+    default-floating-position x=20 y=20 relative-to="bottom-right"
+}
+
+cursor {
+    xcursor-theme "BreezeX-Black"
+}
+
+input {
+    focus-follows-mouse max-scroll-amount="75%"
+
+    keyboard {
+        xkb {
+            layout "us"
+            variant "intl"
+        }
+    }
+
+    touchpad {
+        tap
+        natural-scroll
+    }
+
+    mouse {
+        accel-speed -0.5
+        accel-profile "flat"
+    }
+
+    trackpoint
+}
+
+output "eDP-1" {
+}
+
+layout {
+    gaps 8
+
+    struts {
+        bottom 24
+        top 24
+        left 12
+        right 20
+    }
+
+    center-focused-column "never"
+
+    preset-column-widths {
+        proportion 0.33333
+        proportion 0.5
+        proportion 0.66667
+    }
+
+    default-column-width {
+        proportion 0.5
+    }
+
+    focus-ring {
+        width 2
+    }
+
+    border {
+        off
+    }
+}
+
+binds {
+    Mod+1 { focus-workspace 1; }
+    Mod+2 { focus-workspace 2; }
+    Mod+3 { focus-workspace 3; }
+    Mod+4 { focus-workspace 4; }
+    Mod+5 { focus-workspace 5; }
+    Mod+6 { focus-workspace 6; }
+    Mod+7 { focus-workspace 7; }
+    Mod+8 { focus-workspace 8; }
+    Mod+9 { focus-workspace 9; }
+
+    Mod+Shift+1 { move-column-to-workspace 1; }
+    Mod+Shift+2 { move-column-to-workspace 2; }
+    Mod+Shift+3 { move-column-to-workspace 3; }
+    Mod+Shift+4 { move-column-to-workspace 4; }
+    Mod+Shift+5 { move-column-to-workspace 5; }
+    Mod+Shift+6 { move-column-to-workspace 6; }
+    Mod+Shift+7 { move-column-to-workspace 7; }
+    Mod+Shift+8 { move-column-to-workspace 8; }
+    Mod+Shift+9 { move-column-to-workspace 9; }
+
+    Mod+Return { spawn "alacritty"; }
+    Mod+Shift+Return { spawn "fuzzel"; }
+    Mod+Q { close-window; }
+
+    // CDS launcher and Spotlight
+    Mod+D { spawn-sh "amane ipc call open launcher"; }
+    Mod+Space { spawn-sh "amane ipc call open launcher"; }
+    Mod+Shift+Space { spawn-sh "amane ipc call open spotlight"; }
+    XF86LaunchB { spawn-sh "amane ipc call open launcher"; }
+
+    // CDS utility pickers
+    Mod+P { spawn-sh "amane ipc call open color"; }
+    Mod+period { spawn-sh "amane ipc call open emoji"; }
+
+    Mod+N { spawn "nautilus"; }
+
+    // Wallpaper panel, power menu and clipboard
+    Mod+Shift+W { spawn-sh "amane ipc call dash wallpapers"; }
+    Mod+Shift+E { spawn-sh "amane ipc call open power"; }
+    Mod+Shift+V { spawn-sh "amane ipc call open clipboard"; }
+
+    // Settings and control center
+    Mod+Comma { spawn-sh "amane ipc call open config"; }
+    Mod+Shift+D { spawn-sh "amane ipc call open control"; }
+
+    Mod+Shift+Slash { show-hotkey-overlay; }
+    XF86LaunchA { toggle-overview; }
+
+    Mod+Right { focus-column-right; }
+    Mod+Left { focus-column-left; }
+    Mod+Up { focus-workspace-up; }
+    Mod+Down { focus-workspace-down; }
+
+    Mod+F { maximize-column; }
+
+    Mod+Shift+S { screenshot; }
+    Mod+Alt+S { spawn-sh "grim -g \"$(slurp)\" - | wl-copy"; }
+
+    Mod+XF86LaunchB {
+        spawn "sh" "/home/px/.config/niri/scripts/float-all.sh";
+    }
+
+    XF86MonBrightnessUp { spawn "brightnessctl" "set" "+5%"; }
+    XF86MonBrightnessDown { spawn "brightnessctl" "set" "5%-"; }
+
+    XF86KbdBrightnessUp {
+        spawn "brightnessctl" "--device=smc::kbd_backlight" "set" "+10%";
+    }
+
+    XF86KbdBrightnessDown {
+        spawn "brightnessctl" "--device=smc::kbd_backlight" "set" "10%-";
+    }
+
+    XF86AudioRaiseVolume { spawn-sh "wpctl set-volume -l 1.5 @DEFAULT_AUDIO_SINK@ 5%+"; }
+    XF86AudioLowerVolume { spawn-sh "wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-"; }
+    XF86AudioMute { spawn-sh "wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle"; }
+    Mod+XF86AudioMute { spawn-sh "wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle"; }
+
+    Ctrl+Alt+E { quit; }
+}
+
+// Noctalia owns its own configuration and IPC; CDS replaces its shell panels.
+// Keep the Matugen include if this file still contains settings you use.
+include "~/.config/niri/matugen.kdl"

@@ -15,7 +15,7 @@ amane ipc call <command> [arguments...]
 | open spotlight | Open search and quick actions |
 | open clipboard | Open clipboard history |
 | open power | Open the power menu |
-| open control | Open the control center |
+| open control | Open the control center |\n| open color | Open the HEX color picker |\n| open emoji | Open the searchable emoji picker |
 | open config | Open shell settings |
 | closed | Close open panels |
 | lock | Lock the current session |

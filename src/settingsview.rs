@@ -4,7 +4,7 @@ use amane::{
 };
 
 use crate::island::widgets::{
-    DARK_MODE, LIGHT_MODE, OPEN_NEW, SUNNY, TUNE, boxed, chip, icon, label, text,
+    DARK_MODE, LIGHT_MODE, OPEN_NEW, CLEAR_DAY, TUNE, MUSIC, boxed, chip, icon, label, text,
 };
 use crate::settings::Settings;
 use crate::theme::{Scheme, Theme};
@@ -144,6 +144,14 @@ pub fn window() -> Window {
     let dark = settings.dark();
     let hover_dash = settings.flag("hover_dash");
     let hover_delay_ms = settings.hover_delay_ms();
+    let trans_meter_colors = settings.flag("trans_meter_colors");
+    let media_title = settings.flag("media_show_title");
+    let media_artist = settings.flag("media_show_artist");
+    let media_clock = settings.flag("media_show_clock");
+    let media_artwork = settings.flag("media_show_artwork");
+    let media_title_max_width = settings.media_title_max_width();
+    let wallpaper_rotation = settings.wallpaper_rotation();
+    let wallpaper_interval_minutes = settings.wallpaper_interval_minutes();
 
     let current = String::from(settings.scheme_name());
 
@@ -191,7 +199,7 @@ pub fn window() -> Window {
         })
         .collect();
 
-    let behavior = settings_card(WIDTH - PADDING * 2.0, 174.0, scheme.surface_container_low).child(
+    let behavior = settings_card(WIDTH - PADDING * 2.0, 300.0, scheme.surface_container_low).child(
         Column::new(vec![
             Box::new(section(TUNE, crate::lang::text("Comportamento", "Behavior"), scheme)),
             Box::new(chip(
@@ -220,9 +228,47 @@ pub fn window() -> Window {
                 .gap(8.0)
                 .width(Parent),
             ),
+            Box::new(section(TUNE, crate::lang::text("Cores dos medidores", "Meter colors"), scheme)),
+            Box::new(chip(
+                "sv:meter-colors",
+                if trans_meter_colors {
+                    crate::lang::text("Bandeira trans", "Trans flag")
+                } else {
+                    crate::lang::text("Cores do tema", "Theme colors")
+                },
+                220.0,
+                trans_meter_colors,
+                scheme,
+                || {
+                    Settings::toggle_flag("trans_meter_colors");
+                    crate::ui::Ui::refresh();
+                },
+            )),
         ])
         .gap(10.0)
         .width(Parent),
+    );
+
+    let media_settings = settings_card(WIDTH - PADDING * 2.0, 184.0, scheme.surface_container_low).child(
+        Column::new(vec![
+            Box::new(section(MUSIC, crate::lang::text("Player de mídia", "Media player"), scheme)),
+            Box::new(Row::new(vec![
+                boxed(chip("sv:media-title", crate::lang::text("Título", "Title"), 112.0, media_title, scheme, || { Settings::toggle_flag("media_show_title"); crate::ui::Ui::refresh(); })),
+                boxed(chip("sv:media-artist", crate::lang::text("Artista", "Artist"), 112.0, media_artist, scheme, || { Settings::toggle_flag("media_show_artist"); crate::ui::Ui::refresh(); })),
+                boxed(chip("sv:media-clock", crate::lang::text("Relógio", "Clock"), 112.0, media_clock, scheme, || { Settings::toggle_flag("media_show_clock"); crate::ui::Ui::refresh(); })),
+                boxed(chip("sv:media-artwork", crate::lang::text("Capa", "Artwork"), 112.0, media_artwork, scheme, || { Settings::toggle_flag("media_show_artwork"); crate::ui::Ui::refresh(); })),
+            ]).gap(8.0).width(Parent)),
+            Box::new(section(TUNE, crate::lang::text("Largura máxima do título", "Maximum title width"), scheme)),
+            Box::new(Row::new(vec![
+                boxed(chip("sv:media-width-104", "104 px", 72.0, media_title_max_width == 104, scheme, || Settings::set_media_title_max_width(104))),
+                boxed(chip("sv:media-width-160", "160 px", 72.0, media_title_max_width == 160, scheme, || Settings::set_media_title_max_width(160))),
+                boxed(chip("sv:media-width-220", "220 px", 72.0, media_title_max_width == 220, scheme, || Settings::set_media_title_max_width(220))),
+                boxed(chip("sv:media-width-280", "280 px", 72.0, media_title_max_width == 280, scheme, || Settings::set_media_title_max_width(280))),
+                boxed(chip("sv:media-width-320", "320 px", 72.0, media_title_max_width == 320, scheme, || Settings::set_media_title_max_width(320))),
+                boxed(chip("sv:media-width-400", "400 px", 72.0, media_title_max_width == 400, scheme, || Settings::set_media_title_max_width(400))),
+                boxed(chip("sv:media-width-520", "520 px", 72.0, media_title_max_width == 520, scheme, || Settings::set_media_title_max_width(520))),
+            ]).gap(6.0).width(Parent)),
+        ]).gap(9.0).width(Parent),
     );
 
     let appearance = settings_card(WIDTH - PADDING * 2.0, 330.0, scheme.surface_container_low).child(
@@ -295,10 +341,34 @@ pub fn window() -> Window {
         .width(Parent),
     );
 
+    let wallpaper_rotation_card = settings_card(WIDTH - PADDING * 2.0, 148.0, scheme.surface_container_low).child(
+        Column::new(vec![
+            Box::new(section(OPEN_NEW, crate::lang::text("Rotação automática", "Automatic rotation"), scheme)),
+            Box::new(chip(
+                "sv:wallpaper-rotation",
+                if wallpaper_rotation {
+                    crate::lang::text("Trocar wallpaper automaticamente: ligado", "Automatic wallpaper rotation: on")
+                } else {
+                    crate::lang::text("Trocar wallpaper automaticamente: desligado", "Automatic wallpaper rotation: off")
+                },
+                360.0,
+                wallpaper_rotation,
+                scheme,
+                move || Settings::set_wallpaper_rotation(!wallpaper_rotation),
+            )),
+            Box::new(Row::new(vec![
+                boxed(chip("sv:wallpaper-interval-5", "5 min", 88.0, wallpaper_interval_minutes == 5, scheme, || Settings::set_wallpaper_interval_minutes(5))),
+                boxed(chip("sv:wallpaper-interval-15", "15 min", 88.0, wallpaper_interval_minutes == 15, scheme, || Settings::set_wallpaper_interval_minutes(15))),
+                boxed(chip("sv:wallpaper-interval-30", "30 min", 88.0, wallpaper_interval_minutes == 30, scheme, || Settings::set_wallpaper_interval_minutes(30))),
+                boxed(chip("sv:wallpaper-interval-60", "1 h", 88.0, wallpaper_interval_minutes == 60, scheme, || Settings::set_wallpaper_interval_minutes(60))),
+            ]).gap(8.0).width(Parent)),
+        ]).gap(8.0).width(Parent),
+    );
+
     // the weather section, where the dash reads its forecast spot from
     let climate = settings_card(WIDTH - PADDING * 2.0, 122.0, scheme.surface_container_low).child(
         Column::new(vec![
-            Box::new(section(SUNNY, crate::lang::text("Clima", "Weather"), scheme)),
+            Box::new(section(CLEAR_DAY, crate::lang::text("Clima", "Weather"), scheme)),
             Box::new(field(
                 crate::lang::text("Coordenadas (latitude,longitude — vazio volta ao automático)", "Coordinates (latitude,longitude — empty uses automatic location)"),
                 LOCATION_INPUT,
@@ -369,8 +439,10 @@ pub fn window() -> Window {
                         "settings-panels",
                         Column::new(vec![
                             Box::new(appearance),
+                            Box::new(media_settings),
                             Box::new(behavior),
                             Box::new(wallpapers),
+                            Box::new(wallpaper_rotation_card),
                             Box::new(climate),
                         ])
                         .gap(12.0)
@@ -389,7 +461,7 @@ pub fn window() -> Window {
     Window::new()
         .title(crate::lang::text("Chloe Dynamic Shell — Configurações", "Chloe Dynamic Shell — Settings"))
         .size(WIDTH, HEIGHT)
-        .resizable(true)
+        .resizable(false)
         .child(content)
         .on_key(|key| {
             if key == Key::Escape {

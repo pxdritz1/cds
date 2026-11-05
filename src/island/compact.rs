@@ -59,13 +59,14 @@ pub fn clock(scheme: &Scheme, alpha: f32) -> (Box<dyn Widget>, f32) {
         boxed(
             Rectangle::new()
                 .width(26.0)
-                .height(26.0)
+                .height(36.0)
                 .cursor(Pointer)
                 .on_click(|button| match button {
                     Button::Left => crate::ui::Ui::toggle_media_sheet(),
                     Button::Right => crate::ui::Ui::open(crate::ui::Tab::Media),
                     _ => {}
                 })
+                .align_child(Center, Center)
                 .child(
                     Stack::new(vec![
                         boxed(m3::cookie(12.0, 26.0, scheme.primary_container)),
@@ -102,11 +103,6 @@ pub fn clock(scheme: &Scheme, alpha: f32) -> (Box<dyn Widget>, f32) {
         .height(Parent)
         .cursor(Pointer)
         .align_child(Center, Center)
-        .on_click(|button| {
-            if button == Button::Left && Media::read().playing() {
-                crate::ui::Ui::toggle_media_sheet();
-            }
-        })
         .child(
             Row::new(vec![
                 boxed(time),

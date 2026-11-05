@@ -117,6 +117,18 @@ impl Spotlight {
         spotlight.selected = 0;
     }
 
+    pub fn launch_selected() {
+        let (query, selected) = {
+            let spotlight = Self::read();
+            (spotlight.query.clone(), spotlight.selected)
+        };
+
+        let apps = matched_apps(&query);
+        let actions = matched_actions(&query);
+
+        run_by_index(&apps, &actions, selected);
+    }
+
     pub fn toggle() {
         let showing = Overlay::read().panel() == Panel::Spotlight;
 
@@ -139,7 +151,7 @@ fn matched_apps(query: &str) -> Vec<DesktopApp> {
 
     let needle = query.to_lowercase();
 
-    Apps::read()
+    let mut results: Vec<DesktopApp> = Apps::read()
         .list()
         .iter()
         .filter(|app| {
@@ -150,9 +162,13 @@ fn matched_apps(query: &str) -> Vec<DesktopApp> {
                     .description()
                     .is_some_and(|description| description.to_lowercase().contains(&needle))
         })
-        .take(6)
         .cloned()
-        .collect()
+        .collect();
+
+    let settings = Settings::read();
+    results.sort_by_key(|app| !settings.is_pinned(app.exec()));
+    results.truncate(6);
+    results
 }
 
 fn matched_actions(query: &str) -> Vec<&'static Spot> {
@@ -273,13 +289,13 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
         move |text| {
             Spotlight::set_query(text);
         },
-        move |_| {},
+        |_| Spotlight::launch_selected(),
     );
 
     let footer = Row::new(vec![
         boxed(scale_label(
             Type::LabelMedium,
-            crate::lang::text("↑↓ navega · Enter executa", "↑↓ navigate · Enter run"),
+            crate::lang::text("↑↓ navega · Enter executa · clique direito fixa", "↑↓ navigate · Enter runs · right-click pins"),
             scheme.on_surface_variant,
             1,
         )),
@@ -327,7 +343,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
         move |key| match key {
             Key::Down | Key::Tab => Spotlight::move_by(1, count),
             Key::Up => Spotlight::move_by(-1, count),
-            Key::Enter => run_by_index(&apps, &actions, selected),
+            Key::Enter => Spotlight::launch_selected(),
             _ => {}
         },
     )
@@ -339,15 +355,25 @@ fn app_row(app: &DesktopApp, scheme: &Scheme, index: usize, selected: bool) -> R
     let supporting = String::from(app.description().unwrap_or(crate::lang::text("Programa", "Application")));
     let icon_path = app.icon_path().map(|path| path.to_path_buf());
     let app = app.clone();
+    let exec = String::from(app.exec());
+    let pinned = Settings::read().is_pinned(&exec);
+    let pin_exec = exec;
 
-    let launch = move |button: Button| {
-        if button == Button::Left {
+    let launch = move |button: Button| match button {
+        Button::Left => {
             app.launch();
             Overlay::close();
         }
+        Button::Right => Settings::toggle_pinned(&pin_exec),
+        _ => {}
     };
 
     let (fill, color) = row_fill(&key, selected, scheme);
+    let pin_indicator: Box<dyn Widget> = if pinned {
+        boxed(crate::m3::icon(m3::PIN, 16.0, scheme.primary))
+    } else {
+        boxed(Rectangle::new().width(16.0).height(16.0))
+    };
     let container = if selected {
         scheme.secondary_container
     } else {
@@ -367,7 +393,7 @@ fn app_row(app: &DesktopApp, scheme: &Scheme, index: usize, selected: bool) -> R
                 .height(28.0)
                 .fill(amane::Image::contain(path).thumbnail(56, 56)),
         ),
-        None => icon_box.child(crate::m3::icon(m3::APPS, 22.0, color)),
+        None => icon_box.child(crate::m3::icon(crate::glyphs::application(app.name(), app.exec()), 22.0, color)),
     };
 
     Rectangle::new()
@@ -384,6 +410,7 @@ fn app_row(app: &DesktopApp, scheme: &Scheme, index: usize, selected: bool) -> R
                     boxed(scale_label(Type::BodyMedium, headline, color, 1)),
                     boxed(scale_label(Type::LabelSmall, supporting, fade(color, 190), 1)),
                 ]).gap(1.0).width(Parent)),
+                pin_indicator,
             ])
             .gap(14.0)
             .align(Center)

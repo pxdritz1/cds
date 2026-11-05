@@ -1,8 +1,8 @@
 use std::f32::consts::TAU;
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::time::Duration;
 
 use amane::{
-    Arc, Button, Canvas, Cap, Center, Color, Column, Padding, Parent, Path, Pointer, Rectangle,
+    Arc, Button, Canvas, Cap, Center, Color, Column, Line, Padding, Parent, Path, Pointer, Rectangle,
     Row, Service, Shadow, Shape, Size, Stack, Start, Text, Widget,
 };
 
@@ -11,109 +11,57 @@ use crate::theme::{Scheme, Theme, fade, mix};
 
 pub const BELL: &str = "\u{e7f4}";
 pub const BELL_OFF: &str = "\u{e7f6}";
-pub const BRIGHTNESS: &str = "\u{e3ab}";
 pub const CLOSE: &str = "\u{e5cd}";
-pub const MUTED: &str = "\u{e04f}";
-pub const VOLUME: &str = "\u{e050}";
-pub const VOLUME_LOW: &str = "\u{e04d}";
 pub const NEXT: &str = "\u{e044}";
 pub const PREVIOUS: &str = "\u{e045}";
 pub const PLAY: &str = "\u{e037}";
 pub const PAUSE: &str = "\u{e034}";
-pub const BATTERY: &str = "\u{e1a4}";
-pub const BATTERY_CHARGING: &str = "\u{e1a3}";
 pub const MUSIC: &str = "\u{e405}";
 pub const WALLPAPER: &str = "\u{e1bc}";
 pub const APPS: &str = "\u{e5c3}";
-pub const GRID: &str = "\u{e9b0}";
 pub const SEARCH: &str = "\u{e8b6}";
 pub const PASTE: &str = "\u{e14f}";
-pub const COPY: &str = "\u{e14d}";
 pub const DELETE: &str = "\u{e872}";
 pub const POWER: &str = "\u{e8ac}";
 pub const LOCK: &str = "\u{e897}";
 pub const LOGOUT: &str = "\u{e9ba}";
 pub const RESTART: &str = "\u{f053}";
-pub const FORWARD: &str = "\u{e5c8}";
+pub const PIN: &str = "\u{e55f}";
 pub const BACK: &str = "\u{e5c4}";
 pub const CHECK: &str = "\u{e5ca}";
 pub const CHEVRON_RIGHT: &str = "\u{e5cc}";
-pub const CHEVRON_LEFT: &str = "\u{e5cb}";
 pub const EXPAND_MORE: &str = "\u{e5cf}";
 pub const TUNE: &str = "\u{e429}";
-pub const OPEN_NEW: &str = "\u{e89e}";
 pub const SETTINGS: &str = "\u{e8b8}";
 pub const HOME: &str = "\u{e88a}";
-pub const CALENDAR: &str = "\u{ebcc}";
 pub const DARK_MODE: &str = "\u{e51c}";
 pub const LIGHT_MODE: &str = "\u{e518}";
-pub const WIFI: &str = "\u{e63e}";
-pub const WIFI_OFF: &str = "\u{e648}";
 pub const BLUETOOTH: &str = "\u{e1a7}";
-pub const BLUETOOTH_CONNECTED: &str = "\u{e1a8}";
-pub const BLUETOOTH_OFF: &str = "\u{e1a9}";
-pub const DND: &str = "\u{e644}";
-pub const MIC: &str = "\u{e029}";
-pub const MIC_OFF: &str = "\u{e02b}";
-pub const SCREENSHOT: &str = "\u{e3af}";
-pub const PERSON: &str = "\u{e7fd}";
-pub const INFO: &str = "\u{e88e}";
-pub const PALETTE: &str = "\u{e40a}";
 pub const WIDGETS: &str = "\u{e1bd}";
-pub const CALCULATE: &str = "\u{ea5f}";
-pub const TERMINAL: &str = "\u{eb8e}";
-pub const LANGUAGE: &str = "\u{e894}";
-pub const ENTER: &str = "\u{e31b}";
 pub const CLEAR_ALL: &str = "\u{e0b8}";
-pub const BOLT: &str = "\u{ea0b}";
-pub const MEMORY: &str = "\u{e322}";
-pub const SPEED: &str = "\u{e9e4}";
-pub const FOLDER: &str = "\u{e2c7}";
 pub const REFRESH: &str = "\u{e5d5}";
 pub const KEYBOARD: &str = "\u{e312}";
-pub const WINDOWS: &str = "\u{e8ab}";
-pub const SUNNY: &str = "\u{e81a}";
-pub const FOGGY: &str = "\u{e818}";
-pub const RAINY: &str = "\u{f176}";
-pub const STORM: &str = "\u{ebdb}";
 pub const CLOUDY: &str = "\u{f15c}";
 pub const AIR: &str = "\u{efd8}";
 pub const DROP: &str = "\u{e798}";
-pub const SNOWING: &str = "\u{e80f}";
 
 pub mod shape {
     // Material 3 Expressive shape tokens
-    pub const NONE: f32 = 0.0;
-    pub const EXTRA_SMALL: f32 = 4.0;
-    pub const SMALL: f32 = 8.0;
     pub const MEDIUM: f32 = 12.0;
     pub const LARGE: f32 = 16.0;
     pub const LARGE_PLUS: f32 = 20.0;
     pub const EXTRA_LARGE: f32 = 28.0;
-    pub const EXTRA_LARGE_PLUS: f32 = 32.0;
-    pub const DOUBLE_EXTRA_LARGE: f32 = 48.0;
 
     // Component-specific shape constants
-    pub const CORNER_SMALL: f32 = 8.0;
-    pub const CORNER_MEDIUM: f32 = 12.0;
-    pub const CORNER_LARGE: f32 = 16.0;
-    pub const CORNER_EXTRA_LARGE: f32 = 28.0;
-    pub const CORNER_FULL: f32 = 9999.0;
 
     // Island and bar specific shapes
     pub const ISLAND_COMPACT: f32 = 20.0;
     pub const ISLAND_EXPANDED: f32 = 16.0;
-    pub const ISLAND_ACTIVE: f32 = 24.0;
 
     // Legacy aliases for backward compatibility
-    pub const XS: f32 = EXTRA_SMALL;
-    pub const SM: f32 = SMALL;
     pub const MD: f32 = MEDIUM;
     pub const LG: f32 = LARGE;
-    pub const LG_PLUS: f32 = LARGE_PLUS;
     pub const XL: f32 = EXTRA_LARGE;
-    pub const XL_PLUS: f32 = EXTRA_LARGE_PLUS;
-    pub const XXL: f32 = DOUBLE_EXTRA_LARGE;
 }
 
 #[derive(Clone, Copy)]
@@ -742,62 +690,46 @@ pub fn slider(
     .height(HEIGHT)
 }
 
-pub fn wavy(fraction: f32, width: f32, animated: bool, color: Color, track: Color) -> Canvas {
+pub fn progress_line(fraction: f32, width: f32, color: Color, track: Color) -> Canvas {
     const HEIGHT: f32 = 16.0;
-    const AMPLITUDE: f32 = 2.6;
-    const LENGTH: f32 = 22.0;
-    const STROKE: f32 = 4.0;
+    const INSET: f32 = 2.0;
+    const STROKE: f32 = 3.0;
 
     let fraction = fraction.clamp(0.0, 1.0);
-    let active = width * fraction;
-    let middle = HEIGHT / 2.0;
+    let end = (width - INSET).max(INSET);
+    let active_end = INSET + (end - INSET) * fraction;
 
-    let phase = if animated {
-        // CPU and RAM meters share one 30 FPS animation clock. This keeps the
-        // wave motion fluid without asking the compositor for a frame at 60+
-        // FPS or doing duplicate work for each meter.
-        let millis = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .map_or(0, |elapsed| elapsed.as_millis() as u64);
+    let mut shapes: Vec<Box<dyn Shape>> = vec![Box::new(
+        Line::new()
+            .from(INSET, HEIGHT / 2.0)
+            .to(end, HEIGHT / 2.0)
+            .stroke(STROKE, track)
+            .cap(Cap::Round),
+    )];
 
-        motion::request_frame_at_most(30);
-
-        TAU * (millis % 1600) as f32 / 1600.0
-    } else {
-        0.0
-    };
-
-    let mut shapes: Vec<Box<dyn Shape>> = Vec::new();
-
-    let rest = active + STROKE + 2.0;
-
-    if rest < width {
+    if fraction > 0.0 {
         shapes.push(Box::new(
-            amane::Line::new()
-                .from(rest, middle)
-                .to(width - STROKE / 2.0, middle)
-                .stroke(STROKE, track)
+            Line::new()
+                .from(INSET, HEIGHT / 2.0)
+                .to(active_end, HEIGHT / 2.0)
+                .stroke(STROKE, color)
                 .cap(Cap::Round),
         ));
     }
 
-    if active > 1.0 {
-        let wave = |x: f32| middle + AMPLITUDE * (TAU * x / LENGTH - phase).sin();
-
-        let mut path = Path::new().move_to(STROKE / 2.0, wave(STROKE / 2.0));
-        let mut x = STROKE / 2.0;
-
-        while x < active {
-            // A slightly wider sampling interval cuts canvas path work in
-            // half while remaining visually smooth at this widget's height.
-            x = (x + 4.0).min(active);
-            path = path.line_to(x, wave(x));
-        }
-
-        shapes.push(Box::new(path.stroke(STROKE, color).cap(Cap::Round)));
-    }
-
     Canvas::new().width(width).height(HEIGHT).shapes(shapes)
+}
+
+/// Compatibility wrapper for existing OSD callers.
+/// The progress indicator is intentionally static: no animation or frame requests.
+pub fn wavy(
+    fraction: f32,
+    width: f32,
+    _animated: bool,
+    color: Color,
+    track: Color,
+) -> Canvas {
+    progress_line(fraction, width, color, track)
 }
 
 pub fn ring(

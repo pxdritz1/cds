@@ -1,31 +1,42 @@
-# niri keybindings
+# Niri keybindings
 
-The shell does not register shortcuts. Add the commands you want to use to the binds section of ~/.config/niri/config.kdl.
+The shell does not register global shortcuts. Add the commands below to
+`~/.config/niri/config.kdl`. The complete example matching the current
+personal setup is in [niri-config.kdl](niri-config.kdl).
 
-## Suggested shortcuts
+## CDS panels
+
+| Shortcut | Action |
+| --- | --- |
+| Mod+D | Application launcher |
+| Mod+Space / XF86LaunchB | Application launcher |
+| Mod+Shift+Space | Spotlight |
+| Mod+period | Emoji picker |
+| Mod+P | HEX color picker |
+| Mod+Shift+V | Clipboard history |
+| Mod+Comma | Settings |
+| Mod+Shift+E | Power menu |
+| Mod+Shift+D | Control center |
+| Mod+Shift+W | Dash, Wallpapers tab |
+| Mod+Shift+L | Lock screen |
+| Escape | Close the active panel |
+
+Example:
 
 ```kdl
-Mod+Space       { spawn "sh" "-c" "amane ipc call dash"; }
-Mod+O           { spawn "sh" "-c" "amane ipc call dash home"; }
-Mod+M           { spawn "sh" "-c" "amane ipc call dash media"; }
-Mod+W           { spawn "sh" "-c" "amane ipc call dash wallpapers"; }
-Mod+A           { spawn "sh" "-c" "amane ipc call dash alerts"; }
-Mod+G           { spawn "sh" "-c" "amane ipc call dash weather"; }
-
-Mod+T           { spawn "sh" "-c" "amane ipc call tray toggle"; }
-Mod+D           { spawn "sh" "-c" "amane ipc call open launcher"; }
-Mod+V           { spawn "sh" "-c" "amane ipc call open clipboard"; }
-Mod+Shift+E     { spawn "sh" "-c" "amane ipc call open power"; }
-Mod+S           { spawn "sh" "-c" "amane ipc call open control"; }
-Mod+Shift+D     { spawn "sh" "-c" "amane ipc call open spotlight"; }
-Mod+Shift+L     { spawn "sh" "-c" "amane ipc call lock"; }
-
-Escape          { spawn "sh" "-c" "amane ipc call closed"; }
-Mod+N           { spawn "sh" "-c" "amane ipc call settings dark toggle"; }
-Mod+Shift+N     { spawn "sh" "-c" "amane ipc call settings refresh"; }
+Mod+D           { spawn-sh "amane ipc call open launcher"; }
+Mod+Space       { spawn-sh "amane ipc call open launcher"; }
+Mod+Shift+Space { spawn-sh "amane ipc call open spotlight"; }
+Mod+period      { spawn-sh "amane ipc call open emoji"; }
+Mod+P           { spawn-sh "amane ipc call open color"; }
+Mod+Shift+V     { spawn-sh "amane ipc call open clipboard"; }
+Mod+Comma       { spawn-sh "amane ipc call open config"; }
+Mod+Shift+E     { spawn-sh "amane ipc call open power"; }
+Mod+Shift+D     { spawn-sh "amane ipc call open control"; }
+Mod+Shift+W     { spawn-sh "amane ipc call dash wallpapers"; }
+Mod+Shift+L     { spawn-sh "amane ipc call lock"; }
+Escape          { spawn-sh "amane ipc call closed"; }
 ```
-
-Use sh -c for shell features such as pipes and command substitution.
 
 ## Keyboard navigation
 
@@ -34,6 +45,8 @@ Use sh -c for shell features such as pipes and command substitution.
 | Launcher | Up/Down to select, Enter to launch, Esc to close |
 | Spotlight | Up/Down to select, Enter to run, Esc to close |
 | Application grid | Click to launch, Esc to close |
+| Emoji picker | Search, arrow keys to select, Enter or click to copy |
+| Color picker | Enter or click to copy the valid `#RRGGBB` value |
 | Clipboard | Up/Down to select, Enter to copy, Esc to close |
 | Power menu | Up/Down to select, Enter to run, Esc to close |
 | Settings | Enter applies the focused field, Esc closes |
@@ -45,8 +58,15 @@ Use sh -c for shell features such as pipes and command substitution.
 
 | Element | Left click | Right click |
 | --- | --- | --- |
-| Tray item | Focus the window | Open its context menu |
-| Launcher result | Launch the app | — |
+| Tray item | Activate | Open its context menu |
+| Launcher result | Launch the app | Pin/unpin |
+| Spotlight app result | Launch the app | Pin/unpin |
+| Emoji | Copy emoji | — |
+| Color copy action | Copy HEX | — |
 | Clipboard entry | Copy the item | — |
 | Island tray chevron | Toggle the tray | — |
 | Outside an open panel | Close the panel | — |
+
+## IPC
+
+See [ipc.md](ipc.md) for the complete command reference.

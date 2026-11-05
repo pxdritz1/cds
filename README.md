@@ -9,8 +9,8 @@ A Wayland desktop shell written in Rust with Amane and a Material 3-inspired int
 - Spotlight and application launcher.
 - Control center for Wi-Fi, Bluetooth, audio, microphone and brightness.
 - Session lock screen using ext-session-lock and PAM.
-- Searchable clipboard history.
-- Matugen themes and wallpaper settings.
+- Searchable clipboard history, emoji picker and HEX color picker.
+- Matugen themes, wallpaper settings and optional timed wallpaper rotation.
 - Brazilian Portuguese and English, selectable in Settings.
 
 ## Requirements
@@ -37,7 +37,7 @@ amane ipc call lock
 amane ipc call closed
 ```
 
-See the [IPC reference](docs/ipc.md) and [niri keybindings](docs/binds.md).
+See the [IPC reference](docs/ipc.md) and [niri keybindings](docs/binds.md). The ported personal Niri configuration is in `docs/niri-config.kdl`; install it with `bash scripts/install-niri-config.sh` (the script creates a timestamped backup first).
 
 ## Project layout
 

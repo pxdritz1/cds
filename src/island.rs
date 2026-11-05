@@ -17,7 +17,7 @@ use crate::motion;
 use crate::overlay::{Overlay, Panel};
 use crate::theme::{Scheme, Theme, fade};
 use crate::tray::{self, Tray};
-use crate::ui::{Tab, Ui};
+use crate::ui::Ui;
 
 const RESERVED: f32 = 52.0;
 const BAR_HEIGHT: f32 = 40.0;
@@ -294,9 +294,25 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
     if !has_media {
         Ui::reset_media_sheet();
     }
-    let ui = Ui::read();
-
     let notice = recent(&notifications);
+
+    // Never acquire the Ui write lock while a Ui read guard is alive.
+    // The media sheet is click-only, so clear a stale hover before taking
+    // the read guard used to build this frame.
+    let clear_media_hover = {
+        let ui = Ui::read();
+        !ui.dash()
+            && notice.is_none()
+            && has_media
+            && !ui.media_sheet()
+            && ui.hover()
+    };
+
+    if clear_media_hover {
+        Ui::set_hover(false);
+    }
+
+    let ui = Ui::read();
 
     let mode = if ui.dash() {
         IslandMode::Dash
@@ -353,7 +369,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
 
         IslandMode::Media => (
             peek::media(scheme, alpha),
-            peek::MEDIA_WIDTH,
+            peek::media_width(),
             peek::MEDIA_HEIGHT,
             crate::m3::shape::ISLAND_EXPANDED,
         ),
@@ -378,11 +394,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
     let mut island = surface(width, height, radius, fill, scheme);
 
     // The media sheet is click-only: hovering it never reveals the dash.
-    if mode == IslandMode::Media {
-        if ui.hover() {
-            Ui::set_hover(false);
-        }
-    } else {
+    if mode != IslandMode::Media {
         island = island.on_hover(Ui::set_hover);
     }
 
@@ -429,7 +441,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
         // top baseline as the left and right islands.
         .space(Zone::Ignore)
         .margin(Margin {
-            top: 3,
+            top: MARGIN,
             ..Margin::default()
         })
         .keyboard(keyboard)
