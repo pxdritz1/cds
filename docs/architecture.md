@@ -65,6 +65,8 @@ The shell has two mutually exclusive runtime interfaces, selected in Settings or
 
 The old numeric layout setting is migrated on load: 1 remains Islands, while 2 and 3 become Dock. This prevents older settings files from restoring a removed third interface.
 
+Switching uses one 720 ms eased timeline shared by every monitor. The two side Islands travel down the screen edges while contracting; the Dock grows from its resting edge at the same time. On the reverse switch, the movement runs back toward the top. The frame-pulse scheduler coalesces redraws, and the Dock only reserves compositor space after the transition settles, avoiding a competing exclusive zone during the movement.
+
 The Dock has independent top/bottom placement and left/center/right alignment. Its app-grid action opens the full-screen application grid; pinned and running apps are populated from the desktop application registry and Niri's window list.
 The workspace group, center Island and status group can also be aligned
 independently. Workspace, center-Island, status and dock visibility can be
