@@ -61,13 +61,17 @@ pub fn mode(arguments: &[String]) -> String {
             Settings::set_shell_mode(2);
             String::from("ok: mode=dock")
         }
-        Some("toggle") => {
-            let next = if Settings::read().shell_mode() == 1 { 2 } else { 1 };
-            Settings::set_shell_mode(next);
-            format!("ok: mode={}", if next == 1 { "islands" } else { "dock" })
+        Some("combined") | Some("island-dock") | Some("islands-dock") => {
+            Settings::set_shell_mode(3);
+            String::from("ok: mode=island+dock")
         }
-        Some("status") | None => format!("mode={}", if Settings::read().shell_mode() == 1 { "islands" } else { "dock" }),
-        Some(other) => format!("failed: unknown UI mode {other}; use islands|dock|toggle|status"),
+        Some("toggle") => {
+            let next = match Settings::read().shell_mode() { 1 => 2, 2 => 3, _ => 1 };
+            Settings::set_shell_mode(next);
+            format!("ok: mode={}", match next { 1 => "islands", 2 => "dock", _ => "island+dock" })
+        }
+        Some("status") | None => format!("mode={}", match Settings::read().shell_mode() { 1 => "islands", 2 => "dock", _ => "island+dock" }),
+        Some(other) => format!("failed: unknown UI mode {other}; use islands|dock|combined|toggle|status"),
     }
 }
 
