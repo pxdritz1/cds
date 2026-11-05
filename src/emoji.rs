@@ -156,7 +156,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
         boxed(ScrollArea::new("emoji-results", Column::new(rows).gap(6.0).width(Parent)).width(Parent).height(Parent))
     };
 
-    let footer = m3::hint_bar(
+    let footer = overlay::hint_bar(
         &format!("{} {}", count, crate::lang::text("emojis · ↑↓ navega · Enter copia", "emojis · ↑↓ navigate · Enter copies")),
         crate::lang::text("Esc fecha", "Esc closes"), &scheme,
     );
