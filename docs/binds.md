@@ -16,7 +16,6 @@ personal setup is in [niri-config.kdl](niri-config.kdl).
 | Mod+Shift+V | Clipboard history |
 | Mod+Comma | Settings |
 | Mod+Shift+E | Power menu |
-| Mod+Shift+D | Toggle Islands / Dock |
 | Mod+Shift+C | Control center |
 | Mod+Shift+W | Dash, Wallpapers tab |
 | Mod+Shift+L | Lock screen |

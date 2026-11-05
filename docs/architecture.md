@@ -55,32 +55,16 @@ Keep slow work out of the drawing path:
 - Coalesce repeated work when only the latest request matters.
 - Use the shared motion scheduler for continuous animations.
 
-## Shell layouts and motion
+## Island layout and motion
 
-The shell has two mutually exclusive runtime interfaces, selected in Settings or with
-`amane ipc call mode <islands|dock>` (or `mode toggle`):
-
-- `islands` keeps the original three-island bar and its Dash.
-- `dock` replaces the Island surfaces with the standalone app dock.
-
-The old numeric layout setting is migrated on load: 1 remains Islands, while 2 and 3 become Dock. This prevents older settings files from restoring a removed third interface.
-
-Switching uses one 720 ms eased timeline shared by every monitor. With the Dock bottom-aligned, the two side Islands travel down the screen edges while contracting; the Dock grows from the bottom at the same time. On the reverse switch, the movement runs back toward the top. With a top-aligned Dock, the side Islands contract and expand in place. The frame-pulse scheduler coalesces redraws. The Dock keeps its final layer-surface dimensions for the whole animation and morphs only its child capsule, avoiding a configure/ack resize every frame. It only reserves compositor space after the transition settles, avoiding a competing exclusive zone during the movement.
-
-The Dock has independent top/bottom placement and left/center/right alignment. Its fixed drawing surface contains a K4-inspired path silhouette whose inner geometry expands from the selected screen edge. The icon row is kept outside the shape's drawing path so its magnification and labels are not clipped by the surface. Pointer motion drives a Gaussian magnification field; pinned apps and automatically discovered running apps are separated, running instances are counted, and the scroll wheel cycles an app's Niri windows. Apps with multiple windows open an in-Dock title picker that focuses the selected Niri window. The app-grid action opens a searchable drawer attached to the Dock surface. Optional auto-hide moves the Dock beyond the screen edge and leaves a four-pixel reveal strip. Live window previews, drag reordering, animated drawer morphing and the dedicated drop/impact / split-fall transitions remain planned.
-The workspace group, center Island and status group can also be aligned
-independently. Workspace, center-Island, status and dock visibility can be
-changed at runtime.
-The center clock can be digital or analog.
+The shell uses three independently configurable Island surfaces: workspaces,
+center Island and status. Each can be enabled or disabled, and their horizontal
+placement can be adjusted independently.
 
 Overlay transitions use a restrained bubble burst behind the panel. The motion
 language can be switched between Material 3 and Fluent timing presets. Animation
 frames are requested through the shared frame-pulse service so only windows
 subscribed to active motion are woken.
-
-The focused-window service listens to Niri's event stream and queries the
-focused-window response over the compositor's Unix IPC socket. It publishes
-only changed title/app-id metadata, avoiding a polling subprocess.
 
 ## Overlays
 

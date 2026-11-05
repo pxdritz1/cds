@@ -43,19 +43,6 @@ amane ipc call tray focus <id>
 amane ipc call tray close-window <id>
 ```
 
-## Interface mode
-
-The shell has exactly two mutually exclusive modes. Switching is animated and the selected mode is persisted.
-
-```bash
-amane ipc call mode status
-amane ipc call mode toggle
-amane ipc call mode islands
-amane ipc call mode dock
-```
-
-The short alias `ui` is also accepted. The legacy `settings layout 1|2|3` command remains compatible: 1 selects Islands; 2 and 3 select Dock.
-
 ## Settings
 
 ```bash
@@ -70,12 +57,8 @@ amane ipc call settings directory <path>
 amane ipc call settings location <latitude,longitude>
 amane ipc call settings location auto
 amane ipc call settings refresh
-amane ipc call settings mode islands
-amane ipc call settings mode dock
 amane ipc call settings motion m3      # Material 3 timing
 amane ipc call settings motion fluent  # Fluent timing
-amane ipc call settings dock-position bottom
-amane ipc call settings dock-alignment center
 amane ipc call settings position workspaces left
 amane ipc call settings position center center
 amane ipc call settings position status right
@@ -83,7 +66,7 @@ amane ipc call settings clock analog
 amane ipc call settings clock digital
 ```
 
-The Settings window also exposes appearance, wallpaper folder, weather coordinates, hover behavior, language, the two interface modes, motion language, dock placement and clock style. Islands shows the complete Island shell; Dock replaces the Island layout with the standalone application dock. The dock can be placed at the top or bottom and aligned left, center or right. Workspaces, the center Island and the status group can each be aligned independently.
+The Settings window also exposes appearance, wallpaper folder, weather coordinates, hover behavior, language, motion language and clock style. Workspaces, the center Island and the status group can each be aligned independently.
 
 Supported Matugen schemes: scheme-tonal-spot, scheme-content, scheme-expressive, scheme-neutral, scheme-vibrant, scheme-rainbow, scheme-fruit-salad and scheme-fidelity.
 

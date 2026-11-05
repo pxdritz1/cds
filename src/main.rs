@@ -7,7 +7,6 @@ mod art;
 mod clipboard;
 mod clock;
 mod control;
-mod dock;
 mod color;
 mod emoji;
 mod focused;
@@ -42,8 +41,6 @@ fn main() {
         .window_per_monitor(island::left)
         .window_per_monitor(island::view)
         .window_per_monitor(island::right)
-        .window_per_monitor(dock::reserve)
-        .window_per_monitor(dock::view)
         .window_per_monitor(apps::view)
         .window_per_monitor(spotlight::view)
         .window_per_monitor(launcher::view)
@@ -59,8 +56,6 @@ fn main() {
         .ipc("dash", ipc::dash)
         .ipc("tray", tray::command)
         .ipc("settings", ipc::settings)
-        .ipc("mode", ipc::mode)
-        .ipc("ui", ipc::mode)
         .ipc("weather", weather::command)
         .ipc("theme", theme::command)
         .ipc("lock", ipc::open_lock)

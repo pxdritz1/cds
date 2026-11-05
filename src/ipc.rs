@@ -5,7 +5,7 @@
  *   amane ipc call closed
  *   amane ipc call dash [home|media|clima|papeis|alertas]
  *   amane ipc call tray [toggle|close|list|focus <id>|close-window <id>]
- *   amane ipc call mode [islands|dock|toggle|status]\n *   amane ipc call settings [wallpaper|wallpapers|dark|scheme|directory|location|mode|layout|motion|dock-position|dock-alignment|position|clock|refresh]
+ *   amane ipc call settings [wallpaper|wallpapers|dark|scheme|directory|location|motion|position|clock|refresh]
  *   amane ipc call weather
  *   amane ipc call theme ...
  *
@@ -48,39 +48,11 @@ pub fn settings(arguments: &[String]) -> String {
     settings_verb(arguments)
 }
 
-/// Switch the complete shell between its two mutually exclusive interfaces.
-pub fn mode(arguments: &[String]) -> String {
-    use crate::settings::Settings;
-
-    match arguments.first().map(String::as_str) {
-        Some("islands") | Some("island") => {
-            Settings::set_shell_mode(1);
-            String::from("ok: mode=islands")
-        }
-        Some("dock") => {
-            Settings::set_shell_mode(2);
-            String::from("ok: mode=dock")
-        }
-        Some("combined") | Some("island-dock") | Some("islands-dock") => {
-            Settings::set_shell_mode(3);
-            String::from("ok: mode=island+dock")
-        }
-        Some("toggle") => {
-            let next = match Settings::read().shell_mode() { 1 => 2, 2 => 3, _ => 1 };
-            Settings::set_shell_mode(next);
-            format!("ok: mode={}", match next { 1 => "islands", 2 => "dock", _ => "island+dock" })
-        }
-        Some("status") | None => format!("mode={}", match Settings::read().shell_mode() { 1 => "islands", 2 => "dock", _ => "island+dock" }),
-        Some(other) => format!("failed: unknown UI mode {other}; use islands|dock|combined|toggle|status"),
-    }
-}
-
-
 // the dispatcher under one name, useful for scripting the whole surface
 pub fn root(arguments: &[String]) -> String {
     let Some(action) = arguments.first() else {
         return String::from(
-            "usage: open launcher|apps|spotlight|clipboard|power|control|config | closed | dash [tab] | mode [islands|dock|toggle|status] | tray ... | settings ... | weather | theme ...",
+            "usage: open launcher|apps|spotlight|clipboard|power|control|config | closed | dash [tab] | tray ... | settings ... | weather | theme ...",
         );
     };
 
@@ -94,7 +66,6 @@ pub fn root(arguments: &[String]) -> String {
         "dash" => toggle_dash(rest),
         "tray" => crate::tray::command(rest),
         "settings" => settings_verb(rest),
-        "mode" | "ui" => mode(rest),
         "weather" | "clima" => crate::weather::command(rest),
         "theme" => crate::theme::command(rest),
         // the panel may name itself: `open clipboard` == `clipboard`
@@ -185,7 +156,7 @@ fn toggle_dash(arguments: &[String]) -> String {
 fn settings_verb(arguments: &[String]) -> String {
     use crate::settings::{SCHEMES, Settings};
 
-    const USAGE: &str = "usage: settings wallpaper [image] | wallpapers | dark [true|false|toggle] | scheme [name] | directory [path] | location [lat,lon|auto] | mode [islands|dock] | layout [1|2|3] | motion [m3|fluent] | dock-position [top|bottom] | dock-alignment [left|center|right] | position <workspaces|center|status> <alignment> | clock [digital|analog] | refresh";
+    const USAGE: &str = "usage: settings wallpaper [image] | wallpapers | dark [true|false|toggle] | scheme [name] | directory [path] | location [lat,lon|auto] | motion [m3|fluent] | position <workspaces|center|status> <alignment> | clock [digital|analog] | refresh";
 
     let [action, rest @ ..] = arguments else {
         return String::from(USAGE);
@@ -260,22 +231,6 @@ fn settings_verb(arguments: &[String]) -> String {
             spot => Settings::set_location(spot),
         },
 
-        "mode" => match rest.first().copied() {
-            None => format!("mode={}", if Settings::read().shell_mode() == 1 { "islands" } else { "dock" }),
-            Some("islands" | "island" | "1") => { Settings::set_shell_mode(1); String::from("ok: mode=islands") },
-            Some("dock" | "2" | "3") => { Settings::set_shell_mode(2); String::from("ok: mode=dock") },
-            _ => String::from("usage: settings mode [islands|dock]"),
-        },
-
-        "layout" => match rest.first().copied() {
-            None => format!("layout={}", Settings::read().shell_mode()),
-            Some(value) => match value.parse::<u8>() {
-                Ok(1) => { Settings::set_shell_mode(1); String::from("ok: mode=islands") }
-                Ok(2 | 3) => { Settings::set_shell_mode(2); String::from("ok: mode=dock") }
-                _ => String::from("usage: settings layout [1|2]"),
-            },
-        },
-
         "motion" => match rest.first().copied() {
             None => format!("motion={}", Settings::read().motion_style()),
             Some("m3") => {
@@ -287,24 +242,6 @@ fn settings_verb(arguments: &[String]) -> String {
                 String::from("ok: motion=fluent")
             }
             _ => String::from("usage: settings motion [m3|fluent]"),
-        },
-
-        "dock-position" => match rest.first().copied() {
-            None => format!("dock-position={}", Settings::read().dock_position()),
-            Some(value @ ("top" | "bottom")) => {
-                Settings::set_dock_position(value);
-                format!("ok: dock-position={value}")
-            }
-            _ => String::from("usage: settings dock-position [top|bottom]"),
-        },
-
-        "dock-alignment" => match rest.first().copied() {
-            None => format!("dock-alignment={}", Settings::read().dock_alignment()),
-            Some(value @ ("left" | "center" | "right")) => {
-                Settings::set_dock_alignment(value);
-                format!("ok: dock-alignment={value}")
-            }
-            _ => String::from("usage: settings dock-alignment [left|center|right]"),
         },
 
         "position" => match rest.as_slice() {

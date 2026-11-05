@@ -89,12 +89,9 @@ fn hidden_window(namespace: &'static str) -> LayerWindow {
 
 pub fn reserve(monitor: &Monitor) -> LayerWindow {
     let settings = Settings::read();
-    let shell_mode = settings.shell_mode();
     let enabled = settings.flag("show_center_island");
     drop(settings);
-    let transition = motion::mode_transition();
-    let scale = motion::mode_scale(shell_mode, 1, transition);
-    if !enabled || scale <= 0.001 {
+    if !enabled {
         return hidden_window("cds-reserve");
     }
 
@@ -152,23 +149,11 @@ fn surface(width: f32, height: f32, radius: f32, fill: amane::Color, scheme: &Sc
 
 pub fn left(monitor: &Monitor) -> LayerWindow {
     let settings = Settings::read();
-    let shell_mode = settings.shell_mode();
     let enabled = settings.flag("show_workspaces");
     let alignment = String::from(settings.workspaces_alignment());
-    let dock_position = String::from(settings.dock_position());
     drop(settings);
-    let transition = motion::mode_transition();
-    let scale = motion::mode_scale(shell_mode, 1, transition);
-    let travel = if dock_position == "bottom" {
-        (monitor.height as i32 - BAR_HEIGHT as i32 - MARGIN * 2).max(0)
-    } else { 0 };
-    let vertical_offset = match transition {
-        Some((2, progress)) => (travel as f32 * progress).round() as i32,
-        Some((1, progress)) => (travel as f32 * (1.0 - progress)).round() as i32,
-        _ => 0,
-    };
-    let top_margin = vertical_offset;
-    if !enabled || scale <= 0.001 {
+    let top_margin = MARGIN;
+    if !enabled {
         return hidden_window("cds-left");
     }
 
@@ -191,7 +176,6 @@ pub fn left(monitor: &Monitor) -> LayerWindow {
 
     let (width, height, radius) =
         motion::follow(&format!("left:{}", monitor.name), bar_width, BAR_HEIGHT, BAR_HEIGHT / 2.0);
-    let (width, height, radius) = (width * scale, height * scale, radius * scale);
 
     let island = surface(width, height, radius, compact::base_fill(scheme), scheme)
         .child(Stack::new(vec![Box::new(bar_row)]).width(Parent).height(Parent));
@@ -206,7 +190,7 @@ pub fn left(monitor: &Monitor) -> LayerWindow {
         .margin(side_margin)
         .namespace("cds-left");
     window
-        .input_region(if transition.is_some() { Vec::new() } else { vec![InputArea {
+        .input_region(vec![InputArea {
             x: if alignment == "right" {
                 (LEFT_WIDTH - width - MARGIN as f32).max(0.0) as i32
             } else {
@@ -215,7 +199,7 @@ pub fn left(monitor: &Monitor) -> LayerWindow {
             y: MARGIN,
             width: width.ceil() as i32,
             height: height.ceil() as i32,
-        }] })
+        }])
         .child(
             Rectangle::new()
                 .width(Parent)
@@ -228,23 +212,11 @@ pub fn left(monitor: &Monitor) -> LayerWindow {
 
 pub fn right(monitor: &Monitor) -> LayerWindow {
     let settings = Settings::read();
-    let shell_mode = settings.shell_mode();
     let enabled = settings.flag("show_status");
     let alignment = String::from(settings.status_alignment());
-    let dock_position = String::from(settings.dock_position());
     drop(settings);
-    let transition = motion::mode_transition();
-    let scale = motion::mode_scale(shell_mode, 1, transition);
-    let travel = if dock_position == "bottom" {
-        (monitor.height as i32 - BAR_HEIGHT as i32 - MARGIN * 2).max(0)
-    } else { 0 };
-    let vertical_offset = match transition {
-        Some((2, progress)) => (travel as f32 * progress).round() as i32,
-        Some((1, progress)) => (travel as f32 * (1.0 - progress)).round() as i32,
-        _ => 0,
-    };
-    let top_margin = vertical_offset;
-    if !enabled || scale <= 0.001 {
+    let top_margin = MARGIN;
+    if !enabled {
         return hidden_window("cds-right");
     }
 
@@ -344,7 +316,7 @@ pub fn right(monitor: &Monitor) -> LayerWindow {
         .keyboard(keyboard)
         .namespace("cds-right");
     window
-        .input_region(if transition.is_some() { Vec::new() } else { region })
+        .input_region(region)
         .on_key(|key| {
             if key == Key::Escape {
                 Tray::close();
@@ -374,12 +346,10 @@ pub fn right(monitor: &Monitor) -> LayerWindow {
 
 pub fn view(monitor: &Monitor) -> LayerWindow {
     let settings = Settings::read();
-    let shell_mode = settings.shell_mode();
     let enabled = settings.flag("show_center_island");
     let alignment = String::from(settings.center_alignment());
     drop(settings);
-    let scale = motion::mode_scale(shell_mode, 1, motion::mode_transition());
-    if !enabled || scale <= 0.001 {
+    if !enabled {
         return hidden_window("cds-island");
     }
 

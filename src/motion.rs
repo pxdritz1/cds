@@ -19,48 +19,6 @@ impl Service for FramePulse {
 }
 
 static FRAME_TIMER: OnceLock<Option<mpsc::Sender<u64>>> = OnceLock::new();
-// One shared transition timeline drives every Island and Dock surface.
-// It deliberately reuses the frame-pulse service instead of spawning a
-// per-window animation loop.
-static MODE_TRANSITION: OnceLock<Mutex<Option<(Instant, u8)>>> = OnceLock::new();
-const MODE_TRANSITION_DURATION: Duration = Duration::from_millis(720);
-
-pub fn begin_mode_transition(target_mode: u8) {
-    let state = MODE_TRANSITION.get_or_init(|| Mutex::new(None));
-    *state.lock().unwrap_or_else(|error| error.into_inner()) =
-        Some((Instant::now(), target_mode.clamp(1, 3)));
-}
-
-/// Returns the destination mode and eased progress while a switch is active.
-pub fn mode_transition() -> Option<(u8, f32)> {
-    let state = MODE_TRANSITION.get_or_init(|| Mutex::new(None));
-    let mut state = state.lock().unwrap_or_else(|error| error.into_inner());
-    let (started, target) = (*state)?;
-    let elapsed = started.elapsed();
-
-    if elapsed >= MODE_TRANSITION_DURATION {
-        *state = None;
-        return None;
-    }
-
-    request_frame_at_most(60);
-    let linear = (elapsed.as_secs_f32() / MODE_TRANSITION_DURATION.as_secs_f32()).clamp(0.0, 1.0);
-    let eased = linear * linear * (3.0 - 2.0 * linear);
-    Some((target, eased))
-}
-
-/// Scale for either interface: the outgoing one contracts as the incoming one grows.
-pub fn mode_scale(current_mode: u8, surface_mode: u8, transition: Option<(u8, f32)>) -> f32 {
-    match transition {
-        Some((3, _progress)) => 1.0,
-        Some((target, progress)) if target == surface_mode => progress,
-        Some((_, progress)) => 1.0 - progress,
-        None if current_mode == 3 && matches!(surface_mode, 1 | 2) => 1.0,
-        None if current_mode == surface_mode => 1.0,
-        None => 0.0,
-    }
-}
-
 /// Coalesce continuous animation redraws without running faster than requested.
 #[track_caller]
 pub fn request_frame_at_most(fps: u64) {
@@ -217,10 +175,6 @@ thread_local! {
     static NUMBERS: RefCell<HashMap<String, Track<f32>>> = RefCell::new(HashMap::new());
     static COLORS: RefCell<HashMap<String, Track<Color>>> = RefCell::new(HashMap::new());
     static PRESENCES: RefCell<HashMap<String, Track<f32>>> = RefCell::new(HashMap::new());
-    // Pointer coordinates are local to each Dock's stable LayerWindow.
-    static DOCK_POINTERS: RefCell<HashMap<String, Option<f32>>> = RefCell::new(HashMap::new());
-    static DOCK_BOUNCES: RefCell<HashMap<String, Instant>> = RefCell::new(HashMap::new());
-    static DOCK_WINDOW_INDICES: RefCell<HashMap<String, usize>> = RefCell::new(HashMap::new());
 }
 
 // the island growing or shrinking between its compact, peek and dash sizes
@@ -375,71 +329,6 @@ pub fn color(key: &str, target: Color, duration: Duration) -> Color {
 
         track.value()
     })
-}
-
-pub fn dock_window_index(key: &str, count: usize) -> usize {
-    if count == 0 {
-        return 0;
-    }
-
-    DOCK_WINDOW_INDICES.with(|indices| {
-        let mut indices = indices.borrow_mut();
-        let index = indices.entry(String::from(key)).or_insert(0);
-        *index %= count;
-        *index
-    })
-}
-
-pub fn cycle_dock_window(key: &str, delta: isize, count: usize) -> usize {
-    if count == 0 {
-        return 0;
-    }
-
-    DOCK_WINDOW_INDICES.with(|indices| {
-        let mut indices = indices.borrow_mut();
-        let index = indices.entry(String::from(key)).or_insert(0);
-        *index = (*index as isize + delta).rem_euclid(count as isize) as usize;
-        *index
-    })
-}
-
-pub fn trigger_bounce(key: impl Into<String>) {
-    DOCK_BOUNCES.with(|bounces| {
-        bounces.borrow_mut().insert(key.into(), Instant::now());
-    });
-    crate::ui::Ui::refresh();
-}
-
-pub fn bounce(key: &str) -> f32 {
-    DOCK_BOUNCES.with(|bounces| {
-        let mut bounces = bounces.borrow_mut();
-        let Some(started) = bounces.get(key).copied() else {
-            return 0.0;
-        };
-
-        let elapsed = started.elapsed().as_secs_f32();
-        if elapsed >= 0.62 {
-            bounces.remove(key);
-            return 0.0;
-        }
-
-        request_frame_at_most(60);
-        let envelope = (1.0 - elapsed / 0.62).max(0.0);
-        (elapsed * std::f32::consts::TAU * 3.8).sin().abs()
-            * 26.0
-            * envelope
-            * envelope
-    })
-}
-
-pub fn set_pointer_x(key: impl Into<String>, x: Option<f32>) {
-    DOCK_POINTERS.with(|pointers| {
-        pointers.borrow_mut().insert(key.into(), x);
-    });
-}
-
-pub fn pointer_x(key: &str) -> Option<f32> {
-    DOCK_POINTERS.with(|pointers| pointers.borrow().get(key).copied().flatten())
 }
 
 pub const WORKSPACE_DURATION: Duration = WORKSPACE;
