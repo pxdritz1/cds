@@ -78,15 +78,18 @@ enum IslandMode {
     Dash = 4,          // the full dash
 }
 
-pub fn reserve(_: &Monitor) -> LayerWindow {
+pub fn reserve(monitor: &Monitor) -> LayerWindow {
     let ui = Ui::read();
     let media_visible = Media::read().playing()
         && !ui.media_sheet()
         && !ui.dash()
         && !notification_preview_active();
     let notice_active = notification_preview_active() && !ui.dash();
-    let reserved_height = if media_visible {
+    let media_expanded = motion::hover(&format!("media-island:{}", monitor.name)) > 0.5;
+    let reserved_height = if media_visible && media_expanded {
         peek::MEDIA_HEIGHT + 6.0
+    } else if media_visible {
+        peek::MEDIA_COMPACT_HEIGHT + 6.0
     } else if notice_active && ui.hover() {
         peek::NOTICE_HEIGHT + 6.0
     } else if notice_active {
@@ -314,6 +317,9 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
 
     let ui = Ui::read();
 
+    let media_hover_key = format!("media-island:{}", monitor.name);
+    let media_expanded = motion::hover(&media_hover_key) > 0.5;
+
     let mode = if ui.dash() {
         IslandMode::Dash
     } else if notice.is_some() && ui.hover() {
@@ -368,10 +374,18 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
         },
 
         IslandMode::Media => (
-            peek::media(scheme, alpha),
+            peek::media(scheme, alpha, media_expanded),
             peek::media_width(),
-            peek::MEDIA_HEIGHT,
-            crate::m3::shape::ISLAND_EXPANDED,
+            if media_expanded {
+                peek::MEDIA_HEIGHT
+            } else {
+                peek::MEDIA_COMPACT_HEIGHT
+            },
+            if media_expanded {
+                crate::m3::shape::ISLAND_EXPANDED
+            } else {
+                crate::m3::shape::ISLAND_COMPACT
+            },
         ),
 
         IslandMode::Compact => {
@@ -394,7 +408,12 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
     let mut island = surface(width, height, radius, fill, scheme);
 
     // The media sheet is click-only: hovering it never reveals the dash.
-    if mode != IslandMode::Media {
+    if mode == IslandMode::Media {
+        let hover_key = media_hover_key;
+        island = island.on_hover(move |inside| {
+            motion::set_hover(hover_key.clone(), inside);
+        });
+    } else {
         island = island.on_hover(Ui::set_hover);
     }
 
