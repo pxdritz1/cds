@@ -5,13 +5,13 @@ use amane::{
 
 use crate::m3;
 use crate::motion;
-use crate::overlay::{Overlay, Panel};
+use crate::overlay::Overlay;
 use crate::settings::Settings;
 use crate::theme::{Scheme, Theme, fade};
 
-const HEIGHT: f32 = 104.0;
-const SLOT: f32 = 88.0;
-const ICON_GAP: f32 = 20.0;
+const HEIGHT: f32 = 128.0;
+const SLOT: f32 = 112.0;
+const ACTION_ICON: f32 = 42.0;
 
 pub fn view(_monitor: &Monitor) -> LayerWindow {
     // Hover state is published through Ui::refresh, just like other shell
@@ -48,7 +48,7 @@ pub fn view(_monitor: &Monitor) -> LayerWindow {
     drop(settings);
     drop(apps);
 
-    let dock_width = (items.len() as f32 * SLOT + 96.0).clamp(132.0, 1800.0);
+    let dock_width = (items.len() as f32 * SLOT + SLOT + 16.0).clamp(128.0, 1800.0);
 
     let mut children: Vec<Box<dyn Widget>> = items
         .iter()
@@ -208,8 +208,8 @@ fn action_item(
         .align_child(Center, Center)
         .child(
             Rectangle::new()
-                .width(ICON * scale)
-                .height(ICON * scale)
+                .width(ACTION_ICON * scale)
+                .height(ACTION_ICON * scale)
                 .radius(14.0)
                 .fill(scheme.surface_container_highest)
                 .align_child(Center, Center)
