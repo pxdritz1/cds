@@ -3,7 +3,7 @@
  * tile; a click spawns the program and the panel steps down.
  */
 use amane::{
-    Service, Apps, Button, Center, Column, DesktopApp, Image, Key, LayerWindow, Monitor, Padding, Parent,
+    Apps, Button, Service, Center, Column, DesktopApp, Image, Key, LayerWindow, Monitor, Padding, Parent,
     Pointer, Rectangle, Row, ScrollArea, Widget,
 };
 
@@ -19,6 +19,46 @@ const COLUMNS: usize = 6;
 const TILE_WIDTH: f32 = 128.0;
 const TILE_HEIGHT: f32 = 120.0;
 
+#[derive(Default)]
+pub struct AppGrid {
+    selected: usize,
+}
+
+impl Service for AppGrid {
+    fn new() -> Self {
+        Self::default()
+    }
+
+    fn listen() {}
+}
+
+impl AppGrid {
+    pub fn move_by(delta: isize, count: usize) {
+        if count == 0 {
+            return;
+        }
+
+        let mut state = Self::write();
+        let last = count.saturating_sub(1) as isize;
+        let current = state.selected.min(count - 1) as isize;
+        state.selected = (current + delta).clamp(0, last) as usize;
+    }
+
+    pub fn move_vertical(delta: isize, count: usize) {
+        Self::move_by(delta * COLUMNS as isize, count);
+    }
+
+    pub fn launch_selected() {
+        let selected = Self::read().selected;
+        let app = Apps::read().list().get(selected).cloned();
+
+        if let Some(app) = app {
+            app.launch();
+            Overlay::close();
+        }
+    }
+}
+
 pub fn view(monitor: &Monitor) -> LayerWindow {
     let theme = Theme::read();
     let scheme = theme.scheme();
@@ -26,6 +66,11 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
     let open = Overlay::read().panel() == Panel::Apps;
 
     let list = Apps::read().list().to_vec();
+    let selected = if list.is_empty() {
+        0
+    } else {
+        AppGrid::read().selected.min(list.len() - 1)
+    };
 
     let mut rows: Vec<Box<dyn Widget>> = Vec::new();
 
@@ -33,7 +78,10 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
         let items: Vec<Box<dyn Widget>> = group
             .iter()
             .enumerate()
-            .map(|(column, app)| boxed(app_tile(app, &scheme, row * COLUMNS + column)))
+            .map(|(column, app)| {
+                let index = row * COLUMNS + column;
+                boxed(app_tile(app, &scheme, index, index == selected))
+            })
             .collect();
 
         rows.push(boxed(Row::new(items).gap(12.0).width(Parent).justify(Center)));
@@ -103,20 +151,28 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
             full_screen: true,
         },
         content,
-        |key| {
-            if key == Key::Escape {
-                Overlay::close();
-            }
+        move |key| match key {
+            Key::Left => AppGrid::move_by(-1, list.len()),
+            Key::Right | Key::Tab => AppGrid::move_by(1, list.len()),
+            Key::Up => AppGrid::move_vertical(-1, list.len()),
+            Key::Down => AppGrid::move_vertical(1, list.len()),
+            Key::Enter => AppGrid::launch_selected(),
+            _ => {}
         },
     )
 }
 
-fn app_tile(app: &DesktopApp, scheme: &Scheme, index: usize) -> Rectangle {
+fn app_tile(app: &DesktopApp, scheme: &Scheme, index: usize, selected: bool) -> Rectangle {
     let name = String::from(app.name());
 
     let key = format!("apps:{index}");
 
     let state = motion::hover(&key);
+    let selected_fill = if selected {
+        scheme.secondary_container
+    } else {
+        scheme.surface_container_low
+    };
 
     let owned = String::from(key);
 
@@ -159,7 +215,7 @@ fn app_tile(app: &DesktopApp, scheme: &Scheme, index: usize) -> Rectangle {
         .width(TILE_WIDTH)
         .height(TILE_HEIGHT)
         .fill(state_layer(
-            scheme.surface_container_low,
+            selected_fill,
             scheme.on_surface,
             0.08 * state,
         ))
@@ -168,6 +224,9 @@ fn app_tile(app: &DesktopApp, scheme: &Scheme, index: usize) -> Rectangle {
         .on_hover(move |inside| motion::set_hover(owned.clone(), inside))
         .on_click(move |button| match button {
             Button::Left => {
+                let count = Apps::read().list().len();
+                let current = AppGrid::read().selected;
+                AppGrid::move_by(index as isize - current as isize, count);
                 app.launch();
                 Overlay::close();
             }
