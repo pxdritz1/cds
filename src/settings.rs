@@ -620,7 +620,7 @@ impl Settings {
         }
 
         let mut text = format!(
-            "wallpaper={}\nscheme={}\ndark={}\ndirectory={}\nlocation={}\nhover_delay_ms={}\nlanguage={}\nmedia_title_max_width={}\nwallpaper_rotation={}\nwallpaper_interval_minutes={}\nshell_mode={}\nmotion_style={}\ndock_position={}\ndock_alignment={}\ndock_icon_size={}\nworkspaces_alignment={\ncenter_alignment={}\nstatus_alignment={}\n",
+            "wallpaper={}\nscheme={}\ndark={}\ndirectory={}\nlocation={}\nhover_delay_ms={}\nlanguage={}\nmedia_title_max_width={}\nwallpaper_rotation={}\nwallpaper_interval_minutes={}\nshell_mode={}\nmotion_style={}\ndock_position={}\ndock_alignment={}\ndock_icon_size={}\nworkspaces_alignment={}\ncenter_alignment={}\nstatus_alignment={}\n",
             self.wallpaper,
             self.scheme,
             self.dark,
