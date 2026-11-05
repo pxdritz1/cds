@@ -58,6 +58,21 @@
 - [x] Open the application grid from the Dock.
 - [x] Focus an existing Niri window when its running application icon is clicked.
 - [x] Keep pinned apps, running-app indicators, magnification and trash drag-and-drop.
+## K4-style Dock refinement
+
+- [x] Replace the static capsule with a fixed-surface, animated K4-inspired path silhouette.
+- [x] Use pointer-distance Gaussian magnification instead of a binary hovered-icon scale.
+- [x] Keep enlarged icons, app labels and window-count badges inside reserved Dock headroom.
+- [x] Separate pinned applications from automatically discovered running applications.
+- [x] Show running indicators and multi-window counts.
+- [x] Animate the icon when an application is launched or focused.
+- [x] Allow scrolling over an app icon to cycle through its open Niri windows.
+- [ ] Add a real in-Dock window picker with previews and per-window titles.
+- [ ] Add drag-to-reorder and drag-out-to-unpin interactions.
+- [ ] Add configurable auto-hide with a narrow edge reveal target.
+- [ ] Rebuild the application drawer so it grows from the Dock rather than opening a separate full-screen panel.
+- [ ] Reproduce the K4 drop/impact transition and the coordinated split/fall Island transition as dedicated animation layers.
+
 ## Notifications
 
 - [x] Show the source application's icon in notification previews.
