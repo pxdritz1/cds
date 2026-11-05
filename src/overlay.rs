@@ -54,6 +54,7 @@ pub struct Frame {
     pub height: f32,
     pub radius: f32,
     pub place: Place,
+    pub full_screen: bool,
 }
 
 #[derive(Default)]
@@ -173,10 +174,7 @@ pub fn layer(
     };
 
     let panel = Rectangle::new()
-        .width(frame.width)
-        .height(frame.height)
         .fill(scheme.surface_container)
-        .radius(frame.radius)
         .clip()
         .border(1.0, fade(scheme.outline_variant, 70))
         .shadow(
@@ -190,6 +188,12 @@ pub fn layer(
         .translate(0.0, -14.0 * (1.0 - presence))
         .on_click(|_| {})
         .child(content);
+
+    let panel = if frame.full_screen {
+        panel.width(Full).height(Full).radius(0.0)
+    } else {
+        panel.width(frame.width).height(frame.height).radius(frame.radius)
+    };
 
     let padding = match frame.place {
         Place::Under => Padding {
