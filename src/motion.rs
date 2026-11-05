@@ -117,6 +117,11 @@ impl<T: Blend> Track<T> {
         self.animation.to(target);
     }
 
+    fn snap(&mut self, value: T) {
+        self.target = value;
+        self.animation = Animation::new(value);
+    }
+
     fn value(&self) -> T {
         self.animation.value()
     }
@@ -211,6 +216,19 @@ pub fn presence(key: &str, open: bool) -> f32 {
 
         track.value()
     })
+}
+
+/// Set an overlay's presence immediately, bypassing its exit animation.
+pub fn presence_immediately(key: &str, open: bool) {
+    let value = if open { 1.0 } else { 0.0 };
+
+    PRESENCES.with(|presences| {
+        let mut presences = presences.borrow_mut();
+        presences
+            .entry(String::from(key))
+            .or_insert_with(|| Track::new(value, OVERLAY_IN))
+            .snap(value);
+    });
 }
 
 // pointer state layers: 0 when the pointer is away, 1 while it is over
