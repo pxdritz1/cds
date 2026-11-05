@@ -410,8 +410,7 @@ fn app_item(
 ) -> Rectangle {
     let exec = String::from(app.exec());
     let key = format!("dock:{}", exec);
-    let hover = motion::hover(&key);
-    let proximity = if magnification { proximity.max(hover) } else { 0.0 };
+    let proximity = if magnification { proximity } else { 0.0 };
     let scale = motion::number(
         &format!("{key}:scale"),
         1.0 + 0.62 * proximity,
@@ -419,7 +418,6 @@ fn app_item(
     );
     let size = icon_base * scale;
     let rise = (8.0 + 10.0 * proximity) * transition_scale;
-    let owned = key.clone();
     let launch = exec.clone();
     let window_id = window_ids.first().map(|id| id.to_string());
     let window_count = window_ids.len();
@@ -478,7 +476,6 @@ fn app_item(
         .width(slot)
         .height((dock_height - 28.0).max(1.0))
         .cursor(Pointer)
-        .on_hover(move |inside| motion::set_hover(owned.clone(), inside))
         .on_click(move |button| match button {
             Button::Left => {
                 if let Some(id) = window_id.as_deref() {
@@ -515,21 +512,17 @@ fn action_item(
     dock_side: f32,
     action: impl Fn() + 'static,
 ) -> Rectangle {
-    let hover = motion::hover(key);
     let action_size = ACTION_ICON.min((dock_height - 28.0).max(1.0) * 0.72);
-    let proximity = if magnification { proximity.max(hover) } else { 0.0 };
+    let proximity = if magnification { proximity } else { 0.0 };
     let scale = motion::number(
         &format!("{key}:scale"),
         1.0 + 0.48 * proximity,
         motion::style_duration(90, 90),
     );
-    let owned = String::from(key);
-
     Rectangle::new()
         .width(slot)
         .height((dock_height - 28.0).max(1.0))
         .cursor(Pointer)
-        .on_hover(move |inside| motion::set_hover(owned.clone(), inside))
         .on_click(move |button| {
             if button == Button::Left {
                 action();
