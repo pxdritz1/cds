@@ -217,6 +217,7 @@ thread_local! {
     static PRESENCES: RefCell<HashMap<String, Track<f32>>> = RefCell::new(HashMap::new());
     // Pointer coordinates are local to each Dock's stable LayerWindow.
     static DOCK_POINTERS: RefCell<HashMap<String, Option<f32>>> = RefCell::new(HashMap::new());
+    static DOCK_BOUNCES: RefCell<HashMap<String, Instant>> = RefCell::new(HashMap::new());
 }
 
 // the island growing or shrinking between its compact, peek and dash sizes
@@ -370,6 +371,35 @@ pub fn color(key: &str, target: Color, duration: Duration) -> Color {
         track.to(target, duration);
 
         track.value()
+    })
+}
+
+pub fn trigger_bounce(key: impl Into<String>) {
+    DOCK_BOUNCES.with(|bounces| {
+        bounces.borrow_mut().insert(key.into(), Instant::now());
+    });
+    crate::ui::Ui::refresh();
+}
+
+pub fn bounce(key: &str) -> f32 {
+    DOCK_BOUNCES.with(|bounces| {
+        let mut bounces = bounces.borrow_mut();
+        let Some(started) = bounces.get(key).copied() else {
+            return 0.0;
+        };
+
+        let elapsed = started.elapsed().as_secs_f32();
+        if elapsed >= 0.62 {
+            bounces.remove(key);
+            return 0.0;
+        }
+
+        request_frame_at_most(60);
+        let envelope = (1.0 - elapsed / 0.62).max(0.0);
+        (elapsed * std::f32::consts::TAU * 3.8).sin().abs()
+            * 26.0
+            * envelope
+            * envelope
     })
 }
 
