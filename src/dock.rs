@@ -438,7 +438,7 @@ fn collect_desktop_files(directory: &PathBuf, files: &mut Vec<PathBuf>, depth: u
 }
 
 fn desktop_actions(app: &DesktopApp) -> Vec<DesktopAction> {
-    let key = String::from(app.exec());
+    let key = format!("{}::{}", app.name(), app.exec());
     if let Ok(cache) = desktop_action_cache().lock() {
         if let Some(actions) = cache.get(&key) { return actions.clone(); }
     }
@@ -456,13 +456,14 @@ fn desktop_actions(app: &DesktopApp) -> Vec<DesktopAction> {
         let mut section = String::new();
         let mut main_name = String::new();
         let mut main_exec = String::new();
-        let mut sections: Vec<(String, String)> = Vec::new();
+        let mut declared_actions = Vec::new();
+        let mut sections: Vec<(String, String, String)> = Vec::new();
 
         for line in contents.lines().map(str::trim) {
             if line.starts_with('[') && line.ends_with(']') {
                 section = line[1..line.len() - 1].to_string();
-                if section.starts_with("Desktop Action ") {
-                    sections.push((String::new(), String::new()));
+                if let Some(action_id) = section.strip_prefix("Desktop Action ") {
+                    sections.push((action_id.to_string(), String::new(), String::new()));
                 }
                 continue;
             }
@@ -471,10 +472,11 @@ fn desktop_actions(app: &DesktopApp) -> Vec<DesktopAction> {
                 "Desktop Entry" => match field.trim() {
                     "Name" => main_name = value.trim().to_string(),
                     "Exec" => main_exec = clean_desktop_exec(value.trim()),
+                    "Actions" => declared_actions = value.trim().split(';').filter(|id| !id.is_empty()).map(str::to_string).collect(),
                     _ => {}
                 },
                 name if name.starts_with("Desktop Action ") => {
-                    if let Some((action_name, action_exec)) = sections.last_mut() {
+                    if let Some((_, action_name, action_exec)) = sections.last_mut() {
                         match field.trim() {
                             "Name" => *action_name = value.trim().to_string(),
                             "Exec" => *action_exec = clean_desktop_exec(value.trim()),
@@ -491,9 +493,10 @@ fn desktop_actions(app: &DesktopApp) -> Vec<DesktopAction> {
         let name_matches = main_name.eq_ignore_ascii_case(app.name());
         if !command_matches && !name_matches { continue; }
 
-        result = sections.into_iter()
-            .filter(|(name, exec)| !name.trim().is_empty() && !exec.trim().is_empty())
-            .map(|(name, exec)| DesktopAction { name, exec })
+        result = declared_actions.iter()
+            .filter_map(|id| sections.iter().find(|(action_id, _, _)| action_id == id))
+            .filter(|(_, name, exec)| !name.trim().is_empty() && !exec.trim().is_empty())
+            .map(|(_, name, exec)| DesktopAction { name: name.clone(), exec: exec.clone() })
             .collect();
         break;
     }
