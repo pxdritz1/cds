@@ -193,20 +193,22 @@ pub fn view(_monitor: &Monitor) -> LayerWindow {
     let magnification = settings.flag("dock_magnification");
     drop(settings);
 
-    let running_ids = RunningApps::read().app_ids.clone();
-    let mut items: Vec<(DesktopApp, bool)> = Vec::new();
+    let running_windows = RunningApps::read().windows.clone();
+    let mut items: Vec<(DesktopApp, bool, Option<u64>)> = Vec::new();
 
     for exec in &pinned {
         if let Some(app) = apps.list().iter().find(|app| app.exec() == exec) {
-            let running = running_ids.iter().any(|id| app_matches_id(app, id));
-            items.push((app.clone(), running));
+            let window_id = running_windows.iter()
+                .find(|window| app_matches_id(app, &window.app_id))
+                .map(|window| window.id);
+            items.push((app.clone(), window_id.is_some(), window_id));
         }
     }
 
-    for app_id in &running_ids {
-        if let Some(app) = apps.list().iter().find(|app| app_matches_id(app, app_id)) {
-            if !items.iter().any(|(existing, _)| existing.exec() == app.exec()) {
-                items.push((app.clone(), true));
+    for window in &running_windows {
+        if let Some(app) = apps.list().iter().find(|app| app_matches_id(app, &window.app_id)) {
+            if !items.iter().any(|(existing, _, _)| existing.exec() == app.exec()) {
+                items.push((app.clone(), true, Some(window.id)));
             }
         }
     }
@@ -223,8 +225,8 @@ pub fn view(_monitor: &Monitor) -> LayerWindow {
 
     let mut children: Vec<Box<dyn Widget>> = items
         .iter()
-        .map(|(app, running)| {
-            Box::new(app_item(app, scheme, icon_size * dock_scale, magnification, *running, slot, dock_height))
+        .map(|(app, running, window_id)| {
+            Box::new(app_item(app, scheme, icon_size * dock_scale, magnification, *running, *window_id, slot, dock_height))
                 as Box<dyn Widget>
         })
         .collect();
