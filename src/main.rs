@@ -10,6 +10,7 @@ mod control;
 mod dock;
 mod color;
 mod emoji;
+mod focused;
 mod glyphs;
 mod ipc;
 mod island;
