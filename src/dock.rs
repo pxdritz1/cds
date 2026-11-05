@@ -404,7 +404,7 @@ fn action_item(
 
     Rectangle::new()
         .width(slot)
-        .height(dock_height - 28.0)
+        .height((dock_height - 28.0).max(1.0))
         .cursor(Pointer)
         .on_hover(move |inside| motion::set_hover(owned.clone(), inside))
         .on_click(move |button| {
