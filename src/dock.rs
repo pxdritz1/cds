@@ -214,7 +214,9 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
 
     let transition = motion::mode_transition();
     let dock_scale = motion::mode_scale(mode, 2, transition);
+    let pointer_key = format!("dock:pointer:{}", monitor.name);
     if dock_scale <= 0.001 {
+        motion::set_pointer_x(pointer_key, None);
         return LayerWindow::new()
             .width(1.0)
             .height(1.0)
@@ -273,8 +275,14 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
     let dock_width = (base_width * dock_scale).max(1.0);
     let dock_side = if position == "top" { 1.0 } else { -1.0 };
     let magnification_enabled = magnification;
-    let pointer_key = format!("dock:pointer:{}", monitor.name);
-    let pointer_x = motion::pointer_x(&pointer_key);
+    if transition.is_some() {
+        motion::set_pointer_x(pointer_key.clone(), None);
+    }
+    let pointer_x = if transition.is_some() {
+        None
+    } else {
+        motion::pointer_x(&pointer_key)
+    };
 
     let mut children: Vec<Box<dyn Widget>> = Vec::new();
     let mut row_cursor = 8.0;
