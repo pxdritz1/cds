@@ -3,7 +3,7 @@ use amane::{
     Rectangle, Row, ScrollArea, Service, SpaceBetween, TextInput, Widget,
 };
 
-use crate::island::widgets::{APPS, FORWARD, SEARCH, boxed, icon, label, text};
+use crate::island::widgets::{FORWARD, SEARCH, boxed, icon, label, text};
 use crate::m3;
 use crate::overlay::{self, Overlay, Panel, row_fill};
 use crate::theme::{Scheme, Theme, fade, mix};
