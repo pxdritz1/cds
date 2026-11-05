@@ -75,8 +75,9 @@ language can be switched between Material 3 and Fluent timing presets. Animation
 frames are requested through the shared frame-pulse service so only windows
 subscribed to active motion are woken.
 
-The focused-window service reads Niri's focused-window IPC response off the
-rendering thread and publishes only changed title/app-id metadata.
+The focused-window service listens to Niri's event stream and queries the
+focused-window response over the compositor's Unix IPC socket. It publishes
+only changed title/app-id metadata, avoiding a polling subprocess.
 
 ## Overlays
 
