@@ -86,7 +86,7 @@ fn publish(fresh: Option<FocusedWindow>) {
 fn read() -> Option<FocusedWindow> {
     let socket = std::env::var_os("NIRI_SOCKET")?;
     let mut stream = UnixStream::connect(socket).ok()?;
-    stream.write_all(b"\"FocusedWindow\"\\n").ok()?;
+    stream.write_all(b"\"FocusedWindow\"\n").ok()?;
 
     let mut json = String::new();
     BufReader::new(stream).read_line(&mut json).ok()?;
