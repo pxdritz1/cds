@@ -204,9 +204,8 @@ pub fn left(monitor: &Monitor) -> LayerWindow {
         .space(Zone::Ignore)
         .margin(side_margin)
         .namespace("cds-left");
-    let window = if transition.is_some() { window.click_through() } else { window };
     window
-        .input_region(vec![InputArea {
+        .input_region(if transition.is_some() { Vec::new() } else { vec![InputArea {
             x: if alignment == "right" {
                 (LEFT_WIDTH - width).max(0.0) as i32
             } else {
@@ -215,7 +214,7 @@ pub fn left(monitor: &Monitor) -> LayerWindow {
             y: 0,
             width: width.ceil() as i32,
             height: height.ceil() as i32,
-        }])
+        }] })
         .child(
             Rectangle::new()
                 .width(Parent)
@@ -346,9 +345,8 @@ pub fn right(monitor: &Monitor) -> LayerWindow {
         .margin(side_margin)
         .keyboard(keyboard)
         .namespace("cds-right");
-    let window = if transition.is_some() { window.click_through() } else { window };
     window
-        .input_region(region)
+        .input_region(if transition.is_some() { Vec::new() } else { region })
         .on_key(|key| {
             if key == Key::Escape {
                 Tray::close();
