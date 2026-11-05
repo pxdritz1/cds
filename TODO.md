@@ -53,7 +53,8 @@
 - [x] Mode 2: standalone macOS-like app dock, with magnification on hover, a trash launcher and an app-grid button.
 - [ ] Add drag-and-drop support to the dock trash target.
 - [x] Mode 3: dock plus bar, centered main Island combining existing shell controls and additional content.
-- [ ] Add per-element position controls so users can place the dock, main Island and individual indicators on different screen edges/sides.
+- [x] Add independent placement controls for the dock, main Island, workspace group and status group.
+- [x] Add Material 3 and Fluent motion presets with bubble transitions between panels.
 
 ## Notifications
 
