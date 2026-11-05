@@ -4,7 +4,7 @@ use std::thread;
 use std::time::Duration;
 
 use amane::{
-    Apps, Button, Canvas, Center, DesktopApp, Horizontal, Image, InputArea, Layer, LayerWindow, Margin, Monitor,
+    Apps, Button, Canvas, Center, DesktopApp, Horizontal, Image, InputArea, Layer, LayerWindow, Monitor,
     End, Full, Parent, Path, Pointer, Rectangle, Row, Service, Shadow, Shape, Start, Text, Vertical, Widget,
     Zone,
 };
@@ -393,18 +393,6 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
     .width(base_width)
     .height(base_body_height);
 
-    let horizontal = match alignment.as_str() {
-        "left" => Horizontal::Left,
-        "right" => Horizontal::Right,
-        _ => Horizontal::Middle,
-    };
-
-    let margin = if position == "top" {
-        Margin { top: 12, ..Margin::default() }
-    } else {
-        Margin { bottom: 14, ..Margin::default() }
-    };
-
     // Keep the Wayland surface at monitor size. Only the dock's inner
     // geometry changes; resizing a layer surface during magnification or a
     // mode transition makes the compositor reconfigure it and causes jitter.
@@ -416,9 +404,9 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
         _ => ((monitor.width as f32 - base_width) * 0.5).max(0.0),
     };
     let dock_y = if position == "top" {
-        0.0
+        12.0
     } else {
-        (monitor.height as f32 - base_height).max(0.0)
+        (monitor.height as f32 - base_height - 14.0).max(0.0)
     };
     let input_region = if transition.is_some() {
         Vec::new()
@@ -465,7 +453,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
                 horizontal_align,
                 if position == "top" { Start } else { End },
             )
-            .child(body),
+            .child(body.translate(0.0, if position == "top" { 12.0 } else { -14.0 })),
     )
 }
 
