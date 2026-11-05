@@ -4,7 +4,10 @@
  * the icon swaps with the level (low, medium, high, muted, almost empty).
  */
 use std::cell::RefCell;
+use std::io::{BufRead, BufReader};
 use std::collections::{HashMap, VecDeque};
+use std::process::{Command, Stdio};
+use std::thread;
 use std::time::{Duration, Instant};
 
 use amane::{
@@ -24,6 +27,80 @@ const PILL_WIDTH: f32 = 288.0;
 const PILL_HEIGHT: f32 = 56.0;
 const SHOWN: Duration = Duration::from_secs(5);
 const ALERT: Duration = Duration::from_secs(5);
+const MAX_OUTPUT_VOLUME: f32 = 150.0;
+
+// Amane's Audio API intentionally clamps output volume to 100%. Read the
+// PulseAudio-compatible server directly so OSDs can represent Sound Boost.
+struct SoundLevel(u8);
+
+impl Service for SoundLevel {
+    fn new() -> Self {
+        Self(read_output_volume().unwrap_or_else(|| Audio::read().volume()))
+    }
+
+    fn update(&mut self) -> bool {
+        let Some(volume) = read_output_volume() else {
+            return false;
+        };
+        if self.0 == volume {
+            false
+        } else {
+            self.0 = volume;
+            true
+        }
+    }
+
+    fn listen() {
+        loop {
+            let child = Command::new("pactl")
+                .arg("subscribe")
+                .stdout(Stdio::piped())
+                .stderr(Stdio::null())
+                .spawn();
+
+            let Ok(mut child) = child else {
+                thread::sleep(Duration::from_secs(5));
+                continue;
+            };
+
+            if let Some(stdout) = child.stdout.take() {
+                for line in BufReader::new(stdout).lines() {
+                    let Ok(line) = line else { break };
+                    if line.contains("sink") || line.contains("server") {
+                        let mut sound = Self::write();
+                        if !sound.update() {
+                            sound.quiet();
+                        }
+                    }
+                }
+            }
+
+            let _ = child.kill();
+            let _ = child.wait();
+            thread::sleep(Duration::from_secs(2));
+        }
+    }
+}
+
+fn read_output_volume() -> Option<u8> {
+    let output = Command::new("pactl")
+        .args(["get-sink-volume", "@DEFAULT_SINK@"])
+        .stderr(Stdio::null())
+        .output()
+        .ok()?;
+    if !output.status.success() {
+        return None;
+    }
+
+    let volume = String::from_utf8_lossy(&output.stdout)
+        .split_whitespace()
+        .filter_map(|part| part.trim_end_matches(|c: char| !c.is_ascii_digit() && c != '%')
+            .strip_suffix('%')
+            .and_then(|value| value.parse::<u16>().ok()))
+        .max()?;
+
+    Some(volume.min(150) as u8)
+}
 
 #[derive(Clone, Copy, PartialEq)]
 enum Kind {
@@ -58,11 +135,12 @@ thread_local! {
 
 fn snapshot() -> Snapshot {
     let audio = Audio::read();
+    let volume = SoundLevel::read().0;
     let brightness = Brightness::read();
     let battery = Battery::read();
 
     Snapshot {
-        volume: audio.volume(),
+        volume,
         muted: audio.muted(),
         microphone_muted: audio.microphone_muted(),
         brightness: if brightness.present() {
@@ -254,7 +332,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
             Some(if now.muted {
                 0.0
             } else {
-                f32::from(now.volume) / 100.0
+                (f32::from(now.volume) / MAX_OUTPUT_VOLUME).clamp(0.0, 1.0)
             }),
             if now.muted {
                 String::from(crate::lang::text("Mudo", "Muted"))
