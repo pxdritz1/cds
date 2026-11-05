@@ -166,7 +166,6 @@ pub fn window() -> Window {
     let show_center_island = settings.flag("show_center_island");
     let show_status = settings.flag("show_status");
     let show_dock = settings.flag("show_dock");
-    let clock_analog = settings.flag("clock_analog");
 
     let current = String::from(settings.scheme_name());
 
@@ -251,11 +250,6 @@ pub fn window() -> Window {
             Box::new(Row::new(vec![
                 boxed(chip("sv:dock-magnify-on", crate::lang::text("Ativada", "On"), 100.0, dock_magnification, scheme, || Settings::set_flag("dock_magnification", true))),
                 boxed(chip("sv:dock-magnify-off", crate::lang::text("Desativada", "Off"), 100.0, !dock_magnification, scheme, || Settings::set_flag("dock_magnification", false))),
-            ]).gap(8.0).width(Parent)),
-            Box::new(section(TUNE, crate::lang::text("Relógio do Dashboard", "Dashboard clock"), scheme)),
-            Box::new(Row::new(vec![
-                boxed(chip("sv:clock-digital", crate::lang::text("Digital", "Digital"), 100.0, !clock_analog, scheme, || Settings::set_flag("clock_analog", false))),
-                boxed(chip("sv:clock-analog", crate::lang::text("Analógico", "Analog"), 100.0, clock_analog, scheme, || Settings::set_flag("clock_analog", true))),
             ]).gap(8.0).width(Parent)),
             Box::new(section(TUNE, crate::lang::text("Visibilidade das ilhas", "Island visibility"), scheme)),
             Box::new(Row::new(vec![
