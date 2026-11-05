@@ -31,7 +31,7 @@ const DOT_GAP: f32 = 7.0;
 const SIDE: f32 = 14.0;
 const ICON: f32 = 18.0;
 const ITEM_GAP: f32 = 10.0;
-const CLOCK_WIDTH: f32 = 230.0;
+const CLOCK_WIDTH: f32 = 260.0;
 const CLOCK_CENTER_WIDTH: f32 = 166.0;
 
 fn analog_clock(time: &str, scheme: &Scheme) -> Canvas {
@@ -166,6 +166,18 @@ pub fn clock(scheme: &Scheme, alpha: f32) -> (Box<dyn Widget>, f32) {
         )
     };
 
+    let apps_button = Rectangle::new()
+        .width(26.0)
+        .height(36.0)
+        .cursor(Pointer)
+        .on_click(|button| {
+            if button == Button::Left {
+                Overlay::open(Panel::Apps);
+            }
+        })
+        .align_child(Center, Center)
+        .child(m3::icon(m3::APPS, ICON, scheme.on_surface_variant));
+
     let time_date = Rectangle::new()
         .width(CLOCK_CENTER_WIDTH)
         .height(Parent)
@@ -175,6 +187,7 @@ pub fn clock(scheme: &Scheme, alpha: f32) -> (Box<dyn Widget>, f32) {
 
     let row = Row::new(vec![
         boxed(search),
+        boxed(apps_button),
         boxed(time_date),
         boxed(Stack::new(vec![weather_icon]).width(26.0).height(36.0)),
     ])
