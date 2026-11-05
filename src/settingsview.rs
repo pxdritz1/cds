@@ -252,7 +252,7 @@ pub fn window() -> Window {
         .width(Parent),
     );
 
-    let positions = settings_card(WIDTH - PADDING * 2.0, 250.0, scheme.surface_container_low).child(
+    let positions = settings_card(WIDTH - PADDING * 2.0, 290.0, scheme.surface_container_low).child(
         Column::new(vec![
             Box::new(section(TUNE, crate::lang::text("Posição dos elementos", "Element placement"), scheme)),
             Box::new(section(TUNE, crate::lang::text("Espaços de trabalho", "Workspaces"), scheme)),
