@@ -192,7 +192,10 @@ fn run_action(action: &str) {
             Overlay::close();
             Ui::open(Tab::Home);
         }
-        "apps" => Overlay::open(Panel::Apps),
+        "apps" => {
+            Overlay::open(Panel::Apps);
+            return;
+        },
         "config" => Overlay::open(Panel::Config),
         "clipboard" => Overlay::open(Panel::Clipboard),
         "wallpaper" => {
