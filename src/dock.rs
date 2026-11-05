@@ -270,7 +270,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
     drop(apps);
 
     // Keep enough headroom for icons to grow upward without resizing the layer.
-    let base_slot = (icon_size * MAGNIFICATION + 24.0).max(72.0);
+    let base_slot = (icon_size + 10.0).max(58.0);
     // The mapped surface reserves headroom for the enlarged icons and badges.
     // The visible capsule remains compact and is anchored to the selected edge.
     let base_body_height = (icon_size * MAGNIFICATION + 32.0).max(96.0);
@@ -549,6 +549,12 @@ mod tests {
         assert!(gaussian(1.0) < gaussian(0.5));
         assert!(gaussian(2.0) < gaussian(1.0));
     }
+
+    #[test]
+    fn neighboring_icon_keeps_a_subtle_magnification() {
+        let neighbor = gaussian(58.0 / 46.0);
+        assert!(neighbor > 0.15 && neighbor < 0.25);
+    }
 }
 
 fn app_item(
@@ -679,7 +685,7 @@ fn app_item(
                 focus_window(*id);
             }
         })
-        .align_child(Center, Center)
+        .align_child(Center, if dock_side < 0.0 { End } else { Start })
         .child(
             Rectangle::new()
                 .width(size)
@@ -726,7 +732,7 @@ fn action_item(
                 let _ = command.spawn();
             });
         })
-        .align_child(Center, Center)
+        .align_child(Center, if dock_side < 0.0 { End } else { Start })
         .child(
             Rectangle::new()
                 .width(action_size * scale)
