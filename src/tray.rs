@@ -12,7 +12,7 @@ use amane::{
     Value, Widget,
 };
 
-use crate::island::widgets::{APPS, icon, label};
+use crate::island::widgets::{icon, label};
 use crate::theme::{Scheme, mix};
 
 const WATCHER_PATH: &str = "/StatusNotifierWatcher";
