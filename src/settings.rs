@@ -47,6 +47,7 @@ pub struct Settings {
     workspaces_alignment: String,
     center_alignment: String,
     status_alignment: String,
+    status_positions: BTreeMap<String, String>,
 }
 
 fn default_flag(name: &str) -> bool {
@@ -77,6 +78,10 @@ impl Service for Settings {
             workspaces_alignment: String::from("left"),
             center_alignment: String::from("center"),
             status_alignment: String::from("right"),
+            status_positions: ["network", "bluetooth", "volume", "microphone", "battery"]
+                .into_iter()
+                .map(|name| (String::from(name), String::from("left")))
+                .collect(),
         };
 
         settings.load();
@@ -205,6 +210,31 @@ impl Settings {
 
     pub fn status_alignment(&self) -> &str {
         &self.status_alignment
+    }
+
+    pub fn status_position(&self, indicator: &str) -> &str {
+        self.status_positions
+            .get(indicator)
+            .map(String::as_str)
+            .unwrap_or("left")
+    }
+
+    pub fn set_status_position(indicator: &str, position: &str) {
+        if !matches!(indicator, "network" | "bluetooth" | "volume" | "microphone" | "battery") {
+            return;
+        }
+
+        let position = match position {
+            "center" => "center",
+            "right" => "right",
+            _ => "left",
+        };
+
+        let mut settings = Self::write();
+        settings.status_positions.insert(String::from(indicator), String::from(position));
+        settings.save();
+        drop(settings);
+        crate::ui::Ui::refresh();
     }
 
     pub fn set_shell_mode(value: u8) {
@@ -600,6 +630,16 @@ impl Settings {
                 "workspaces_alignment" => self.workspaces_alignment = if value == "right" { String::from("right") } else { String::from("left") },
                 "center_alignment" => self.center_alignment = match value { "left" => String::from("left"), "right" => String::from("right"), _ => String::from("center") },
                 "status_alignment" => self.status_alignment = if value == "left" { String::from("left") } else { String::from("right") },
+                "status_position.network" | "status_position.bluetooth" | "status_position.volume"
+                | "status_position.microphone" | "status_position.battery" => {
+                    let name = key.trim().strip_prefix("status_position.").unwrap_or("");
+                    let position = match value {
+                        "center" => "center",
+                        "right" => "right",
+                        _ => "left",
+                    };
+                    self.status_positions.insert(String::from(name), String::from(position));
+                },
                 "hover_delay_ms" => {
                     self.hover_delay_ms = value.parse::<u64>().unwrap_or(500).clamp(100, 2000)
                 },
@@ -640,6 +680,10 @@ impl Settings {
             self.center_alignment,
             self.status_alignment,
         );
+
+        for (name, value) in &self.status_positions {
+            text.push_str(&format!("status_position.{name}={value}\\n"));
+        }
 
         for (name, value) in &self.flags {
             text.push_str(&format!("flag.{name}={value}\n"));
