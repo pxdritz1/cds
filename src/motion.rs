@@ -13,6 +13,9 @@ impl Service for FramePulse {
     fn new() -> Self {
         Self
     }
+
+    // Pulses arrive only from the shared frame timer.
+    fn listen() {}
 }
 
 static FRAME_TIMER: OnceLock<Option<mpsc::Sender<u64>>> = OnceLock::new();
