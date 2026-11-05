@@ -5,13 +5,24 @@ use std::sync::{Mutex, OnceLock};
 use std::thread;
 use std::time::{Duration, Instant};
 
-use amane::{Animation, Blend, Color, Easing};
+use amane::{Animation, Blend, Color, Easing, Service};
+
+struct FramePulse;
+
+impl Service for FramePulse {
+    fn new() -> Self {
+        Self
+    }
+}
 
 static FRAME_TIMER: OnceLock<Option<mpsc::Sender<u64>>> = OnceLock::new();
 
 /// Coalesce continuous animation redraws without running faster than requested.
 #[track_caller]
 pub fn request_frame_at_most(fps: u64) {
+    // Register this window as dependent on timer pulses.
+    drop(FramePulse::read());
+
     if std::env::var_os("CDS_TRACE_FRAMES").is_some() {
         static CALLERS: OnceLock<Mutex<HashSet<(&'static str, u32)>>> = OnceLock::new();
         let location = std::panic::Location::caller();
@@ -47,7 +58,7 @@ pub fn request_frame_at_most(fps: u64) {
                         }
                     }
 
-                    amane::request_frame();
+                    drop(FramePulse::write());
                     last_frame = Instant::now();
                 }
             })
@@ -62,10 +73,10 @@ pub fn request_frame_at_most(fps: u64) {
 
     if let Some(sender) = sender {
         if sender.send(interval_ms).is_err() {
-            amane::request_frame();
+            drop(FramePulse::write());
         }
     } else {
-        amane::request_frame();
+        drop(FramePulse::write());
     }
 }
 
