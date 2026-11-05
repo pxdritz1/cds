@@ -120,7 +120,8 @@ fn copy(value: &str) {
 }
 
 pub fn view(monitor: &Monitor) -> LayerWindow {
-    let scheme = Theme::read().scheme().clone();
+    let theme = Theme::read();
+    let scheme = theme.scheme();
     let open = Overlay::read().panel() == Panel::Emoji;
     let state = EmojiPicker::read();
     let matches = state.matches();

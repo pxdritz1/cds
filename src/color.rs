@@ -71,7 +71,8 @@ fn color(value: &str, fallback: amane::Color) -> amane::Color {
 }
 
 pub fn view(monitor: &Monitor) -> LayerWindow {
-    let scheme = Theme::read().scheme().clone();
+    let theme = Theme::read();
+    let scheme = theme.scheme();
     let open = Overlay::read().panel() == Panel::Color;
     let value = ColorPicker::read().hex().to_string();
     let normalized = normalize(&value);
