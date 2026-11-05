@@ -8,7 +8,7 @@ destination="$data_home/chloe-dynamic-shell/emoji"
 upstream="https://raw.githubusercontent.com/googlefonts/noto-emoji/main/2D/svg"
 
 if ! command -v curl >/dev/null 2>&1; then
-    printf 'CDS: curl is required to download the Noto Emoji artwork.\\n' >&2
+    printf 'CDS: curl is required to download the Noto Emoji artwork.\n' >&2
     exit 1
 fi
 
@@ -24,7 +24,7 @@ source = pathlib.Path(sys.argv[1]).read_text(encoding="utf-8")
 destination = pathlib.Path(sys.argv[2])
 upstream = sys.argv[3]
 catalog = source.split("#[derive(Default)]", 1)[0]
-emojis = dict.fromkeys(re.findall(r'\\("([^"]+)"\\s*,', catalog))
+emojis = dict.fromkeys(re.findall(r'\("([^"]+)"\s*,', catalog))
 
 for emoji in emojis:
     codepoints = [
