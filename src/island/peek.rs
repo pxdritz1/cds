@@ -184,6 +184,7 @@ pub fn media(scheme: &Scheme, alpha: f32) -> Box<dyn Widget> {
             .padding(Padding {
                 top: 2.0,
                 right: 10.0,
+                bottom: 2.0,
                 left: 10.0,
             })
             .child(content),
