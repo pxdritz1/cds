@@ -2,7 +2,7 @@ use std::path::Path as FsPath;
 
 use amane::{
     Apps, Center, Column, Image, Media, Notification, Notifications, Padding, Parent,
-    Rectangle, Row, Service, SpaceBetween, Widget,
+    Rectangle, Row, Service, Widget,
 };
 
 use crate::m3::{self, Type};
@@ -141,29 +141,26 @@ pub fn media(scheme: &Scheme, alpha: f32) -> Box<dyn Widget> {
         0.0
     };
 
+    // Size the bar from the island's real content width. Intrinsic, unwrapped
+    // timestamps avoid the clipping caused by scale_label() in this narrow row.
+    let timeline_width = (media_width().min(520.0) - 20.0).max(0.0);
+    let time_width = 34.0;
+    let timeline_gap = 8.0;
+    let progress_width = (timeline_width - time_width * 2.0 - timeline_gap * 2.0).max(80.0);
+
     let timeline = Row::new(vec![
-        boxed(m3::scale_label(
-            Type::LabelSmall,
-            format_time(position),
-            scheme.on_surface_variant,
-            1,
-        )),
+        boxed(m3::scale(Type::LabelSmall, format_time(position), scheme.on_surface_variant)),
         boxed(m3::progress_line(
             fraction,
-            154.0,
+            progress_width,
             scheme.primary,
             scheme.surface_container_highest,
         )),
-        boxed(m3::scale_label(
-            Type::LabelSmall,
-            format_time(length),
-            scheme.on_surface_variant,
-            1,
-        )),
+        boxed(m3::scale(Type::LabelSmall, format_time(length), scheme.on_surface_variant)),
     ])
-    .gap(6.0)
+    .gap(timeline_gap)
     .align(Center)
-    .justify(SpaceBetween)
+    .justify(Center)
     .width(Parent)
     .height(18.0);
 
