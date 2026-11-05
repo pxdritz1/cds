@@ -28,7 +28,7 @@ const MODE_TRANSITION_DURATION: Duration = Duration::from_millis(720);
 pub fn begin_mode_transition(target_mode: u8) {
     let state = MODE_TRANSITION.get_or_init(|| Mutex::new(None));
     *state.lock().unwrap_or_else(|error| error.into_inner()) =
-        Some((Instant::now(), target_mode.clamp(1, 2)));
+        Some((Instant::now(), target_mode.clamp(1, 3)));
 }
 
 /// Returns the destination mode and eased progress while a switch is active.
@@ -52,8 +52,10 @@ pub fn mode_transition() -> Option<(u8, f32)> {
 /// Scale for either interface: the outgoing one contracts as the incoming one grows.
 pub fn mode_scale(current_mode: u8, surface_mode: u8, transition: Option<(u8, f32)>) -> f32 {
     match transition {
+        Some((3, progress)) => progress,
         Some((target, progress)) if target == surface_mode => progress,
         Some((_, progress)) => 1.0 - progress,
+        None if current_mode == 3 && matches!(surface_mode, 1 | 2) => 1.0,
         None if current_mode == surface_mode => 1.0,
         None => 0.0,
     }
