@@ -238,10 +238,22 @@ impl Settings {
     }
 
     pub fn set_shell_mode(value: u8) {
-        let mut settings = Self::write();
-        settings.shell_mode = value.clamp(1, 2);
-        settings.save();
-        drop(settings);
+        let value = value.clamp(1, 2);
+        if Self::read().shell_mode == value {
+            return;
+        }
+
+        {
+            let mut settings = Self::write();
+            settings.shell_mode = value;
+            settings.save();
+        }
+
+        // Close transient panels before changing which shell surface owns input.
+        crate::overlay::Overlay::close();
+        crate::ui::Ui::close();
+        crate::tray::Tray::close();
+        crate::motion::begin_mode_transition(value);
         crate::ui::Ui::refresh();
     }
 
