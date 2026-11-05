@@ -131,8 +131,8 @@ fn bubble(progress: f32, size: f32, dx: f32, dy: f32, color: amane::Color) -> Re
     let diameter = size * scale;
 
     Rectangle::new()
-        .width(Full)
-        .height(Full)
+        .width(Parent)
+        .height(Parent)
         .align_child(Center, Center)
         .child(
             Rectangle::new()
@@ -158,7 +158,7 @@ pub fn layer(
     Ui::watch();
 
     let presence = motion::presence(name, open);
-    let burst = motion::fade(&format!("{name}:bubbles"), (if open { 1 } else { 0 }));
+    let burst = motion::fade(&format!("{name}:bubbles"), if open { 1 } else { 0 });
     let focused = Overlay::on_focused_monitor(monitor);
     let visible = focused && (open || presence > 0.001);
 
@@ -174,6 +174,8 @@ pub fn layer(
     };
 
     let panel = Rectangle::new()
+        .width(frame.width)
+        .height(frame.height)
         .fill(scheme.surface_container)
         .clip()
         .border(1.0, fade(scheme.outline_variant, 70))
