@@ -45,6 +45,21 @@ impl Service for Clock {
 }
 
 impl Clock {
+    pub fn refresh() {
+        let Some(fresh) = read() else {
+            return;
+        };
+
+        let changed = {
+            let current = Self::read();
+            *current != fresh
+        };
+
+        if changed {
+            *Self::write() = fresh;
+        }
+    }
+
     pub fn time(&self, clock24: bool) -> &str {
         if self.time24.is_empty() {
             return "--:--";
