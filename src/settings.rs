@@ -39,6 +39,10 @@ pub struct Settings {
     media_title_max_width: u32,
     wallpaper_rotation: bool,
     wallpaper_interval_minutes: u32,
+    shell_mode: u8,
+    motion_style: String,
+    dock_position: String,
+    dock_alignment: String,
 }
 
 fn default_flag(name: &str) -> bool {
@@ -61,6 +65,10 @@ impl Service for Settings {
             media_title_max_width: 320,
             wallpaper_rotation: false,
             wallpaper_interval_minutes: 30,
+            shell_mode: 1,
+            motion_style: String::from("m3"),
+            dock_position: String::from("bottom"),
+            dock_alignment: String::from("center"),
         };
 
         settings.load();
@@ -157,6 +165,50 @@ impl Settings {
 
     pub fn wallpaper_interval_minutes(&self) -> u32 {
         self.wallpaper_interval_minutes
+    }
+
+    pub fn shell_mode(&self) -> u8 {
+        self.shell_mode
+    }
+
+    pub fn motion_style(&self) -> &str {
+        &self.motion_style
+    }
+
+    pub fn dock_position(&self) -> &str {
+        &self.dock_position
+    }
+
+    pub fn dock_alignment(&self) -> &str {
+        &self.dock_alignment
+    }
+
+    pub fn set_shell_mode(value: u8) {
+        let mut settings = Self::write();
+        settings.shell_mode = value.clamp(1, 3);
+        settings.save();
+    }
+
+    pub fn set_motion_style(value: &str) {
+        let mut settings = Self::write();
+        settings.motion_style = if value == "fluent" { String::from("fluent") } else { String::from("m3") };
+        settings.save();
+    }
+
+    pub fn set_dock_position(value: &str) {
+        let mut settings = Self::write();
+        settings.dock_position = if value == "top" { String::from("top") } else { String::from("bottom") };
+        settings.save();
+    }
+
+    pub fn set_dock_alignment(value: &str) {
+        let mut settings = Self::write();
+        settings.dock_alignment = match value {
+            "left" => String::from("left"),
+            "right" => String::from("right"),
+            _ => String::from("center"),
+        };
+        settings.save();
     }
 
     pub fn set_wallpaper_rotation(enabled: bool) {
@@ -465,6 +517,10 @@ impl Settings {
                 "wallpaper_interval_minutes" => {
                     self.wallpaper_interval_minutes = value.parse::<u32>().unwrap_or(30).clamp(1, 1440)
                 },
+                "shell_mode" => self.shell_mode = value.parse::<u8>().unwrap_or(1).clamp(1, 3),
+                "motion_style" => self.motion_style = if value == "fluent" { String::from("fluent") } else { String::from("m3") },
+                "dock_position" => self.dock_position = if value == "top" { String::from("top") } else { String::from("bottom") },
+                "dock_alignment" => self.dock_alignment = match value { "left" => String::from("left"), "right" => String::from("right"), _ => String::from("center") },
                 "hover_delay_ms" => {
                     self.hover_delay_ms = value.parse::<u64>().unwrap_or(500).clamp(100, 2000)
                 },
@@ -485,7 +541,7 @@ impl Settings {
         }
 
         let mut text = format!(
-            "wallpaper={}\nscheme={}\ndark={}\ndirectory={}\nlocation={}\nhover_delay_ms={}\nlanguage={}\nmedia_title_max_width={}\nwallpaper_rotation={}\nwallpaper_interval_minutes={}\n",
+            "wallpaper={}\nscheme={}\ndark={}\ndirectory={}\nlocation={}\nhover_delay_ms={}\nlanguage={}\nmedia_title_max_width={}\nwallpaper_rotation={}\nwallpaper_interval_minutes={}\nshell_mode={}\nmotion_style={}\ndock_position={}\ndock_alignment={}\n",
             self.wallpaper,
             self.scheme,
             self.dark,
@@ -496,6 +552,10 @@ impl Settings {
             self.media_title_max_width,
             self.wallpaper_rotation,
             self.wallpaper_interval_minutes,
+            self.shell_mode,
+            self.motion_style,
+            self.dock_position,
+            self.dock_alignment,
         );
 
         for (name, value) in &self.flags {
@@ -523,7 +583,6 @@ fn scan_directory(directory: &Path) -> Option<Vec<String>> {
     let mut found: Vec<String> = fs::read_dir(directory)
         .ok()?
         .flatten()
-        .take(MAX_WALLPAPERS)
         .map(|entry| entry.path())
         .filter(|path| {
             path.is_file()
@@ -533,6 +592,7 @@ fn scan_directory(directory: &Path) -> Option<Vec<String>> {
                         EXTENSIONS.contains(&extension.to_ascii_lowercase().as_str())
                     })
         })
+        .take(MAX_WALLPAPERS)
         .map(|path| path.to_string_lossy().into_owned())
         .collect();
 
