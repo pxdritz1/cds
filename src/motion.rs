@@ -218,6 +218,7 @@ thread_local! {
     // Pointer coordinates are local to each Dock's stable LayerWindow.
     static DOCK_POINTERS: RefCell<HashMap<String, Option<f32>>> = RefCell::new(HashMap::new());
     static DOCK_BOUNCES: RefCell<HashMap<String, Instant>> = RefCell::new(HashMap::new());
+    static DOCK_WINDOW_INDICES: RefCell<HashMap<String, usize>> = RefCell::new(HashMap::new());
 }
 
 // the island growing or shrinking between its compact, peek and dash sizes
@@ -371,6 +372,32 @@ pub fn color(key: &str, target: Color, duration: Duration) -> Color {
         track.to(target, duration);
 
         track.value()
+    })
+}
+
+pub fn dock_window_index(key: &str, count: usize) -> usize {
+    if count == 0 {
+        return 0;
+    }
+
+    DOCK_WINDOW_INDICES.with(|indices| {
+        let mut indices = indices.borrow_mut();
+        let index = indices.entry(String::from(key)).or_insert(0);
+        *index %= count;
+        *index
+    })
+}
+
+pub fn cycle_dock_window(key: &str, delta: isize, count: usize) -> usize {
+    if count == 0 {
+        return 0;
+    }
+
+    DOCK_WINDOW_INDICES.with(|indices| {
+        let mut indices = indices.borrow_mut();
+        let index = indices.entry(String::from(key)).or_insert(0);
+        *index = (*index as isize + delta).rem_euclid(count as isize) as usize;
+        *index
     })
 }
 
