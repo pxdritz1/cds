@@ -295,6 +295,11 @@ impl Settings {
         let mut settings = Self::write();
         settings.language = if language == "en" { String::from("en") } else { String::from("pt-BR") };
         settings.save();
+        drop(settings);
+
+        // The formatted date is produced by the system locale; refresh it
+        // immediately instead of waiting for the next minute boundary.
+        crate::clock::Clock::refresh();
     }
 
     pub fn set_hover_delay_ms(value: u64) {
