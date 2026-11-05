@@ -8,7 +8,7 @@ use std::thread;
 use std::time::Duration;
 
 use amane::{
-    Apps, Argument, Bus, Button, Center, Column, Image, Padding, Pointer, Rectangle, Row, Service, Stack,
+    Apps, Argument, Bus, Button, Center, Column, Image, Padding, Pointer, Rectangle, Row, ScrollArea, Service, Stack,
     Value, Widget,
 };
 
@@ -41,6 +41,7 @@ impl TrayItem {
         if self.menu_path.is_some() {
             Tray::show_menu(self);
         } else {
+            Tray::close();
             self.call_item("ContextMenu");
         }
     }
@@ -575,6 +576,7 @@ impl Tray {
             );
 
             let Some(menu) = parse_menu_layout(&result, service.clone(), path.clone()) else {
+                Tray::close();
                 let fallback = Bus::session();
                 let args = [Argument::from(0_i32), Argument::from(0_i32)];
                 fallback.call(
@@ -967,13 +969,12 @@ pub fn menu(scheme: &Scheme) -> (Box<dyn Widget>, f32, f32) {
     if let Some((menu, expanded)) = menu_state {
         let rows = menu_rows(&menu.entries, 0, &expanded, scheme);
         let row_count = rows.len().max(1);
-        let body_height = (row_count as f32 * 34.0).min(544.0);
+        let body_height = (row_count as f32 * 34.0).clamp(34.0, 360.0);
         let width = 280.0 + TRAY_PAD * 2.0;
         let height = body_height + TRAY_PAD * 2.0;
 
         let body: Box<dyn Widget> = Box::new(
-            Column::new(rows)
-                .gap(2.0)
+            ScrollArea::new("tray-dbusmenu", Column::new(rows).gap(2.0).width(Parent))
                 .width(Parent)
                 .height(Parent),
         );
