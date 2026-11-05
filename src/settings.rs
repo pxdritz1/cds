@@ -379,9 +379,10 @@ impl Settings {
 
     pub fn set_flag(name: &str, value: bool) {
         let mut settings = Self::write();
-
         settings.flags.insert(String::from(name), value);
         settings.save();
+        drop(settings);
+        crate::ui::Ui::refresh();
     }
 
     pub fn toggle_flag(name: &str) {
@@ -636,7 +637,7 @@ impl Settings {
                 "wallpaper_interval_minutes" => {
                     self.wallpaper_interval_minutes = value.parse::<u32>().unwrap_or(30).clamp(1, 1440)
                 },
-                "shell_mode" => self.shell_mode = match value.parse::<u8>().unwrap_or(1) { 1 => 1, 2 | 3 => 2, _ => 1 },
+                "shell_mode" => self.shell_mode = match value.parse::<u8>().unwrap_or(1) { 1 => 1, 2 => 2, 3 => 3, _ => 1 },
                 "motion_style" => self.motion_style = if value == "fluent" { String::from("fluent") } else { String::from("m3") },
                 "dock_position" => self.dock_position = if value == "top" { String::from("top") } else { String::from("bottom") },
                 "dock_alignment" => self.dock_alignment = match value { "left" => String::from("left"), "right" => String::from("right"), _ => String::from("center") },
