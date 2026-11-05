@@ -8,7 +8,7 @@ use std::sync::{Mutex, OnceLock};
 use std::time::{Duration, Instant, SystemTime};
 
 use amane::{
-    Button, Center, Column, End, Full, Horizontal, InputArea, Key, Keyboard, Layer, LayerWindow,
+    Align, Button, Center, Column, End, Full, Horizontal, InputArea, Key, Keyboard, Layer, LayerWindow,
     Margin, Media, Monitor, Notification, Notifications, Padding, Parent, Pointer, Rectangle,
     Service, Shadow, Stack, Start, Vertical, Widget, Zone,
 };
@@ -201,7 +201,7 @@ pub fn left(monitor: &Monitor) -> LayerWindow {
             Rectangle::new()
                 .width(Parent)
                 .height(Parent)
-                .align_child(if alignment == "right" { End } else { Start }, Start)
+                .align_child(if alignment == "right" { Align::from(End) } else { Align::from(Start) }, Start)
                 .child(island),
         )
 }
@@ -231,7 +231,7 @@ pub fn right(monitor: &Monitor) -> LayerWindow {
 
     let tray_open = Tray::read().open();
     let tray_count = Tray::read().items().len();
-    let side_align = if alignment == "left" { Start } else { End };
+    let side_align = if alignment == "left" { Align::from(Start) } else { Align::from(End) };
     let (status, status_width) = compact::status(scheme);
 
     let (content, width, height, radius): (Box<dyn Widget>, f32, f32, f32) = if tray_open {
@@ -335,7 +335,7 @@ pub fn right(monitor: &Monitor) -> LayerWindow {
                         Tray::close();
                     }
                 })
-                .align_child(if alignment == "left" { Start } else { End }, Start)
+                .align_child(if alignment == "left" { Align::from(Start) } else { Align::from(End) }, Start)
                 .child(island),
         )
 }
@@ -553,7 +553,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
             Rectangle::new()
                 .width(Parent)
                 .height(Parent)
-                .align_child(horizontal, Start)
+                .align_child(if horizontal == Horizontal::Left { Align::from(Start) } else { Align::from(End) }, Start)
                 .on_click(|button| {
                     if button == Button::Left {
                         Ui::close();
