@@ -973,7 +973,7 @@ fn gaussian(distance: f32) -> f32 {
 
 #[cfg(test)]
 mod tests {
-    use super::gaussian;
+    use super::{gaussian, hidden_offset};
 
     #[test]
     fn magnification_is_maximum_at_the_pointer() {
@@ -1026,7 +1026,6 @@ fn app_item(
     let bounce = motion::bounce(&key) * dock_side;
     let launch = exec.clone();
     let bounce_key = key.clone();
-    let focus_key = key.clone();
     let scroll_key = key.clone();
     let click_window_ids = window_ids.to_vec();
     let scroll_window_ids = window_ids.to_vec();

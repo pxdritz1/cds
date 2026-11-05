@@ -67,10 +67,11 @@
 - [x] Show running indicators and multi-window counts.
 - [x] Animate the icon when an application is launched or focused.
 - [x] Allow scrolling over an app icon to cycle through its open Niri windows.
-- [ ] Add a real in-Dock window picker with previews and per-window titles.
-- [ ] Add drag-to-reorder and drag-out-to-unpin interactions.
-- [ ] Add configurable auto-hide with a narrow edge reveal target.
-- [ ] Rebuild the application drawer so it grows from the Dock rather than opening a separate full-screen panel.
+- [x] Add an in-Dock window picker with per-window titles.
+- [ ] Add live window previews and drag-to-reorder / drag-out-to-unpin interactions.
+- [x] Add configurable auto-hide with a four-pixel edge reveal target.
+- [x] Add a searchable application drawer attached to the Dock surface.
+- [ ] Animate the drawer as a morph of the Dock silhouette.
 - [ ] Reproduce the K4 drop/impact transition and the coordinated split/fall Island transition as dedicated animation layers.
 
 ## Notifications

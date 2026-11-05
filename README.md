@@ -5,7 +5,7 @@ A Wayland desktop shell written in Rust with Amane and a Material 3-inspired int
 ## Features
 
 - Island with workspace indicators, focused-window title and app icon, digital/analog clock, weather shortcut, media controls and tray.
-- Two runtime interfaces: Islands and a standalone magnifying Dock, switchable through IPC and animated keybinds. The Dock focuses existing windows, keeps pinned and running apps visible, opens the app grid, and supports trash drag-and-drop.
+- Two runtime interfaces: Islands and a standalone magnifying Dock, switchable through IPC and animated keybinds. The Dock focuses existing windows, includes a multi-window picker and searchable in-Dock app drawer, supports optional auto-hide, keeps pinned and running apps visible, and accepts trash drag-and-drop.
 - Dash with system overview, media, weather, wallpapers and notifications.
 - Spotlight and application launcher.
 - Control center for Wi-Fi, Bluetooth, audio, microphone and brightness.
