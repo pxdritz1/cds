@@ -14,6 +14,7 @@ use amane::{
 };
 
 use crate::motion;
+use crate::settings::Settings;
 use crate::overlay::{Overlay, Panel};
 use crate::theme::{Scheme, Theme, fade};
 use crate::tray::{self, Tray};
@@ -78,7 +79,26 @@ enum IslandMode {
     Dash = 4,          // the full dash
 }
 
+fn hidden_window(namespace: &'static str) -> LayerWindow {
+    LayerWindow::new()
+        .width(1.0)
+        .height(1.0)
+        .visible(false)
+        .namespace(namespace)
+}
+
+fn shell_mode() -> u8 {
+    Settings::read().shell_mode()
+}
+
 pub fn reserve(monitor: &Monitor) -> LayerWindow {
+    let settings = Settings::read();
+    let enabled = settings.shell_mode() != 2 && settings.flag("show_center_island");
+    drop(settings);
+    if !enabled {
+        return hidden_window("cds-reserve");
+    }
+
     let ui = Ui::read();
     let media_visible = Media::read().playing()
         && !ui.media_sheet()
@@ -127,6 +147,13 @@ fn surface(width: f32, height: f32, radius: f32, fill: amane::Color, scheme: &Sc
 }
 
 pub fn left(monitor: &Monitor) -> LayerWindow {
+    let settings = Settings::read();
+    let enabled = settings.shell_mode() != 2 && settings.flag("show_workspaces");
+    drop(settings);
+    if !enabled {
+        return hidden_window("cds-left");
+    }
+
     let theme = Theme::read();
     let scheme = theme.scheme();
 
@@ -172,6 +199,13 @@ pub fn left(monitor: &Monitor) -> LayerWindow {
 }
 
 pub fn right(monitor: &Monitor) -> LayerWindow {
+    let settings = Settings::read();
+    let enabled = settings.shell_mode() != 2 && settings.flag("show_status");
+    drop(settings);
+    if !enabled {
+        return hidden_window("cds-right");
+    }
+
     let theme = Theme::read();
     let scheme = theme.scheme();
 
@@ -290,6 +324,13 @@ pub fn right(monitor: &Monitor) -> LayerWindow {
 }
 
 pub fn view(monitor: &Monitor) -> LayerWindow {
+    let settings = Settings::read();
+    let enabled = settings.shell_mode() != 2 && settings.flag("show_center_island");
+    drop(settings);
+    if !enabled {
+        return hidden_window("cds-island");
+    }
+
     let theme = Theme::read();
     let scheme = theme.scheme();
     let notifications = Notifications::read();
