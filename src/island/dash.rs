@@ -782,17 +782,28 @@ fn wallpapers(scheme: &Scheme) -> Box<dyn Widget> {
     let current = String::from(settings.wallpaper());
 
     let wallpaper_paths = settings.wallpapers().to_vec();
-    let selected_index = Ui::read().wallpaper_index();
+    let selected_index = Ui::read()
+        .wallpaper_index()
+        .min(wallpaper_paths.len().saturating_sub(1));
+
+    // Keep the highlighted thumbnail inside the visible 3x3 area. The
+    // framework ScrollArea currently only exposes pointer-wheel scrolling,
+    // so render the page containing the focused item instead of letting
+    // keyboard focus disappear below the viewport.
+    const PAGE_SIZE: usize = 9;
+    let page_start = (selected_index / PAGE_SIZE) * PAGE_SIZE;
     let rows: Vec<Box<dyn Widget>> = wallpaper_paths
-        .chunks(3)
+        .iter()
         .enumerate()
-        .map(|(row_index, chunk)| {
+        .skip(page_start)
+        .take(PAGE_SIZE)
+        .collect::<Vec<_>>()
+        .chunks(3)
+        .map(|chunk| {
             let thumbs: Vec<Box<dyn Widget>> = chunk
                 .iter()
-                .enumerate()
-                .map(|(column_index, path)| {
-                    let index = row_index * 3 + column_index;
-                    boxed(thumb(path, *path == current, index == selected_index, scheme))
+                .map(|(index, path)| {
+                    boxed(thumb(path, **path == current, **index == selected_index, scheme))
                 })
                 .collect();
             boxed(Row::new(thumbs).gap(GAP))
@@ -813,12 +824,10 @@ fn wallpapers(scheme: &Scheme) -> Box<dyn Widget> {
         ))
     } else {
         boxed(
-            ScrollArea::new(
-                "dash-wallpapers",
-                Column::new(rows).gap(GAP).width(CONTENT_WIDTH),
-            )
-            .width(CONTENT_WIDTH)
-            .height(list_height),
+            Column::new(rows)
+                .gap(GAP)
+                .width(CONTENT_WIDTH)
+                .height(list_height),
         )
     };
 
@@ -866,7 +875,7 @@ fn thumb(path: &str, selected: bool, focused: bool, scheme: &Scheme) -> Rectangl
     if focused {
         thumb.border(3.0, scheme.tertiary)
     } else if selected {
-        thumb.border(3.0, scheme.primary)
+        thumb.border(3.0, scheme.secondary)
     } else {
         thumb
     }
