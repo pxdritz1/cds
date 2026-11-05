@@ -67,9 +67,11 @@ impl Service for SoundLevel {
                 for line in BufReader::new(stdout).lines() {
                     let Ok(line) = line else { break };
                     if line.contains("sink") || line.contains("server") {
-                        let mut sound = Self::write();
-                        if !sound.update() {
-                            sound.quiet();
+                        // Avoid acquiring a write guard for unchanged values:
+                        // dropping the guard publishes a service update.
+                        if read_output_volume().is_some_and(|volume| Self::read().0 != volume) {
+                            let mut sound = Self::write();
+                            sound.update();
                         }
                     }
                 }
