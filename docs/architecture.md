@@ -65,7 +65,9 @@ The shell has three runtime layouts, selected in Settings or with
 - Layout 3 combines the dock with the existing bar and center Island.
 
 The dock has independent top/bottom placement and left/center/right alignment.
-Workspace, center-Island, status and dock visibility can be changed at runtime.
+The workspace group, center Island and status group can also be aligned
+independently. Workspace, center-Island, status and dock visibility can be
+changed at runtime.
 The center clock can be digital or analog.
 
 Overlay transitions use a restrained bubble burst behind the panel. The motion
