@@ -39,6 +39,7 @@ struct DockUi {
     last_activity: Instant,
     auto_hidden: bool,
     context_exec: Option<String>,
+}
 
 impl Default for DockUi {
     fn default() -> Self {
