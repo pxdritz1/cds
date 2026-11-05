@@ -37,7 +37,7 @@ amane ipc call lock
 amane ipc call closed
 ```
 
-See the [IPC reference](docs/ipc.md) and [niri keybindings](docs/binds.md).
+See the [IPC reference](docs/ipc.md) and [niri keybindings](docs/binds.md). The ported personal Niri configuration is in `docs/niri-config.kdl`; install it with `bash scripts/install-niri-config.sh` (the script creates a timestamped backup first).
 
 ## Project layout
 
