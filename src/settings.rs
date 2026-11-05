@@ -43,6 +43,9 @@ pub struct Settings {
     motion_style: String,
     dock_position: String,
     dock_alignment: String,
+    workspaces_alignment: String,
+    center_alignment: String,
+    status_alignment: String,
 }
 
 fn default_flag(name: &str) -> bool {
@@ -69,6 +72,9 @@ impl Service for Settings {
             motion_style: String::from("m3"),
             dock_position: String::from("bottom"),
             dock_alignment: String::from("center"),
+            workspaces_alignment: String::from("left"),
+            center_alignment: String::from("center"),
+            status_alignment: String::from("right"),
         };
 
         settings.load();
@@ -183,6 +189,18 @@ impl Settings {
         &self.dock_alignment
     }
 
+    pub fn workspaces_alignment(&self) -> &str {
+        &self.workspaces_alignment
+    }
+
+    pub fn center_alignment(&self) -> &str {
+        &self.center_alignment
+    }
+
+    pub fn status_alignment(&self) -> &str {
+        &self.status_alignment
+    }
+
     pub fn set_shell_mode(value: u8) {
         let mut settings = Self::write();
         settings.shell_mode = value.clamp(1, 3);
@@ -208,6 +226,28 @@ impl Settings {
             "right" => String::from("right"),
             _ => String::from("center"),
         };
+        settings.save();
+    }
+
+    pub fn set_workspaces_alignment(value: &str) {
+        let mut settings = Self::write();
+        settings.workspaces_alignment = if value == "right" { String::from("right") } else { String::from("left") };
+        settings.save();
+    }
+
+    pub fn set_center_alignment(value: &str) {
+        let mut settings = Self::write();
+        settings.center_alignment = match value {
+            "left" => String::from("left"),
+            "right" => String::from("right"),
+            _ => String::from("center"),
+        };
+        settings.save();
+    }
+
+    pub fn set_status_alignment(value: &str) {
+        let mut settings = Self::write();
+        settings.status_alignment = if value == "left" { String::from("left") } else { String::from("right") };
         settings.save();
     }
 
@@ -533,6 +573,9 @@ impl Settings {
                 "motion_style" => self.motion_style = if value == "fluent" { String::from("fluent") } else { String::from("m3") },
                 "dock_position" => self.dock_position = if value == "top" { String::from("top") } else { String::from("bottom") },
                 "dock_alignment" => self.dock_alignment = match value { "left" => String::from("left"), "right" => String::from("right"), _ => String::from("center") },
+                "workspaces_alignment" => self.workspaces_alignment = if value == "right" { String::from("right") } else { String::from("left") },
+                "center_alignment" => self.center_alignment = match value { "left" => String::from("left"), "right" => String::from("right"), _ => String::from("center") },
+                "status_alignment" => self.status_alignment = if value == "left" { String::from("left") } else { String::from("right") },
                 "hover_delay_ms" => {
                     self.hover_delay_ms = value.parse::<u64>().unwrap_or(500).clamp(100, 2000)
                 },
@@ -553,7 +596,7 @@ impl Settings {
         }
 
         let mut text = format!(
-            "wallpaper={}\nscheme={}\ndark={}\ndirectory={}\nlocation={}\nhover_delay_ms={}\nlanguage={}\nmedia_title_max_width={}\nwallpaper_rotation={}\nwallpaper_interval_minutes={}\nshell_mode={}\nmotion_style={}\ndock_position={}\ndock_alignment={}\n",
+            "wallpaper={}\nscheme={}\ndark={}\ndirectory={}\nlocation={}\nhover_delay_ms={}\nlanguage={}\nmedia_title_max_width={}\nwallpaper_rotation={}\nwallpaper_interval_minutes={}\nshell_mode={}\nmotion_style={}\ndock_position={}\ndock_alignment={}\nworkspaces_alignment={}\ncenter_alignment={}\nstatus_alignment={}\n",
             self.wallpaper,
             self.scheme,
             self.dark,
@@ -568,6 +611,9 @@ impl Settings {
             self.motion_style,
             self.dock_position,
             self.dock_alignment,
+            self.workspaces_alignment,
+            self.center_alignment,
+            self.status_alignment,
         );
 
         for (name, value) in &self.flags {
