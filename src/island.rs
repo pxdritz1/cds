@@ -553,7 +553,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
             Rectangle::new()
                 .width(Parent)
                 .height(Parent)
-                .align_child(match alignment.as_str() { "left" => Align::from(Start), "right" => Align::from(End), _ => Center }, Start)
+                .align_child(match alignment.as_str() { "left" => Align::from(Start), "right" => Align::from(End), _ => Center.into() }, Start)
                 .on_click(|button| {
                     if button == Button::Left {
                         Ui::close();
