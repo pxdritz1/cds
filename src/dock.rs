@@ -401,7 +401,7 @@ fn app_item(
         motion::style_duration(90, 90),
     );
     let size = icon_base * scale;
-    let rise = (8.0 + 10.0 * proximity) * transition_scale * -dock_side;
+    let rise = (8.0 + 10.0 * proximity) * transition_scale;
     let owned = key.clone();
     let launch = exec.clone();
     let window_id = window_ids.first().map(|id| id.to_string());
@@ -498,7 +498,7 @@ fn action_item(
     action: impl Fn() + 'static,
 ) -> Rectangle {
     let hover = motion::hover(key);
-    let action_size = ACTION_ICON.min((dock_height - 28.0).max(1.0) * 0.72) * transition_scale;
+    let action_size = ACTION_ICON.min((dock_height - 28.0).max(1.0) * 0.72);
     let proximity = proximity.max(hover);
     let scale = motion::number(
         &format!("{key}:scale"),
@@ -531,7 +531,7 @@ fn action_item(
             Rectangle::new()
                 .width(action_size * scale)
                 .height(action_size * scale)
-                .translate(0.0, -dock_side * 8.0 * proximity * transition_scale)
+                .translate(0.0, dock_side * 8.0 * proximity * transition_scale)
                 .radius(14.0)
                 .fill(scheme.surface_container_highest)
                 .align_child(Center, Center)
