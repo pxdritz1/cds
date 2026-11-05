@@ -16,6 +16,10 @@ const SLOT: f32 = 62.0;
 const MAX_ITEMS: usize = 10;
 
 pub fn view(_monitor: &Monitor) -> LayerWindow {
+    // Hover state is published through Ui::refresh, just like other shell
+    // surfaces, so the dock must subscribe even though it has no panel state.
+    crate::ui::Ui::watch();
+
     let settings = Settings::read();
     let mode = settings.shell_mode();
     let position = String::from(settings.dock_position());
