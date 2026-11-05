@@ -187,6 +187,13 @@ fn json_string_values(input: &str, key: &str) -> Vec<String> {
     values
 }
 
+fn focus_window(id: u64) {
+    let id = id.to_string();
+    let _ = Command::new("niri")
+        .args(["msg", "action", "focus-window", "--id", id.as_str()])
+        .spawn();
+}
+
 fn app_matches_id(app: &DesktopApp, app_id: &str) -> bool {
     let normalize = |value: &str| {
         let value = value.to_lowercase();
@@ -550,7 +557,8 @@ fn app_item(
     let bounce_key = key.clone();
     let focus_key = key.clone();
     let scroll_key = key.clone();
-    let window_ids = window_ids.to_vec();
+    let click_window_ids = window_ids.to_vec();
+    let scroll_window_ids = window_ids.to_vec();
     let window_count = window_ids.len();
 
     let icon: Box<dyn Widget> = match app.icon_path() {
@@ -627,12 +635,10 @@ fn app_item(
         .on_click(move |button| match button {
             Button::Left => {
                 motion::trigger_bounce(bounce_key.clone());
-                if !window_ids.is_empty() {
-                    let index = motion::dock_window_index(&focus_key, window_ids.len());
-                    if let Some(id) = window_ids.get(index) {
-                        let _ = Command::new("niri")
-                            .args(["msg", "action", "focus-window", "--id", &id.to_string()])
-                            .spawn();
+                if !click_window_ids.is_empty() {
+                    let index = motion::dock_window_index(&focus_key, click_window_ids.len());
+                    if let Some(id) = click_window_ids.get(index) {
+                        focus_window(*id);
                     }
                 } else {
                     amane::spawn(&launch);
@@ -643,15 +649,13 @@ fn app_item(
             _ => {}
         })
         .on_scroll(move |scroll: Scroll| {
-            if window_ids.len() < 2 || scroll.y == 0.0 {
+            if scroll_window_ids.len() < 2 || scroll.y == 0.0 {
                 return;
             }
             let delta = if scroll.y > 0.0 { 1 } else { -1 };
-            let index = motion::cycle_dock_window(&scroll_key, delta, window_ids.len());
-            if let Some(id) = window_ids.get(index) {
-                let _ = Command::new("niri")
-                    .args(["msg", "action", "focus-window", "--id", &id.to_string()])
-                    .spawn();
+            let index = motion::cycle_dock_window(&scroll_key, delta, scroll_window_ids.len());
+            if let Some(id) = scroll_window_ids.get(index) {
+                focus_window(*id);
             }
         })
         .align_child(Center, Center)
