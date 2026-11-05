@@ -8,7 +8,7 @@ use std::thread;
 use std::time::Duration;
 
 use amane::{
-    Apps, Argument, Bus, Button, Center, Image, Padding, Pointer, Rectangle, Row, Service, Stack,
+    Apps, Argument, Bus, Button, Center, Column, Image, Padding, Pointer, Rectangle, Row, Service, Stack,
     Value, Widget,
 };
 
@@ -29,6 +29,7 @@ pub struct TrayItem {
     title: String,
     status: String,
     icon_path: Option<String>,
+    menu_path: Option<String>,
 }
 
 impl TrayItem {
@@ -37,7 +38,11 @@ impl TrayItem {
     }
 
     fn context_menu(&self) {
-        self.call_item("ContextMenu");
+        if self.menu_path.is_some() {
+            Tray::show_menu(self);
+        } else {
+            self.call_item("ContextMenu");
+        }
     }
 
     fn call_item(&self, method: &str) {
@@ -66,10 +71,30 @@ impl TrayItem {
     }
 }
 
+#[derive(Clone)]
+struct MenuEntry {
+    id: i32,
+    label: String,
+    enabled: bool,
+    visible: bool,
+    separator: bool,
+    children: Vec<MenuEntry>,
+}
+
+#[derive(Clone)]
+struct TrayMenu {
+    service: String,
+    path: String,
+    revision: i32,
+    entries: Vec<MenuEntry>,
+}
+
 #[derive(Default)]
 pub struct Tray {
     open: bool,
     items: Vec<TrayItem>,
+    menu: Option<TrayMenu>,
+    expanded: Vec<i32>,
 }
 
 impl Service for Tray {
@@ -490,24 +515,167 @@ impl Tray {
         &self.items
     }
 
+    fn menu_state(&self) -> Option<(TrayMenu, Vec<i32>)> {
+        self.menu.clone().map(|menu| (menu, self.expanded.clone()))
+    }
+
     pub fn toggle() {
         let open = {
             let mut tray = Self::write();
-
             tray.open = !tray.open;
-
+            if !tray.open {
+                tray.menu = None;
+                tray.expanded.clear();
+            }
             tray.open
         };
 
-        // The tray and an overlay would both want the pointer.
         if open {
             crate::overlay::Overlay::close();
         }
     }
 
     pub fn close() {
-        Self::write().open = false;
+        let mut tray = Self::write();
+        tray.open = false;
+        tray.menu = None;
+        tray.expanded.clear();
     }
+
+    fn show_menu(item: &TrayItem) {
+        let Some(path) = item.menu_path.clone() else {
+            item.call_item("ContextMenu");
+            return;
+        };
+
+        let service = item.service.clone();
+        {
+            let mut tray = Self::write();
+            tray.open = true;
+            tray.menu = None;
+            tray.expanded.clear();
+        }
+        crate::overlay::Overlay::close();
+
+        thread::spawn(move || {
+            let bus = Bus::session();
+            let arguments = [
+                Argument::from(0_i32),
+                Argument::from(-1_i32),
+                Argument::from(Vec::<String>::new()),
+            ];
+            let result = bus.call(
+                &service,
+                &path,
+                "com.canonical.dbusmenu",
+                "GetLayout",
+                &arguments,
+            );
+
+            let Some(menu) = parse_menu_layout(&result, service.clone(), path.clone()) else {
+                let fallback = Bus::session();
+                let args = [Argument::from(0_i32), Argument::from(0_i32)];
+                fallback.call(
+                    &service,
+                    "/StatusNotifierItem",
+                    ITEM_INTERFACE,
+                    "ContextMenu",
+                    &args,
+                );
+                return;
+            };
+
+            Tray::write().menu = Some(menu);
+        });
+    }
+
+    fn toggle_expanded(id: i32) {
+        let mut tray = Self::write();
+        if let Some(index) = tray.expanded.iter().position(|item| *item == id) {
+            tray.expanded.remove(index);
+        } else {
+            tray.expanded.push(id);
+        }
+    }
+
+    fn activate_menu_item(id: i32) {
+        let Some((menu, _)) = Self::read().menu_state() else { return };
+        Tray::close();
+
+        thread::spawn(move || {
+            let bus = Bus::session();
+            let arguments = [
+                Argument::from(id),
+                Argument::from("clicked"),
+                Argument::Variant(Box::new(Argument::from(""))),
+                Argument::from(0_u32),
+            ];
+            bus.call(
+                &menu.service,
+                &menu.path,
+                "com.canonical.dbusmenu",
+                "Event",
+                &arguments,
+            );
+        });
+    }
+}
+
+fn parse_menu_layout(value: &Value, service: String, path: String) -> Option<TrayMenu> {
+    let response = value.list();
+    if response.len() < 2 {
+        return None;
+    }
+
+    let revision = response[0].number() as i32;
+    let root = response[1].list();
+    if root.len() < 3 {
+        return None;
+    }
+
+    let entries = root[2]
+        .list()
+        .iter()
+        .filter_map(parse_menu_entry)
+        .collect();
+
+    Some(TrayMenu {
+        service,
+        path,
+        revision,
+        entries,
+    })
+}
+
+fn parse_menu_entry(value: &Value) -> Option<MenuEntry> {
+    let fields = value.list();
+    if fields.len() < 3 {
+        return None;
+    }
+
+    let id = fields[0].number() as i32;
+    let properties = &fields[1];
+    let label = properties.get("label").text().replace('_', "");
+    let kind = properties.get("type").text();
+    let enabled = properties.get("enabled") == &Value::Nothing
+        || properties.get("enabled").bool();
+    let visible = properties.get("visible") == &Value::Nothing
+        || properties.get("visible").bool();
+
+    let children = fields[2]
+        .list()
+        .iter()
+        .filter_map(parse_menu_entry)
+        .collect();
+
+    Some(MenuEntry {
+        id,
+        label,
+        enabled,
+        visible,
+        separator: kind == "separator",
+        children,
+    })
 }
 
 pub fn command(arguments: &[String]) -> String {
@@ -627,6 +795,8 @@ fn scan_items() -> Option<Vec<TrayItem>> {
 
         let icon_path = resolve_icon(&icon_name, &id)
             .or_else(|| resolve_icon_pixmap(&bus, &service, &path, &interface));
+        let menu = item_property(&bus, &service, &path, &interface, "Menu");
+        let menu_path = (!menu.is_empty() && menu != "/").then_some(menu);
 
         items.push(TrayItem {
             service,
@@ -636,6 +806,7 @@ fn scan_items() -> Option<Vec<TrayItem>> {
             title,
             status,
             icon_path,
+            menu_path,
         });
     }
 
@@ -786,7 +957,40 @@ const EMPTY_HEIGHT: f32 = 46.0;
  * the number of registered items instead of reserving a fixed-width list.
  */
 pub fn menu(scheme: &Scheme) -> (Box<dyn Widget>, f32, f32) {
-    let items = Tray::read().items().to_vec();
+    let tray = Tray::read();
+    let items = tray.items().to_vec();
+    let menu_state = tray.menu_state();
+    drop(tray);
+
+    if let Some((menu, expanded)) = menu_state {
+        let rows = menu_rows(&menu.entries, 0, &expanded, scheme);
+        let row_count = rows.len().max(1);
+        let body_height = (row_count as f32 * 34.0).min(544.0);
+        let width = 280.0 + TRAY_PAD * 2.0;
+        let height = body_height + TRAY_PAD * 2.0;
+
+        let body: Box<dyn Widget> = Box::new(
+            Column::new(rows)
+                .gap(2.0)
+                .width(Parent)
+                .height(Parent),
+        );
+
+        return (
+            Box::new(
+                Rectangle::new()
+                    .width(width)
+                    .height(height)
+                    .fill(scheme.surface_container_highest)
+                    .radius(20.0)
+                    .clip()
+                    .padding(TRAY_PAD)
+                    .child(Stack::new(vec![body])),
+            ),
+            width,
+            height,
+        );
+    }
 
     let (body, width, body_height) = if items.is_empty() {
         (
@@ -853,6 +1057,79 @@ pub fn menu(scheme: &Scheme) -> (Box<dyn Widget>, f32, f32) {
     )
 }
 
+fn menu_rows(
+    entries: &[MenuEntry],
+    depth: usize,
+    expanded: &[i32],
+    scheme: &Scheme,
+) -> Vec<Box<dyn Widget>> {
+    let mut rows = Vec::new();
+
+    for entry in entries.iter().filter(|entry| entry.visible) {
+        if entry.separator {
+            rows.push(boxed(
+                Rectangle::new()
+                    .width(Parent)
+                    .height(1.0)
+                    .fill(scheme.outline_variant),
+            ));
+            continue;
+        }
+
+        let has_children = !entry.children.is_empty();
+        let marker = if has_children {
+            if expanded.contains(&entry.id) { "⌄ " } else { "› " }
+        } else {
+            ""
+        };
+        let title = format!("{}{}{}", "  ".repeat(depth), marker, entry.label);
+        let color = if entry.enabled {
+            scheme.on_surface
+        } else {
+            scheme.on_surface_variant
+        };
+
+        let row = Rectangle::new()
+            .width(Parent)
+            .height(32.0)
+            .fill(if entry.enabled {
+                scheme.surface_container_highest
+            } else {
+                scheme.surface_container_low
+            })
+            .radius(8.0)
+            .align_child(Center, Center)
+            .child(label(
+                &title,
+                12.0,
+                color,
+                amane::Weight::Medium,
+                1,
+            ));
+
+        let row = if entry.enabled {
+            let id = entry.id;
+            row.cursor(Pointer).on_click(move |_| {
+                if has_children {
+                    Tray::toggle_expanded(id);
+                } else {
+                    Tray::activate_menu_item(id);
+                }
+            })
+        } else {
+            row
+        };
+
+        rows.push(boxed(row));
+
+        if has_children && expanded.contains(&entry.id) {
+            rows.extend(menu_rows(&entry.children, depth + 1, expanded, scheme));
+        }
+    }
+
+    rows
+}
+
 fn item_icon(scheme: &Scheme, item: &TrayItem) -> Rectangle {
     let key = format!("tray-sni:{}:{}", item.service, item.id);
     let state = crate::motion::hover(&key);
@@ -889,7 +1166,6 @@ fn item_icon(scheme: &Scheme, item: &TrayItem) -> Rectangle {
                 item.activate();
             }
             Button::Right => {
-                Tray::close();
                 item.context_menu();
             }
             _ => {}
