@@ -515,9 +515,20 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
             width: region_width.ceil() as i32,
             height: region_height.ceil() as i32,
         }])
-        .on_key(|key| {
+        .on_key(move |key| {
             if key == Key::Escape {
                 Ui::close();
+                return;
+            }
+
+            if overlay_open {
+                match key {
+                    Key::Left => Ui::move_tab(-1),
+                    Key::Right | Key::Tab => Ui::move_tab(1),
+                    Key::Home => Ui::select(crate::ui::Tab::Home),
+                    Key::End => Ui::select(crate::ui::Tab::Alerts),
+                    _ => {}
+                }
             }
         })
         .child(

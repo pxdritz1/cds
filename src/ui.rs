@@ -187,6 +187,20 @@ impl Ui {
         Self::write().tab = tab;
     }
 
+    /// Move through the dashboard's navigation rail without pointer input.
+    pub fn move_tab(delta: isize) {
+        let mut ui = Self::write();
+        let current = ui.tab.index() as isize;
+        let next = (current + delta).clamp(0, 4) as u64;
+        ui.tab = match next {
+            0 => Tab::Home,
+            1 => Tab::Media,
+            2 => Tab::Weather,
+            3 => Tab::Wallpapers,
+            _ => Tab::Alerts,
+        };
+    }
+
     pub fn set_hover(hover: bool) {
         let auto_open = hover
             && crate::settings::Settings::read().flag("hover_dash")
