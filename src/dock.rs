@@ -152,7 +152,9 @@ pub fn view(_monitor: &Monitor) -> LayerWindow {
     let alignment = String::from(settings.dock_alignment());
     drop(settings);
 
-    if mode != 2 {
+    let transition = motion::mode_transition();
+    let dock_scale = motion::mode_scale(mode, 2, transition);
+    if dock_scale <= 0.001 {
         return LayerWindow::new()
             .width(1.0)
             .height(1.0)
@@ -190,14 +192,17 @@ pub fn view(_monitor: &Monitor) -> LayerWindow {
 
     // Slots and the reserved layer both grow with the configured icon size.
     // This keeps large icons from being clipped and makes the slider visible.
-    let slot = (icon_size * MAGNIFICATION + 20.0).max(64.0);
-    let dock_height = (icon_size * MAGNIFICATION + 40.0).max(96.0);
-    let dock_width = (items.len() as f32 + 1.0) * (slot + 4.0) + 16.0;
+    let base_slot = (icon_size * MAGNIFICATION + 20.0).max(64.0);
+    let base_height = (icon_size * MAGNIFICATION + 40.0).max(96.0);
+    let base_width = (items.len() as f32 + 1.0) * (base_slot + 4.0) + 16.0;
+    let slot = (base_slot * dock_scale).max(1.0);
+    let dock_height = (base_height * dock_scale).max(1.0);
+    let dock_width = (base_width * dock_scale).max(1.0);
 
     let mut children: Vec<Box<dyn Widget>> = items
         .iter()
         .map(|(app, running)| {
-            Box::new(app_item(app, scheme, icon_size, magnification, *running, slot, dock_height))
+            Box::new(app_item(app, scheme, icon_size * dock_scale, magnification, *running, slot, dock_height))
                 as Box<dyn Widget>
         })
         .collect();
@@ -260,7 +265,7 @@ pub fn view(_monitor: &Monitor) -> LayerWindow {
         .anchor_vertical(if position == "top" { Vertical::Top } else { Vertical::Bottom })
         .anchor_horizontal(horizontal)
         .layer(Layer::Top)
-        .space(Zone::Reserve)
+        .space(if transition.is_some() { Zone::Ignore } else { Zone::Reserve })
         .margin(margin)
         .namespace("cds-dock")
         .visible(true)
