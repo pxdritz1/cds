@@ -4,8 +4,8 @@ use std::thread;
 use std::time::Duration;
 
 use amane::{
-    Align, Apps, Button, Canvas, Center, Column, DesktopApp, Horizontal, Image, InputArea, Layer, LayerWindow, Monitor,
-    End, Full, Parent, Path, Pointer, Rectangle, Row, Scroll, Service, Shadow, Shape, Start, Text, Vertical, Widget,
+    Align, Apps, Button, Canvas, Center, Column, DesktopApp, Horizontal, Image, InputArea, Keyboard, Key, Layer, LayerWindow, Monitor,
+    End, Full, Parent, Path, Pointer, Rectangle, Row, Scroll, ScrollArea, Service, Shadow, Shape, Start, Text, TextInput, Vertical, Widget,
     Zone,
 };
 
@@ -17,6 +17,7 @@ use crate::theme::{Scheme, Theme, fade};
 
 const ACTION_ICON: f32 = 42.0;
 const MAGNIFICATION: f32 = 1.32;
+const DRAWER_SEARCH_ID: &str = "dock-apps-search";
 
 #[derive(Clone, PartialEq, Eq)]
 struct RunningWindow {
@@ -33,6 +34,8 @@ struct RunningApps {
 #[derive(Default)]
 struct DockUi {
     picker: Option<String>,
+    drawer_open: bool,
+    query: String,
 }
 
 impl Service for DockUi {
@@ -41,15 +44,23 @@ impl Service for DockUi {
 }
 
 impl DockUi {
-    fn picker(&self) -> Option<&str> { self.picker.as_deref() }
+    fn snapshot(&self) -> (Option<String>, bool, String) {
+        (
+            if self.drawer_open { None } else { self.picker.clone() },
+            self.drawer_open,
+            self.query.clone(),
+        )
+    }
 
     fn toggle_picker(exec: &str) {
         let mut state = Self::write();
-        if state.picker.as_deref() == Some(exec) {
-            state.picker = None;
+        state.picker = if state.picker.as_deref() == Some(exec) {
+            None
         } else {
-            state.picker = Some(String::from(exec));
-        }
+            Some(String::from(exec))
+        };
+        state.drawer_open = false;
+        state.query.clear();
         drop(state);
         crate::ui::Ui::refresh();
     }
@@ -62,6 +73,37 @@ impl DockUi {
             changed
         };
         if changed { crate::ui::Ui::refresh(); }
+    }
+
+    fn toggle_drawer() {
+        let open = {
+            let mut state = Self::write();
+            state.drawer_open = !state.drawer_open;
+            state.picker = None;
+            state.query.clear();
+            state.drawer_open
+        };
+        if open { TextInput::set_text(DRAWER_SEARCH_ID, ""); }
+        crate::ui::Ui::refresh();
+    }
+
+    fn set_query(query: String) {
+        Self::write().query = query;
+        crate::ui::Ui::refresh();
+    }
+
+    fn close_drawer() {
+        let changed = {
+            let mut state = Self::write();
+            let changed = state.drawer_open;
+            state.drawer_open = false;
+            state.query.clear();
+            changed
+        };
+        if changed {
+            TextInput::set_text(DRAWER_SEARCH_ID, "");
+            crate::ui::Ui::refresh();
+        }
     }
 }
 
@@ -279,7 +321,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
     drop(settings);
 
     let running_windows = RunningApps::read().windows.clone();
-    let picker_exec = DockUi::read().picker().map(String::from);
+    let (picker_exec, drawer_open, drawer_query) = DockUi::read().snapshot();
     let mut items: Vec<(DesktopApp, Vec<u64>, bool)> = Vec::new();
 
     for exec in &pinned {
@@ -305,6 +347,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
             }
         }
     }
+    let drawer_apps = apps.list().to_vec();
     drop(apps);
 
     // Keep enough headroom for icons to grow upward without resizing the layer.
@@ -316,6 +359,22 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
     let has_separator = pinned_count > 0 && pinned_count < items.len();
     let base_width = (items.len() as f32 + 2.0) * (base_slot + 4.0)
         + 16.0 + if has_separator { 6.0 } else { 0.0 };
+    let dock_x = match alignment.as_str() {
+        "left" => 0.0,
+        "right" => (monitor.width as f32 - base_width).max(0.0),
+        _ => ((monitor.width as f32 - base_width) * 0.5).max(0.0),
+    };
+    let dock_y = if position == "top" {
+        12.0
+    } else {
+        (monitor.height as f32 - base_height - 14.0).max(0.0)
+    };
+    let body_y = if position == "top" {
+        12.0
+    } else {
+        (monitor.height as f32 - base_body_height - 14.0).max(0.0)
+    };
+
     let slot = (base_slot * dock_scale).max(1.0);
     let dock_height = (base_body_height * dock_scale).max(1.0);
     let dock_width = (base_width * dock_scale).max(1.0);
@@ -370,7 +429,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
     };
     children.push(Box::new(action_item(
         "dock:apps", m3::APPS, scheme, slot, dock_height, apps_proximity, magnification_enabled, dock_scale, dock_side,
-        || Overlay::toggle(crate::overlay::Panel::Apps),
+        || DockUi::toggle_drawer(),
     )));
     let trash_center = apps_center + slot + 4.0;
     let trash_proximity = if magnification_enabled {
@@ -473,6 +532,38 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
         }
     }
 
+    let mut drawer_region = None;
+    if drawer_open {
+        let drawer_width = (monitor.width as f32 - 32.0).max(240.0).min(720.0);
+        let drawer_height = (monitor.height as f32 - 32.0).max(220.0).min(420.0);
+        let drawer_screen_x = (dock_x + base_width * 0.5 - drawer_width * 0.5)
+            .clamp(8.0, (monitor.width as f32 - drawer_width - 8.0).max(8.0));
+        let desired_y = if dock_side < 0.0 {
+            body_y - drawer_height - 12.0
+        } else {
+            body_y + base_body_height + 12.0
+        };
+        let drawer_screen_y = desired_y.clamp(
+            8.0,
+            (monitor.height as f32 - drawer_height - 8.0).max(8.0),
+        );
+        drawer_region = Some(InputArea {
+            x: drawer_screen_x.floor() as i32,
+            y: drawer_screen_y.floor() as i32,
+            width: drawer_width.ceil() as i32,
+            height: drawer_height.ceil() as i32,
+        });
+        body_layers.push(Box::new(app_drawer(
+            &drawer_apps,
+            &drawer_query,
+            scheme,
+            drawer_width,
+            drawer_height,
+            drawer_screen_x - dock_x,
+            drawer_screen_y - body_y,
+        )));
+    }
+
     let body = amane::Stack::new(body_layers)
         .width(base_width)
         .height(base_body_height);
@@ -482,16 +573,6 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
     // mode transition makes the compositor reconfigure it and causes jitter.
     // The narrow input region means the transparent part of this surface does
     // not steal clicks from applications.
-    let dock_x = match alignment.as_str() {
-        "left" => 0.0,
-        "right" => (monitor.width as f32 - base_width).max(0.0),
-        _ => ((monitor.width as f32 - base_width) * 0.5).max(0.0),
-    };
-    let dock_y = if position == "top" {
-        12.0
-    } else {
-        (monitor.height as f32 - base_height - 14.0).max(0.0)
-    };
     let input_region = if transition.is_some() {
         Vec::new()
     } else {
@@ -505,9 +586,13 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
             picker.x += dock_x.floor() as i32;
             regions.push(picker);
         }
+        if let Some(drawer) = drawer_region {
+            regions.push(drawer);
+        }
         regions
     };
 
+    let keyboard = if drawer_open { Keyboard::OnDemand } else { Keyboard::None };
     let window = LayerWindow::new()
         .width(Full)
         .height(Full)
@@ -515,9 +600,13 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
         .anchor_horizontal(Horizontal::Left)
         .layer(Layer::Top)
         .space(Zone::Ignore)
+        .keyboard(keyboard)
         .namespace("cds-dock")
         .visible(true)
         .input_region(input_region);
+    let window = window.on_key(|key| {
+        if key == Key::Escape { DockUi::close_drawer(); }
+    });
     let window = if transition.is_some() { window.click_through() } else { window };
     let pointer_move_key = pointer_key.clone();
     let pointer_leave_key = pointer_key;
@@ -550,6 +639,117 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
                     .child(body),
             ),
     )
+}
+
+fn app_drawer(
+    apps: &[DesktopApp],
+    query: &str,
+    scheme: &Scheme,
+    width: f32,
+    height: f32,
+    x: f32,
+    y: f32,
+) -> Rectangle {
+    let needle = query.trim().to_lowercase();
+    let mut results: Vec<&DesktopApp> = apps.iter().filter(|app| {
+        needle.is_empty()
+            || app.name().to_lowercase().contains(&needle)
+            || app.description().is_some_and(|description| description.to_lowercase().contains(&needle))
+    }).collect();
+    let settings = Settings::read();
+    results.sort_by_key(|app| !settings.is_pinned(app.exec()));
+    drop(settings);
+
+    let mut grid_rows: Vec<Box<dyn Widget>> = Vec::new();
+    for group in results.chunks(5) {
+        let tiles = group.iter().map(|app| {
+            Box::new(drawer_tile(app, scheme)) as Box<dyn Widget>
+        }).collect();
+        grid_rows.push(Box::new(Row::new(tiles).gap(8.0).width(Parent)));
+    }
+
+    let grid: Box<dyn Widget> = if grid_rows.is_empty() {
+        Box::new(Rectangle::new()
+            .width(Parent)
+            .height(180.0)
+            .align_child(Center, Center)
+            .child(Text::new(crate::lang::text("Nenhum aplicativo encontrado", "No applications found"))
+                .size(13.0).color(scheme.on_surface_variant)))
+    } else {
+        Box::new(ScrollArea::new(
+            "dock-app-grid",
+            Column::new(grid_rows).gap(8.0).width(Parent),
+        ).width(Parent).height(Parent))
+    };
+
+    let title = Rectangle::new()
+        .width(Parent)
+        .height(24.0)
+        .align_child(Start, Center)
+        .child(Text::new(crate::lang::text("Aplicativos", "Applications"))
+            .size(15.0).color(scheme.on_surface).weight(amane::Weight::SemiBold));
+
+    let search = Rectangle::new()
+        .width(Parent)
+        .height(38.0)
+        .radius(12.0)
+        .fill(scheme.surface_container_highest)
+        .padding(10.0)
+        .align_child(Start, Center)
+        .child(TextInput::new(DRAWER_SEARCH_ID)
+            .width(Parent)
+            .size(13.0)
+            .color(scheme.on_surface)
+            .placeholder(crate::lang::text("Buscar aplicativos...", "Search applications..."))
+            .focused()
+            .on_change(DockUi::set_query));
+
+    Rectangle::new()
+        .width(width)
+        .height(height)
+        .translate(x, y)
+        .padding(16.0)
+        .radius(24.0)
+        .fill(scheme.surface_container)
+        .border(1.0, fade(scheme.outline_variant, 120))
+        .shadow(Shadow::drop(scheme.shadow).opacity(0.38).blur(28.0).offset(0.0, 10.0))
+        .child(Column::new(vec![Box::new(title), Box::new(search), grid])
+            .gap(10.0).width(Parent).height(Parent))
+}
+
+fn drawer_tile(app: &DesktopApp, scheme: &Scheme) -> Rectangle {
+    let app_to_launch = app.clone();
+    let exec = String::from(app.exec());
+    let icon: Box<dyn Widget> = match app.icon_path() {
+        Some(path) if Image::loaded(path) => Box::new(
+            Rectangle::new().width(36.0).height(36.0).radius(11.0).clip()
+                .fill(Image::contain(path).thumbnail(96, 96)),
+        ),
+        _ => Box::new(
+            Rectangle::new().width(36.0).height(36.0).radius(11.0)
+                .fill(scheme.primary_container)
+                .align_child(Center, Center)
+                .child(m3::icon(crate::glyphs::application(app.name(), app.exec()), 21.0, scheme.on_primary_container)),
+        ),
+    };
+    let name = Text::new(app.name()).size(10.5).color(scheme.on_surface).elide();
+    Rectangle::new()
+        .width(108.0)
+        .height(84.0)
+        .radius(14.0)
+        .fill(scheme.surface_container_high)
+        .cursor(Pointer)
+        .on_click(move |button| match button {
+            Button::Left => {
+                app_to_launch.launch();
+                DockUi::close_drawer();
+                Overlay::close();
+            }
+            Button::Right => Settings::toggle_pinned(&exec),
+            _ => {}
+        })
+        .child(Column::new(vec![icon, Box::new(name)])
+            .gap(6.0).align(Center).justify(Center).width(Parent).height(Parent))
 }
 
 fn window_picker(
