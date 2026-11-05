@@ -145,10 +145,22 @@ fn surface(width: f32, height: f32, radius: f32, fill: amane::Color, scheme: &Sc
 pub fn left(monitor: &Monitor) -> LayerWindow {
     let settings = Settings::read();
     let enabled = settings.shell_mode() != 2 && settings.flag("show_workspaces");
+    let alignment = String::from(settings.workspaces_alignment());
     drop(settings);
     if !enabled {
         return hidden_window("cds-left");
     }
+
+    let horizontal = if alignment == "right" {
+        Horizontal::Right
+    } else {
+        Horizontal::Left
+    };
+    let side_margin = if alignment == "right" {
+        Margin { top: MARGIN, right: MARGIN, ..Margin::default() }
+    } else {
+        Margin { top: MARGIN, left: MARGIN, ..Margin::default() }
+    };
 
     let theme = Theme::read();
     let scheme = theme.scheme();
@@ -170,14 +182,10 @@ pub fn left(monitor: &Monitor) -> LayerWindow {
         .width(LEFT_WIDTH)
         .height(LEFT_HEIGHT)
         .anchor_vertical(Vertical::Top)
-        .anchor_horizontal(Horizontal::Left)
+        .anchor_horizontal(horizontal)
         .layer(Layer::Top)
         .space(Zone::Ignore)
-        .margin(Margin {
-            top: MARGIN,
-            left: MARGIN,
-            ..Margin::default()
-        })
+        .margin(side_margin)
         .namespace("cds-left")
         .input_region(vec![InputArea {
             x: 0,
@@ -197,10 +205,22 @@ pub fn left(monitor: &Monitor) -> LayerWindow {
 pub fn right(monitor: &Monitor) -> LayerWindow {
     let settings = Settings::read();
     let enabled = settings.shell_mode() != 2 && settings.flag("show_status");
+    let alignment = String::from(settings.status_alignment());
     drop(settings);
     if !enabled {
         return hidden_window("cds-right");
     }
+
+    let horizontal = if alignment == "left" {
+        Horizontal::Left
+    } else {
+        Horizontal::Right
+    };
+    let side_margin = if alignment == "left" {
+        Margin { top: MARGIN, left: MARGIN, ..Margin::default() }
+    } else {
+        Margin { top: MARGIN, right: MARGIN, ..Margin::default() }
+    };
 
     let theme = Theme::read();
     let scheme = theme.scheme();
@@ -282,14 +302,10 @@ pub fn right(monitor: &Monitor) -> LayerWindow {
         .width(RIGHT_WIDTH)
         .height(RIGHT_HEIGHT)
         .anchor_vertical(Vertical::Top)
-        .anchor_horizontal(Horizontal::Right)
+        .anchor_horizontal(horizontal)
         .layer(Layer::Top)
         .space(Zone::Ignore)
-        .margin(Margin {
-            top: MARGIN,
-            right: MARGIN,
-            ..Margin::default()
-        })
+        .margin(side_margin)
         .keyboard(keyboard)
         .namespace("cds-right")
         .input_region(region)
@@ -322,10 +338,22 @@ pub fn right(monitor: &Monitor) -> LayerWindow {
 pub fn view(monitor: &Monitor) -> LayerWindow {
     let settings = Settings::read();
     let enabled = settings.shell_mode() != 2 && settings.flag("show_center_island");
+    let alignment = String::from(settings.center_alignment());
     drop(settings);
     if !enabled {
         return hidden_window("cds-island");
     }
+
+    let horizontal = match alignment.as_str() {
+        "left" => Horizontal::Left,
+        "right" => Horizontal::Right,
+        _ => Horizontal::Middle,
+    };
+    let side_margin = match alignment.as_str() {
+        "left" => Margin { top: MARGIN, left: MARGIN, ..Margin::default() },
+        "right" => Margin { top: MARGIN, right: MARGIN, ..Margin::default() },
+        _ => Margin { top: MARGIN, ..Margin::default() },
+    };
 
     let theme = Theme::read();
     let scheme = theme.scheme();
@@ -491,15 +519,13 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
         .width(CENTER_WIDTH)
         .height(CENTER_HEIGHT)
         .anchor_vertical(Vertical::Top)
+        .anchor_horizontal(horizontal)
         .layer(Layer::Top)
         // The separate reserve surface keeps windows below the island.
         // Ignore its exclusive zone here so the island stays on the same
         // top baseline as the left and right islands.
         .space(Zone::Ignore)
-        .margin(Margin {
-            top: MARGIN,
-            ..Margin::default()
-        })
+        .margin(side_margin)
         .keyboard(keyboard)
         .namespace("cds-island")
         .input_region(vec![InputArea {
