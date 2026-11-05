@@ -561,7 +561,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
 
     let region_height = if overlay_open { CENTER_HEIGHT } else { height };
 
-    LayerWindow::new()
+    let window = LayerWindow::new()
         .width(CENTER_WIDTH)
         .height(CENTER_HEIGHT)
         .anchor_vertical(Vertical::Top)
