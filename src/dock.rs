@@ -678,7 +678,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
             );
             let icon_size_now = icon_size * dock_scale * scale;
             let menu_width = 190.0_f32;
-            let menu_height = (desktop_actions(app).len() as f32 + 3.0) * 25.0 + 18.0;
+            let menu_height = desktop_actions(app).len() as f32 * 24.0 + 12.0;
             let item_height = (dock_height - 28.0).max(1.0);
             let menu_shape_y = if dock_side < 0.0 {
                 base_body_height - (dock_height - 12.0).max(1.0)
@@ -1319,11 +1319,8 @@ fn app_item(
     }
 
     if context_open {
-        let pin_exec = exec.clone();
-        let left_exec = exec.clone();
-        let right_exec = exec.clone();
         let menu_width = 190.0_f32;
-        let menu_height = (desktop_actions.len() as f32 + 3.0) * 25.0 + 18.0;
+        let menu_height = desktop_actions.len() as f32 * 24.0 + 12.0;
         let mut options: Vec<Box<dyn Widget>> = Vec::new();
 
         for action in desktop_actions {
@@ -1333,21 +1330,7 @@ fn app_item(
                 DockUi::close_context();
             })));
         }
-        options.push(Box::new(context_option(
-            if pinned { crate::lang::text("Desafixar do Dock", "Unpin from Dock") } else { crate::lang::text("Fixar no Dock", "Pin to Dock") },
-            scheme,
-            move || { Settings::toggle_pinned(&pin_exec); DockUi::close_context(); },
-        )));
-        options.push(Box::new(context_option(
-            crate::lang::text("Mover para esquerda", "Move left"),
-            scheme,
-            move || { Settings::move_pinned(&left_exec, -1); DockUi::close_context(); },
-        )));
-        options.push(Box::new(context_option(
-            crate::lang::text("Mover para direita", "Move right"),
-            scheme,
-            move || { Settings::move_pinned(&right_exec, 1); DockUi::close_context(); },
-        )));
+
 
         let menu = Rectangle::new()
             .width(menu_width).height(menu_height)
