@@ -4,7 +4,7 @@ use std::thread;
 use std::time::Duration;
 
 use amane::{
-    Apps, Button, Canvas, Center, DesktopApp, Horizontal, Image, Layer, LayerWindow, Margin, Monitor,
+    Apps, Button, Canvas, Center, DesktopApp, Horizontal, Image, InputArea, Layer, LayerWindow, Margin, Monitor,
     End, Parent, Path, Pointer, Rectangle, Row, Service, Shadow, Shape, Start, Text, Vertical, Widget,
     Zone,
 };
@@ -405,31 +405,64 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
         Margin { bottom: 14, ..Margin::default() }
     };
 
+    // Keep the Wayland surface at monitor size. Only the dock's inner
+    // geometry changes; resizing a layer surface during magnification or a
+    // mode transition makes the compositor reconfigure it and causes jitter.
+    // The narrow input region means the transparent part of this surface does
+    // not steal clicks from applications.
+    let dock_x = match alignment.as_str() {
+        "left" => 0.0,
+        "right" => (monitor.width as f32 - base_width).max(0.0),
+        _ => ((monitor.width as f32 - base_width) * 0.5).max(0.0),
+    };
+    let dock_y = if position == "top" {
+        0.0
+    } else {
+        (monitor.height as f32 - base_height).max(0.0)
+    };
+    let input_region = if transition.is_some() {
+        Vec::new()
+    } else {
+        vec![InputArea {
+            x: dock_x.floor() as i32,
+            y: dock_y.floor() as i32,
+            width: base_width.ceil().min(monitor.width as f32) as i32,
+            height: base_height.ceil().min(monitor.height as f32) as i32,
+        }]
+    };
+
     let window = LayerWindow::new()
-        .width(base_width)
-        .height(base_height)
-        .anchor_vertical(if position == "top" { Vertical::Top } else { Vertical::Bottom })
-        .anchor_horizontal(horizontal)
+        .width(Parent)
+        .height(Parent)
+        .anchor_vertical(Vertical::Top)
+        .anchor_horizontal(Horizontal::Left)
         .layer(Layer::Top)
-        .space(if transition.is_some() { Zone::Ignore } else { Zone::Reserve })
-        .margin(margin)
+        .space(Zone::Ignore)
         .namespace("cds-dock")
-        .visible(true);
+        .visible(true)
+        .input_region(input_region);
     let window = if transition.is_some() { window.click_through() } else { window };
     let pointer_move_key = pointer_key.clone();
     let pointer_leave_key = pointer_key;
+    let horizontal_align = match alignment.as_str() {
+        "left" => Start,
+        "right" => End,
+        _ => Center,
+    };
     window.child(
         Rectangle::new()
             .width(Parent)
             .height(Parent)
-            .on_move(move |point| motion::set_pointer_x(pointer_move_key.clone(), Some(point.x)))
+            .on_move(move |point| {
+                motion::set_pointer_x(pointer_move_key.clone(), Some(point.x - dock_x));
+            })
             .on_hover(move |inside| {
                 if !inside {
                     motion::set_pointer_x(pointer_leave_key.clone(), None);
                 }
             })
             .align_child(
-                Center,
+                horizontal_align,
                 if position == "top" { Start } else { End },
             )
             .child(body),
