@@ -496,7 +496,7 @@ fn desktop_actions(app: &DesktopApp) -> Vec<DesktopAction> {
         result = declared_actions.iter()
             .filter_map(|id| sections.iter().find(|(action_id, _, _)| action_id == id))
             .filter(|(_, name, exec)| !name.trim().is_empty() && !exec.trim().is_empty())
-            .map(|(_, name, exec)| DesktopAction { name: name.clone(), exec: exec.clone() })
+            .map(|(_, name, exec)| DesktopAction { name: name.to_string(), exec: exec.to_string() })
             .collect();
         break;
     }
