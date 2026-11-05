@@ -181,7 +181,7 @@ fn toggle_dash(arguments: &[String]) -> String {
 fn settings_verb(arguments: &[String]) -> String {
     use crate::settings::{SCHEMES, Settings};
 
-    const USAGE: &str = "usage: settings wallpaper [image] | wallpapers | dark [true|false|toggle] | scheme [name] | directory [path] | location [lat,lon|auto] | mode [islands|dock] | layout [1|2] | motion [m3|fluent] | dock-position [top|bottom] | dock-alignment [left|center|right] | position <workspaces|center|status> <alignment> | clock [digital|analog] | refresh";
+    const USAGE: &str = "usage: settings wallpaper [image] | wallpapers | dark [true|false|toggle] | scheme [name] | directory [path] | location [lat,lon|auto] | mode [islands|dock] | layout [1|2|3] | motion [m3|fluent] | dock-position [top|bottom] | dock-alignment [left|center|right] | position <workspaces|center|status> <alignment> | clock [digital|analog] | refresh";
 
     let [action, rest @ ..] = arguments else {
         return String::from(USAGE);
