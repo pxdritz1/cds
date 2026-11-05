@@ -89,9 +89,12 @@ fn hidden_window(namespace: &'static str) -> LayerWindow {
 
 pub fn reserve(monitor: &Monitor) -> LayerWindow {
     let settings = Settings::read();
-    let enabled = settings.shell_mode() != 2 && settings.flag("show_center_island");
+    let shell_mode = settings.shell_mode();
+    let enabled = settings.flag("show_center_island");
     drop(settings);
-    if !enabled {
+    let transition = motion::mode_transition();
+    let scale = motion::mode_scale(shell_mode, 1, transition);
+    if !enabled || scale <= 0.001 {
         return hidden_window("cds-reserve");
     }
 
@@ -116,7 +119,7 @@ pub fn reserve(monitor: &Monitor) -> LayerWindow {
 
     LayerWindow::new()
         .width(Full)
-        .height(reserved_height)
+        .height(reserved_height * scale)
         .anchor_vertical(Vertical::Top)
         .layer(Layer::Bottom)
         .space(Zone::Reserve)
@@ -144,10 +147,12 @@ fn surface(width: f32, height: f32, radius: f32, fill: amane::Color, scheme: &Sc
 
 pub fn left(monitor: &Monitor) -> LayerWindow {
     let settings = Settings::read();
-    let enabled = settings.shell_mode() != 2 && settings.flag("show_workspaces");
+    let shell_mode = settings.shell_mode();
+    let enabled = settings.flag("show_workspaces");
     let alignment = String::from(settings.workspaces_alignment());
     drop(settings);
-    if !enabled {
+    let scale = motion::mode_scale(shell_mode, 1, motion::mode_transition());
+    if !enabled || scale <= 0.001 {
         return hidden_window("cds-left");
     }
 
@@ -174,6 +179,7 @@ pub fn left(monitor: &Monitor) -> LayerWindow {
 
     let (width, height, radius) =
         motion::follow(&format!("left:{}", monitor.name), bar_width, BAR_HEIGHT, BAR_HEIGHT / 2.0);
+    let (width, height, radius) = (width * scale, height * scale, radius * scale);
 
     let island = surface(width, height, radius, compact::base_fill(scheme), scheme)
         .child(Stack::new(vec![Box::new(bar_row)]).width(Parent).height(Parent));
@@ -208,10 +214,12 @@ pub fn left(monitor: &Monitor) -> LayerWindow {
 
 pub fn right(monitor: &Monitor) -> LayerWindow {
     let settings = Settings::read();
-    let enabled = settings.shell_mode() != 2 && settings.flag("show_status");
+    let shell_mode = settings.shell_mode();
+    let enabled = settings.flag("show_status");
     let alignment = String::from(settings.status_alignment());
     drop(settings);
-    if !enabled {
+    let scale = motion::mode_scale(shell_mode, 1, motion::mode_transition());
+    if !enabled || scale <= 0.001 {
         return hidden_window("cds-right");
     }
 
@@ -276,6 +284,7 @@ pub fn right(monitor: &Monitor) -> LayerWindow {
     };
 
     let (width, height, radius) = motion::follow(&format!("right:{}", monitor.name), width, height, radius);
+    let (width, height, radius) = (width * scale, height * scale, radius * scale);
 
     let island = surface(
         width,
@@ -342,10 +351,12 @@ pub fn right(monitor: &Monitor) -> LayerWindow {
 
 pub fn view(monitor: &Monitor) -> LayerWindow {
     let settings = Settings::read();
-    let enabled = settings.shell_mode() != 2 && settings.flag("show_center_island");
+    let shell_mode = settings.shell_mode();
+    let enabled = settings.flag("show_center_island");
     let alignment = String::from(settings.center_alignment());
     drop(settings);
-    if !enabled {
+    let scale = motion::mode_scale(shell_mode, 1, motion::mode_transition());
+    if !enabled || scale <= 0.001 {
         return hidden_window("cds-island");
     }
 
@@ -466,6 +477,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
     };
 
     let (width, height, radius) = motion::follow(&monitor.name, width, height, radius);
+    let (width, height, radius) = (width * scale, height * scale, radius * scale);
 
     let target = if mode == IslandMode::Dash {
         scheme.surface_container
