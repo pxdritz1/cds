@@ -251,9 +251,9 @@ pub fn right(monitor: &Monitor) -> LayerWindow {
         Horizontal::Right
     };
     let side_margin = if alignment == "left" {
-        Margin { top: MARGIN, left: MARGIN, ..Margin::default() }
+        Margin { top: top_margin, left: MARGIN, ..Margin::default() }
     } else {
-        Margin { top: MARGIN, right: MARGIN, ..Margin::default() }
+        Margin { top: top_margin, right: MARGIN, ..Margin::default() }
     };
 
     let theme = Theme::read();
