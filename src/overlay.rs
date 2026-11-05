@@ -1,6 +1,6 @@
 use amane::{
     Button, Center, End, Full, Key, Keyboard, Layer, LayerWindow, Padding, Parent, Rectangle,
-    Service, Shadow, Start, Widget, Workspaces, Zone,
+    Service, Shadow, Stack, Start, Widget, Workspaces, Zone,
 };
 
 use crate::m3::{self, boxed, icon, state_layer};
@@ -125,6 +125,25 @@ impl Overlay {
     }
 }
 
+fn bubble(progress: f32, size: f32, dx: f32, dy: f32, color: amane::Color) -> Rectangle {
+    let scale = 0.28 + progress * 1.55;
+    let diameter = size * scale;
+
+    Rectangle::new()
+        .width(Full)
+        .height(Full)
+        .align_child(Center, Center)
+        .child(
+            Rectangle::new()
+                .width(diameter)
+                .height(diameter)
+                .fill(color)
+                .radius(Full)
+                .opacity((1.0 - progress) * 0.16)
+                .translate(dx * progress, dy * progress),
+        )
+}
+
 pub fn layer(
     name: &'static str,
     namespace: &'static str,
@@ -138,8 +157,13 @@ pub fn layer(
     Ui::watch();
 
     let presence = motion::presence(name, open);
+    let burst = motion::fade(&format!("{name}:bubbles"), u64::from(open));
     let focused = Overlay::on_focused_monitor(monitor);
     let visible = focused && (open || presence > 0.001);
+
+    if visible && (presence > 0.001 || burst < 0.999) {
+        motion::request_frame_at_most(30);
+    }
 
     let dim = match frame.place {
         Place::Right => 0.16,
@@ -184,7 +208,8 @@ pub fn layer(
         Place::Middle => Padding::default(),
     };
 
-    // the singleton alignment values, named, so each place wraps its own
+    // The scrim handles outside clicks; a separate layer keeps the
+    // bubble burst behind the panel without intercepting its input.
     let root = Rectangle::new()
         .width(Parent)
         .height(Parent)
@@ -193,15 +218,30 @@ pub fn layer(
             if button == Button::Left {
                 Overlay::close();
             }
-        })
+        });
+
+    let panel_layer = Rectangle::new()
+        .width(Parent)
+        .height(Parent)
         .padding(padding);
 
-    let root = match frame.place {
-        Place::Under => root.align_child(Center, Start),
-        Place::Spot => root.align_child(Center, Start),
-        Place::Right => root.align_child(End, Start),
-        Place::Middle => root.align_child(Center, Center),
-    };
+    let panel_layer = match frame.place {
+        Place::Under => panel_layer.align_child(Center, Start),
+        Place::Spot => panel_layer.align_child(Center, Start),
+        Place::Right => panel_layer.align_child(End, Start),
+        Place::Middle => panel_layer.align_child(Center, Center),
+    }
+    .child(panel);
+
+    let layers: Vec<Box<dyn Widget>> = vec![
+        boxed(bubble(burst, 22.0, -170.0, -90.0, scheme.primary_container)),
+        boxed(bubble(burst, 16.0, 170.0, -60.0, scheme.tertiary_container)),
+        boxed(bubble(burst, 12.0, -95.0, 150.0, scheme.secondary_container)),
+        boxed(bubble(burst, 18.0, 110.0, 135.0, scheme.primary)),
+        boxed(panel_layer),
+    ];
+
+    let content = Stack::new(layers).width(Parent).height(Parent);
 
     LayerWindow::new()
         .width(Full)
@@ -224,7 +264,7 @@ pub fn layer(
 
             on_key(key);
         })
-        .child(root.child(panel))
+        .child(root.child(content))
 }
 
 pub fn search(
