@@ -270,7 +270,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
     drop(apps);
 
     // Keep enough headroom for icons to grow upward without resizing the layer.
-    let base_slot = (icon_size + 10.0).max(58.0);
+    let base_slot = (icon_size + 6.0).max(54.0);
     // The mapped surface reserves headroom for the enlarged icons and badges.
     // The visible capsule remains compact and is anchored to the selected edge.
     let base_body_height = (icon_size * MAGNIFICATION + 32.0).max(96.0);
