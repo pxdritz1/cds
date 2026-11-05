@@ -573,9 +573,9 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
         .space(Zone::Ignore)
         .margin(side_margin)
         .keyboard(keyboard)
-        .namespace("cds-island")
+        .namespace("cds-island");
     window
-input_region(vec![InputArea {
+        .input_region(vec![InputArea {
             x: region_x as i32,
             y: 0,
             width: region_width.ceil() as i32,
