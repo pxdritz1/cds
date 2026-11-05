@@ -48,7 +48,7 @@
 
 ## UI modes
 
-- [ ] Mode 1: current shell layout (Islands and one bar).
+- [x] Mode 1: current shell layout (Islands and one bar).
 - [ ] Mode 2: standalone macOS-like translucent app dock, with magnification on hover, optional trash target supporting drag-and-drop, and an app-grid button.
 - [ ] Mode 3: dock plus bar, centered main Island combining existing shell controls and additional content.
 - [ ] Add per-element position controls so users can place the dock, main Island and individual indicators on different screen edges/sides.
