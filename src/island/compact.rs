@@ -162,18 +162,6 @@ pub fn clock(scheme: &Scheme, alpha: f32) -> (Box<dyn Widget>, f32) {
         .align(Center)
     };
 
-    let apps_button = Rectangle::new()
-        .width(26.0)
-        .height(36.0)
-        .cursor(Pointer)
-        .on_click(|button| {
-            if button == Button::Left {
-                Overlay::open(Panel::Apps);
-            }
-        })
-        .align_child(Center, Center)
-        .child(m3::icon(m3::APPS, ICON, scheme.on_surface_variant));
-
     let time_date = Rectangle::new()
         .width(CLOCK_CENTER_WIDTH)
         .height(Parent)
@@ -183,7 +171,6 @@ pub fn clock(scheme: &Scheme, alpha: f32) -> (Box<dyn Widget>, f32) {
 
     let row = Row::new(vec![
         boxed(search),
-        boxed(apps_button),
         boxed(time_date),
         boxed(Stack::new(vec![weather_icon]).width(26.0).height(36.0)),
     ])
