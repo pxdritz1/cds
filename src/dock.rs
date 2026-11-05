@@ -232,7 +232,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
     drop(settings);
 
     let running_windows = RunningApps::read().windows.clone();
-    let mut items: Vec<(DesktopApp, Vec<u64>)> = Vec::new();
+    let mut items: Vec<(DesktopApp, Vec<u64>, bool)> = Vec::new();
 
     for exec in &pinned {
         if let Some(app) = apps.list().iter().find(|app| app.exec() == exec) {
@@ -240,18 +240,20 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
                 .filter(|window| app_matches_id(app, &window.app_id))
                 .map(|window| window.id)
                 .collect();
-            items.push((app.clone(), window_ids));
+            items.push((app.clone(), window_ids, true));
         }
     }
 
+    let pinned_count = items.len();
+
     for window in &running_windows {
         if let Some(app) = apps.list().iter().find(|app| app_matches_id(app, &window.app_id)) {
-            if !items.iter().any(|(existing, _)| existing.exec() == app.exec()) {
+            if !items.iter().any(|(existing, _, _)| existing.exec() == app.exec()) {
                 let window_ids = running_windows.iter()
                     .filter(|candidate| app_matches_id(app, &candidate.app_id))
                     .map(|candidate| candidate.id)
                     .collect();
-                items.push((app.clone(), window_ids));
+                items.push((app.clone(), window_ids, false));
             }
         }
     }
@@ -263,7 +265,9 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
     // The visible capsule remains compact and is anchored to the selected edge.
     let base_body_height = (icon_size * MAGNIFICATION + 32.0).max(96.0);
     let base_height = (base_body_height + 64.0).max(160.0);
-    let base_width = (items.len() as f32 + 2.0) * (base_slot + 4.0) + 16.0;
+    let has_separator = pinned_count > 0 && pinned_count < items.len();
+    let base_width = (items.len() as f32 + 2.0) * (base_slot + 4.0)
+        + 16.0 + if has_separator { 6.0 } else { 0.0 };
     let slot = (base_slot * dock_scale).max(1.0);
     let dock_height = (base_body_height * dock_scale).max(1.0);
     let dock_width = (base_width * dock_scale).max(1.0);
@@ -272,24 +276,35 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
     let pointer_key = format!("dock:pointer:{}", monitor.name);
     let pointer_x = motion::pointer_x(&pointer_key);
 
-    let mut children: Vec<Box<dyn Widget>> = items
-        .iter()
-        .enumerate()
-        .map(|(index, (app, window_ids))| {
-            let center = 8.0 + index as f32 * (slot + 4.0) + slot * 0.5;
-            let proximity = if magnification_enabled {
-                pointer_x.map_or(0.0, |x| gaussian((x - center) / 46.0))
-            } else {
-                0.0
-            };
-            Box::new(app_item(
-                app, scheme, icon_size * dock_scale, magnification_enabled,
-                window_ids, proximity, slot, dock_height, dock_scale, dock_side,
-            )) as Box<dyn Widget>
-        })
-        .collect();
+    let mut children: Vec<Box<dyn Widget>> = Vec::new();
+    let mut row_cursor = 8.0;
 
-    let apps_center = 8.0 + items.len() as f32 * (slot + 4.0) + slot * 0.5;
+    for (index, (app, window_ids, _pinned)) in items.iter().enumerate() {
+        if index == pinned_count && has_separator {
+            children.push(Box::new(
+                Rectangle::new()
+                    .width(2.0)
+                    .height(34.0)
+                    .radius(1.0)
+                    .fill(fade(scheme.outline_variant, 150)),
+            ));
+            row_cursor += 6.0;
+        }
+
+        let center = row_cursor + slot * 0.5;
+        let proximity = if magnification_enabled {
+            pointer_x.map_or(0.0, |x| gaussian((x - center) / 46.0))
+        } else {
+            0.0
+        };
+        children.push(Box::new(app_item(
+            app, scheme, icon_size * dock_scale, magnification_enabled,
+            window_ids, proximity, slot, dock_height, dock_scale, dock_side,
+        )));
+        row_cursor += slot + 4.0;
+    }
+
+    let apps_center = row_cursor + slot * 0.5;
     let apps_proximity = if magnification_enabled {
         pointer_x.map_or(0.0, |x| gaussian((x - apps_center) / 46.0))
     } else {
@@ -471,6 +486,23 @@ fn app_item(
                 .child(Text::new(window_count.to_string()).size(9.5).color(scheme.on_primary).weight(amane::Weight::Bold).tight()),
         ));
     }
+
+    let label_alpha = motion::number(
+        &format!("{key}:label"),
+        ((proximity - 0.82) / 0.18).clamp(0.0, 1.0),
+        motion::style_duration(100, 80),
+    );
+    layers.push(Box::new(
+        Rectangle::new()
+            .width(148.0)
+            .height(22.0)
+            .radius(8.0)
+            .fill(scheme.surface_container_highest)
+            .opacity(label_alpha)
+            .translate(-(148.0 - size) * 0.5, dock_side * (size * 0.5 + 20.0))
+            .align_child(Center, Center)
+            .child(Text::new(app.name()).size(11.0).color(scheme.on_surface).weight(amane::Weight::Medium)),
+    ));
 
     Rectangle::new()
         .width(slot)
