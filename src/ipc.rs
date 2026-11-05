@@ -5,7 +5,7 @@
  *   amane ipc call closed
  *   amane ipc call dash [home|media|clima|papeis|alertas]
  *   amane ipc call tray [toggle|close|list|focus <id>|close-window <id>]
- *   amane ipc call settings [wallpaper|wallpapers|dark|scheme|directory|location|layout|motion|dock-position|dock-alignment|clock|refresh]
+ *   amane ipc call settings [wallpaper|wallpapers|dark|scheme|directory|location|layout|motion|dock-position|dock-alignment|position|clock|refresh]
  *   amane ipc call weather
  *   amane ipc call theme ...
  *
@@ -156,7 +156,7 @@ fn toggle_dash(arguments: &[String]) -> String {
 fn settings_verb(arguments: &[String]) -> String {
     use crate::settings::{SCHEMES, Settings};
 
-    const USAGE: &str = "usage: settings wallpaper [image] | wallpapers | dark [true|false|toggle] | scheme [name] | directory [path] | location [lat,lon|auto] | layout [1|2|3] | motion [m3|fluent] | dock-position [top|bottom] | dock-alignment [left|center|right] | clock [digital|analog] | refresh";
+    const USAGE: &str = "usage: settings wallpaper [image] | wallpapers | dark [true|false|toggle] | scheme [name] | directory [path] | location [lat,lon|auto] | layout [1|2|3] | motion [m3|fluent] | dock-position [top|bottom] | dock-alignment [left|center|right] | position <workspaces|center|status> <alignment> | clock [digital|analog] | refresh";
 
     let [action, rest @ ..] = arguments else {
         return String::from(USAGE);
@@ -271,6 +271,31 @@ fn settings_verb(arguments: &[String]) -> String {
                 format!("ok: dock-alignment={value}")
             }
             _ => String::from("usage: settings dock-alignment [left|center|right]"),
+        },
+
+        "position" => match rest.as_slice() {
+            ["workspaces", alignment @ ("left" | "right")] => {
+                Settings::set_workspaces_alignment(alignment);
+                format!("ok: workspaces={alignment}")
+            }
+            ["center", alignment @ ("left" | "center" | "right")] => {
+                Settings::set_center_alignment(alignment);
+                format!("ok: center={alignment}")
+            }
+            ["status", alignment @ ("left" | "right")] => {
+                Settings::set_status_alignment(alignment);
+                format!("ok: status={alignment}")
+            }
+            [] => {
+                let settings = Settings::read();
+                format!(
+                    "workspaces={}\ncenter={}\nstatus={}",
+                    settings.workspaces_alignment(),
+                    settings.center_alignment(),
+                    settings.status_alignment(),
+                )
+            }
+            _ => String::from("usage: settings position <workspaces left|right | center left|center|right | status left|right>"),
         },
 
         "clock" => match rest.first().copied() {
