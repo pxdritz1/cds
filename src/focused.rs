@@ -1,4 +1,5 @@
-use std::process::Command;
+use std::io::{BufRead, BufReader};
+use std::process::{Command, Stdio};
 use std::thread;
 use std::time::Duration;
 
@@ -18,15 +19,45 @@ impl Service for FocusedWindow {
 
     fn listen() {
         loop {
-            thread::sleep(Duration::from_secs(1));
+            // Niri's event stream sends an initial state and then only changes.
+            // Keep one process alive instead of spawning a query every second.
+            let mut child = match Command::new("niri")
+                .args(["msg", "--json", "event-stream"])
+                .stdout(Stdio::piped())
+                .stderr(Stdio::null())
+                .spawn()
+            {
+                Ok(child) => child,
+                Err(_) => {
+                    thread::sleep(Duration::from_secs(3));
+                    continue;
+                }
+            };
 
-            let Some(fresh) = read() else {
+            let Some(stdout) = child.stdout.take() else {
+                let _ = child.kill();
+                thread::sleep(Duration::from_secs(1));
                 continue;
             };
 
-            if *Self::read() != fresh {
-                *Self::write() = fresh;
+            publish(read());
+            let reader = BufReader::new(stdout);
+
+            for line in reader.lines() {
+                let Ok(line) = line else {
+                    break;
+                };
+
+                if line.contains("WindowFocusChanged")
+                    || line.contains("WindowOpenedOrChanged")
+                    || line.contains("WindowsChanged")
+                {
+                    publish(read());
+                }
             }
+
+            let _ = child.kill();
+            thread::sleep(Duration::from_secs(1));
         }
     }
 }
@@ -38,6 +69,16 @@ impl FocusedWindow {
 
     pub fn app_id(&self) -> &str {
         &self.app_id
+    }
+}
+
+fn publish(fresh: Option<FocusedWindow>) {
+    let Some(fresh) = fresh else {
+        return;
+    };
+
+    if *FocusedWindow::read() != fresh {
+        *FocusedWindow::write() = fresh;
     }
 }
 
