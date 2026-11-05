@@ -150,8 +150,19 @@ pub fn left(monitor: &Monitor) -> LayerWindow {
     let shell_mode = settings.shell_mode();
     let enabled = settings.flag("show_workspaces");
     let alignment = String::from(settings.workspaces_alignment());
+    let dock_position = String::from(settings.dock_position());
     drop(settings);
-    let scale = motion::mode_scale(shell_mode, 1, motion::mode_transition());
+    let transition = motion::mode_transition();
+    let scale = motion::mode_scale(shell_mode, 1, transition);
+    let travel = if dock_position == "bottom" {
+        (monitor.height as i32 - BAR_HEIGHT as i32 - MARGIN * 2).max(0)
+    } else { 0 };
+    let vertical_offset = match transition {
+        Some((2, progress)) => (travel as f32 * progress).round() as i32,
+        Some((1, progress)) => (travel as f32 * (1.0 - progress)).round() as i32,
+        _ => 0,
+    };
+    let top_margin = MARGIN + vertical_offset;
     if !enabled || scale <= 0.001 {
         return hidden_window("cds-left");
     }
@@ -162,9 +173,9 @@ pub fn left(monitor: &Monitor) -> LayerWindow {
         Horizontal::Left
     };
     let side_margin = if alignment == "right" {
-        Margin { top: MARGIN, right: MARGIN, ..Margin::default() }
+        Margin { top: top_margin, right: MARGIN, ..Margin::default() }
     } else {
-        Margin { top: MARGIN, left: MARGIN, ..Margin::default() }
+        Margin { top: top_margin, left: MARGIN, ..Margin::default() }
     };
 
     let theme = Theme::read();
@@ -217,8 +228,19 @@ pub fn right(monitor: &Monitor) -> LayerWindow {
     let shell_mode = settings.shell_mode();
     let enabled = settings.flag("show_status");
     let alignment = String::from(settings.status_alignment());
+    let dock_position = String::from(settings.dock_position());
     drop(settings);
-    let scale = motion::mode_scale(shell_mode, 1, motion::mode_transition());
+    let transition = motion::mode_transition();
+    let scale = motion::mode_scale(shell_mode, 1, transition);
+    let travel = if dock_position == "bottom" {
+        (monitor.height as i32 - BAR_HEIGHT as i32 - MARGIN * 2).max(0)
+    } else { 0 };
+    let vertical_offset = match transition {
+        Some((2, progress)) => (travel as f32 * progress).round() as i32,
+        Some((1, progress)) => (travel as f32 * (1.0 - progress)).round() as i32,
+        _ => 0,
+    };
+    let top_margin = MARGIN + vertical_offset;
     if !enabled || scale <= 0.001 {
         return hidden_window("cds-right");
     }
