@@ -197,7 +197,7 @@ pub fn left(monitor: &Monitor) -> LayerWindow {
             Rectangle::new()
                 .width(Parent)
                 .height(Parent)
-                .align_child(Start, Start)
+                .align_child(if alignment == "right" { End } else { Start }, Start)
                 .child(island),
         )
 }
@@ -290,7 +290,7 @@ pub fn right(monitor: &Monitor) -> LayerWindow {
 
     let (region, keyboard) = (
         vec![InputArea {
-            x: (RIGHT_WIDTH - width).max(0.0) as i32,
+            x: if alignment == "left" { 0 } else { (RIGHT_WIDTH - width).max(0.0) as i32 },
             y: 0,
             width: width.ceil() as i32,
             height: height.ceil() as i32,
@@ -330,7 +330,7 @@ pub fn right(monitor: &Monitor) -> LayerWindow {
                         Tray::close();
                     }
                 })
-                .align_child(End, Start)
+                .align_child(if alignment == "left" { Start } else { End }, Start)
                 .child(island),
         )
 }
@@ -510,7 +510,12 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
     let (region_x, region_width) = if overlay_open {
         (0.0, CENTER_WIDTH)
     } else {
-        (((CENTER_WIDTH - width) / 2.0).max(0.0), width)
+        let x = match alignment.as_str() {
+            "left" => 0.0,
+            "right" => (CENTER_WIDTH - width).max(0.0),
+            _ => ((CENTER_WIDTH - width) / 2.0).max(0.0),
+        };
+        (x, width)
     };
 
     let region_height = if overlay_open { CENTER_HEIGHT } else { height };
@@ -543,7 +548,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
             Rectangle::new()
                 .width(Parent)
                 .height(Parent)
-                .align_child(Center, Start)
+                .align_child(horizontal, Start)
                 .on_click(|button| {
                     if button == Button::Left {
                         Ui::close();
