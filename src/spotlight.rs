@@ -359,9 +359,12 @@ fn app_row(app: &DesktopApp, scheme: &Scheme, index: usize, selected: bool) -> R
     let pinned = Settings::read().is_pinned(&exec);
     let pin_exec = exec;
 
+    // Keep the row's app metadata available for the fallback icon below;
+    // the click handler owns a separate clone for launching.
+    let launch_app = app.clone();
     let launch = move |button: Button| match button {
         Button::Left => {
-            app.launch();
+            launch_app.launch();
             Overlay::close();
         }
         Button::Right => Settings::toggle_pinned(&pin_exec),
