@@ -252,7 +252,7 @@ pub fn status(scheme: &Scheme) -> (Box<dyn Widget>, f32) {
     let dim = fade(scheme.on_surface_variant, 130);
     let color = scheme.on_surface_variant;
     let mut groups: [Vec<Box<dyn Widget>>; 3] = [Vec::new(), Vec::new(), Vec::new()];
-    let mut width = SIDE * 2.0 - 4.0 + 28.0;
+    let mut width = SIDE * 2.0 - 4.0 + 28.0 + ITEM_GAP * 2.0;
 
     // Keep the tray chevron before the first indicator, independent of grouping.
     groups[0].push(boxed(tray_button(scheme)));
