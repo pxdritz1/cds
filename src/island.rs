@@ -87,10 +87,6 @@ fn hidden_window(namespace: &'static str) -> LayerWindow {
         .namespace(namespace)
 }
 
-fn shell_mode() -> u8 {
-    Settings::read().shell_mode()
-}
-
 pub fn reserve(monitor: &Monitor) -> LayerWindow {
     let settings = Settings::read();
     let enabled = settings.shell_mode() != 2 && settings.flag("show_center_island");
