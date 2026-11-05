@@ -393,7 +393,7 @@ fn app_row(app: &DesktopApp, scheme: &Scheme, index: usize, selected: bool) -> R
                 .height(28.0)
                 .fill(amane::Image::contain(path).thumbnail(56, 56)),
         ),
-        None => icon_box.child(crate::m3::icon(m3::APPS, 22.0, color)),
+        None => icon_box.child(crate::m3::icon(crate::glyphs::application(app.name(), app.exec()), 22.0, color)),
     };
 
     Rectangle::new()

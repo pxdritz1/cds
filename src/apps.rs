@@ -134,7 +134,7 @@ fn app_tile(app: &DesktopApp, scheme: &Scheme, index: usize) -> Rectangle {
             )
         }
         _ => Box::new(badge_shape(
-            m3::APPS,
+            crate::glyphs::application(app.name(), app.exec()),
             44.0,
             8.0,
             scheme.primary_container,

@@ -272,7 +272,7 @@ fn result_row(scheme: &Scheme, app: &DesktopApp, index: usize, selected: bool) -
                 .radius(10.0)
                 .fill(scheme.primary_container)
                 .align_child(Center, Center)
-                .child(icon(APPS, 20.0, scheme.on_primary_container)),
+                .child(icon(crate::glyphs::application(app.name(), app.exec()), 20.0, scheme.on_primary_container)),
         ),
     };
 

@@ -36,7 +36,7 @@
 ## Spotlight and Launcher
 
 - [x] Use desktop application icons with a Material Symbols fallback.
-- [ ] Improve icon fallback for apps without a GTK icon.
+- [x] Improve icon fallback for apps without a GTK icon.
 - [x] Make Enter activate the selected Spotlight result.
 - [x] Add right-click pin/unpin support for apps in Spotlight and Launcher.
 - [ ] Add a full-screen app-grid launcher with an app-grid button in the shell.

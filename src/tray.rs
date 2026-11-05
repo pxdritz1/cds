@@ -861,7 +861,7 @@ fn item_icon(scheme: &Scheme, item: &TrayItem) -> Rectangle {
                 .clip()
                 .fill(Image::cover(path).thumbnail(64, 64)),
         ),
-        _ => Box::new(icon(APPS, 24.0, scheme.on_surface)),
+        _ => Box::new(icon(crate::glyphs::application(item.display_name(), &item.id), 24.0, scheme.on_surface)),
     };
 
     let item = item.clone();

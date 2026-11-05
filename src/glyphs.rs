@@ -111,3 +111,37 @@ pub fn battery(percent: u8, charging: bool) -> &'static str {
 
     BATTERY_BARS[bar]
 }
+
+/// Pick a useful Material Symbols fallback when a desktop entry has no
+/// resolvable GTK/theme icon. Match both the visible name and executable ID.
+pub fn application(name: &str, exec: &str) -> &'static str {
+    let name = name.to_ascii_lowercase();
+    let exec = exec.to_ascii_lowercase();
+    let matches = |terms: &[&str]| terms.iter().any(|term| name.contains(term) || exec.contains(term));
+
+    if matches(&["firefox", "chrom", "browser", "brave", "vivaldi", "opera", "web"]) {
+        "\\u{e80b}" // public / web
+    } else if matches(&["terminal", "console", "alacritty", "kitty", "foot", "wezterm", "ptyxis"]) {
+        "\\u{e31a}" // terminal
+    } else if matches(&["file", "nautilus", "dolphin", "thunar", "nemo", "directory"]) {
+        "\\u{e2c7}" // folder
+    } else if matches(&["music", "spotify", "rhythmbox", "audacious", "player"]) {
+        "\\u{e405}" // music
+    } else if matches(&["video", "vlc", "mpv", "celluloid", "kdenlive"]) {
+        "\\u{e04b}" // play
+    } else if matches(&["chat", "discord", "telegram", "signal", "slack", "matrix", "messenger"]) {
+        "\\u{e0b7}" // chat
+    } else if matches(&["code", "studio", "editor", "vim", "neovim", "zed", "codium", "idea"]) {
+        "\\u{e86f}" // code
+    } else if matches(&["settings", "config", "control", "tweak"]) {
+        "\\u{e8b8}" // settings
+    } else if matches(&["photo", "image", "gimp", "krita", "inkscape", "drawing"]) {
+        "\\u{e3f4}" // image
+    } else if matches(&["camera", "screenshot"]) {
+        "\\u{e412}" // camera
+    } else if matches(&["document", "writer", "office", "libreoffice", "word", "text"]) {
+        "\\u{e24d}" // description
+    } else {
+        "\\u{e5c3}" // apps
+    }
+}
