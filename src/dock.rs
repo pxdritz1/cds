@@ -5,7 +5,7 @@ use std::time::Duration;
 
 use amane::{
     Apps, Button, Canvas, Center, DesktopApp, Horizontal, Image, InputArea, Layer, LayerWindow, Margin, Monitor,
-    End, Parent, Path, Pointer, Rectangle, Row, Service, Shadow, Shape, Start, Text, Vertical, Widget,
+    End, Full, Parent, Path, Pointer, Rectangle, Row, Service, Shadow, Shape, Start, Text, Vertical, Widget,
     Zone,
 };
 
@@ -432,8 +432,8 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
     };
 
     let window = LayerWindow::new()
-        .width(Parent)
-        .height(Parent)
+        .width(Full)
+        .height(Full)
         .anchor_vertical(Vertical::Top)
         .anchor_horizontal(Horizontal::Left)
         .layer(Layer::Top)
