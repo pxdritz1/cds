@@ -321,23 +321,24 @@ pub fn view(_monitor: &Monitor) -> LayerWindow {
         Margin { bottom: 14, ..Margin::default() }
     };
 
-    LayerWindow::new()
-        .width(dock_width)
-        .height(dock_height)
+    let window = LayerWindow::new()
+        .width(base_width)
+        .height(base_height)
         .anchor_vertical(if position == "top" { Vertical::Top } else { Vertical::Bottom })
         .anchor_horizontal(horizontal)
         .layer(Layer::Top)
         .space(if transition.is_some() { Zone::Ignore } else { Zone::Reserve })
         .margin(margin)
         .namespace("cds-dock")
-        .visible(true)
-        .child(
-            Rectangle::new()
-                .width(Parent)
-                .height(Parent)
-                .align_child(Center, Center)
-                .child(bar),
-        )
+        .visible(true);
+    let window = if transition.is_some() { window.click_through() } else { window };
+    window.child(
+        Rectangle::new()
+            .width(Parent)
+            .height(Parent)
+            .align_child(Center, Center)
+            .child(bar),
+    )
 }
 
 fn app_item(
