@@ -86,7 +86,6 @@ struct MenuEntry {
 struct TrayMenu {
     service: String,
     path: String,
-    revision: i32,
     entries: Vec<MenuEntry>,
 }
 
@@ -631,7 +630,6 @@ fn parse_menu_layout(value: &Value, service: String, path: String) -> Option<Tra
         return None;
     }
 
-    let revision = response[0].number() as i32;
     let root = response[1].list();
     if root.len() < 3 {
         return None;
@@ -646,7 +644,6 @@ fn parse_menu_layout(value: &Value, service: String, path: String) -> Option<Tra
     Some(TrayMenu {
         service,
         path,
-        revision,
         entries,
     })
 }
