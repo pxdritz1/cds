@@ -37,6 +37,8 @@ pub struct Settings {
     language: String,
     pinned_apps: BTreeSet<String>,
     media_title_max_width: u32,
+    wallpaper_rotation: bool,
+    wallpaper_interval_minutes: u32,
 }
 
 fn default_flag(name: &str) -> bool {
@@ -57,6 +59,8 @@ impl Service for Settings {
             language: String::from("pt-BR"),
             pinned_apps: BTreeSet::new(),
             media_title_max_width: 320,
+            wallpaper_rotation: false,
+            wallpaper_interval_minutes: 30,
         };
 
         settings.load();
@@ -72,6 +76,7 @@ impl Service for Settings {
     fn listen() {
         let mut scanned_generation = 0;
         let mut last_scan: Option<Instant> = None;
+        let mut last_rotation = Instant::now();
 
         loop {
             let generation = SCAN_GENERATION.load(Ordering::Relaxed);
@@ -96,6 +101,27 @@ impl Service for Settings {
                     scanned_generation = generation;
                     last_scan = Some(Instant::now());
                 }
+            }
+
+            let rotation = {
+                let settings = Self::read();
+                if !settings.wallpaper_rotation || settings.wallpapers.len() < 2
+                    || last_rotation.elapsed() < Duration::from_secs(settings.wallpaper_interval_minutes as u64 * 60)
+                {
+                    None
+                } else {
+                    let current = settings.wallpapers.iter()
+                        .position(|path| path == &settings.wallpaper)
+                        .unwrap_or(0);
+                    Some(settings.wallpapers[(current + 1) % settings.wallpapers.len()].clone())
+                }
+            };
+
+            if let Some(path) = rotation {
+                Self::set_wallpaper_live(&path);
+                last_rotation = Instant::now();
+            } else if !Self::read().wallpaper_rotation {
+                last_rotation = Instant::now();
             }
 
             thread::sleep(Duration::from_secs(1));
@@ -123,6 +149,30 @@ impl Settings {
 
     pub fn media_title_max_width(&self) -> u32 {
         self.media_title_max_width
+    }
+
+    pub fn wallpaper_rotation(&self) -> bool {
+        self.wallpaper_rotation
+    }
+
+    pub fn wallpaper_interval_minutes(&self) -> u32 {
+        self.wallpaper_interval_minutes
+    }
+
+    pub fn set_wallpaper_rotation(enabled: bool) {
+        let mut settings = Self::write();
+        settings.wallpaper_rotation = enabled;
+        settings.save();
+        drop(settings);
+        crate::ui::Ui::refresh();
+    }
+
+    pub fn set_wallpaper_interval_minutes(value: u32) {
+        let mut settings = Self::write();
+        settings.wallpaper_interval_minutes = value.clamp(1, 1440);
+        settings.save();
+        drop(settings);
+        crate::ui::Ui::refresh();
     }
 
     pub fn set_media_title_max_width(value: u32) {
@@ -411,6 +461,10 @@ impl Settings {
                 "media_title_max_width" => {
                     self.media_title_max_width = value.parse::<u32>().unwrap_or(320).clamp(104, 520)
                 },
+                "wallpaper_rotation" => self.wallpaper_rotation = value == "true",
+                "wallpaper_interval_minutes" => {
+                    self.wallpaper_interval_minutes = value.parse::<u32>().unwrap_or(30).clamp(1, 1440)
+                },
                 "hover_delay_ms" => {
                     self.hover_delay_ms = value.parse::<u64>().unwrap_or(500).clamp(100, 2000)
                 },
@@ -431,7 +485,7 @@ impl Settings {
         }
 
         let mut text = format!(
-            "wallpaper={}\nscheme={}\ndark={}\ndirectory={}\nlocation={}\nhover_delay_ms={}\nlanguage={}\nmedia_title_max_width={}\n",
+            "wallpaper={}\nscheme={}\ndark={}\ndirectory={}\nlocation={}\nhover_delay_ms={}\nlanguage={}\nmedia_title_max_width={}\nwallpaper_rotation={}\nwallpaper_interval_minutes={}\n",
             self.wallpaper,
             self.scheme,
             self.dark,
@@ -440,6 +494,8 @@ impl Settings {
             self.hover_delay_ms,
             self.language,
             self.media_title_max_width,
+            self.wallpaper_rotation,
+            self.wallpaper_interval_minutes,
         );
 
         for (name, value) in &self.flags {

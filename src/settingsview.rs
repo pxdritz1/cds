@@ -150,6 +150,8 @@ pub fn window() -> Window {
     let media_clock = settings.flag("media_show_clock");
     let media_artwork = settings.flag("media_show_artwork");
     let media_title_max_width = settings.media_title_max_width();
+    let wallpaper_rotation = settings.wallpaper_rotation();
+    let wallpaper_interval_minutes = settings.wallpaper_interval_minutes();
 
     let current = String::from(settings.scheme_name());
 
@@ -339,6 +341,30 @@ pub fn window() -> Window {
         .width(Parent),
     );
 
+    let wallpaper_rotation_card = settings_card(WIDTH - PADDING * 2.0, 126.0, scheme.surface_container_low).child(
+        Column::new(vec![
+            Box::new(section(OPEN_NEW, crate::lang::text("Rotação automática", "Automatic rotation"), scheme)),
+            Box::new(chip(
+                "sv:wallpaper-rotation",
+                if wallpaper_rotation {
+                    crate::lang::text("Trocar wallpaper automaticamente: ligado", "Automatic wallpaper rotation: on")
+                } else {
+                    crate::lang::text("Trocar wallpaper automaticamente: desligado", "Automatic wallpaper rotation: off")
+                },
+                360.0,
+                wallpaper_rotation,
+                scheme,
+                move || Settings::set_wallpaper_rotation(!wallpaper_rotation),
+            )),
+            Box::new(Row::new(vec![
+                boxed(chip("sv:wallpaper-interval-5", "5 min", 88.0, wallpaper_interval_minutes == 5, scheme, || Settings::set_wallpaper_interval_minutes(5))),
+                boxed(chip("sv:wallpaper-interval-15", "15 min", 88.0, wallpaper_interval_minutes == 15, scheme, || Settings::set_wallpaper_interval_minutes(15))),
+                boxed(chip("sv:wallpaper-interval-30", "30 min", 88.0, wallpaper_interval_minutes == 30, scheme, || Settings::set_wallpaper_interval_minutes(30))),
+                boxed(chip("sv:wallpaper-interval-60", "1 h", 88.0, wallpaper_interval_minutes == 60, scheme, || Settings::set_wallpaper_interval_minutes(60))),
+            ]).gap(8.0).width(Parent)),
+        ]).gap(8.0).width(Parent),
+    );
+
     // the weather section, where the dash reads its forecast spot from
     let climate = settings_card(WIDTH - PADDING * 2.0, 122.0, scheme.surface_container_low).child(
         Column::new(vec![
@@ -416,6 +442,7 @@ pub fn window() -> Window {
                             Box::new(media_settings),
                             Box::new(behavior),
                             Box::new(wallpapers),
+                            Box::new(wallpaper_rotation_card),
                             Box::new(climate),
                         ])
                         .gap(12.0)
