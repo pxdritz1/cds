@@ -5,7 +5,8 @@
 - [x] Open the Dash on hover, with a setting to disable it.
 - [x] Close the Dash on outside click without blocking underlying windows.
 - [x] Move the tray to the right Island.
-- [ ] Complete StatusNotifierItem support, including D-Bus context menus for tray apps.
+- [x] Dispatch StatusNotifierItem Activate and ContextMenu D-Bus methods asynchronously.
+- [ ] Read and render the com.canonical.dbusmenu Menu object when a tray item exposes one.
 - [x] Show the focused window title and app icon beside the workspaces.
 - [x] Add Spotlight and weather shortcuts to the center Island.
 
