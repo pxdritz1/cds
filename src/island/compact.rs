@@ -3,15 +3,17 @@
  * and tray on the left, the clock in the middle (it grows into the dash)
  * and the system status on the right (it opens the control center).
  */
+use std::f32::consts::TAU;
 use std::time::Duration;
 
 use amane::{
-    Apps, Audio, Battery, Bluetooth, Button, Center, Color, Image, Media, Monitor, Network, Parent, Pointer, Rectangle,
+    Apps, Arc, Audio, Battery, Bluetooth, Button, Canvas, Cap, Center, Color, Image, Line, Media, Monitor, Network, Parent, Pointer, Rectangle,
     Row, Service, Stack, Widget, Workspace, Workspaces,
 };
 
 use crate::clock::Clock;
 use crate::focused::FocusedWindow;
+use crate::settings::Settings;
 use crate::glyphs;
 use crate::m3::{self, Type};
 use crate::motion;
@@ -32,9 +34,53 @@ const ITEM_GAP: f32 = 10.0;
 const CLOCK_WIDTH: f32 = 230.0;
 const CLOCK_CENTER_WIDTH: f32 = 166.0;
 
+fn analog_clock(time: &str, scheme: &Scheme) -> Canvas {
+    let (hour, minute) = time.split_once(':').unwrap_or(("0", "0"));
+    let hour = hour.parse::<f32>().unwrap_or(0.0) % 12.0;
+    let minute = minute.parse::<f32>().unwrap_or(0.0);
+    let minute_angle = minute / 60.0 * TAU - TAU / 4.0;
+    let hour_angle = (hour + minute / 60.0) / 12.0 * TAU - TAU / 4.0;
+    let center = 20.0;
+    let radius = 17.0;
+
+    let mut shapes: Vec<Box<dyn amane::Shape>> = vec![
+        Box::new(Arc::new().stroke(1.5, scheme.outline_variant)),
+    ];
+
+    for tick in 0..12 {
+        let angle = tick as f32 / 12.0 * TAU - TAU / 4.0;
+        let inner = radius - 3.0;
+        shapes.push(Box::new(
+            Line::new()
+                .from(center + angle.cos() * inner, center + angle.sin() * inner)
+                .to(center + angle.cos() * radius, center + angle.sin() * radius)
+                .stroke(1.0, scheme.on_surface_variant)
+                .cap(Cap::Round),
+        ));
+    }
+
+    shapes.push(Box::new(
+        Line::new()
+            .from(center, center)
+            .to(center + hour_angle.cos() * 9.0, center + hour_angle.sin() * 9.0)
+            .stroke(2.8, scheme.primary)
+            .cap(Cap::Round),
+    ));
+    shapes.push(Box::new(
+        Line::new()
+            .from(center, center)
+            .to(center + minute_angle.cos() * 13.0, center + minute_angle.sin() * 13.0)
+            .stroke(1.8, scheme.on_surface)
+            .cap(Cap::Round),
+    ));
+
+    Canvas::new().width(40.0).height(40.0).shapes(shapes)
+}
+
 pub fn clock(scheme: &Scheme, alpha: f32) -> (Box<dyn Widget>, f32) {
     let clock = Clock::read();
 
+    let analog = Settings::read().flag("clock_analog");
     let time = m3::scale(Type::TitleSmall, clock.time(true), scheme.on_surface);
     let date = m3::scale(
         Type::LabelMedium,
@@ -99,12 +145,17 @@ pub fn clock(scheme: &Scheme, alpha: f32) -> (Box<dyn Widget>, f32) {
         )
     };
 
-    let time_date = Rectangle::new()
-        .width(CLOCK_CENTER_WIDTH)
-        .height(Parent)
-        .cursor(Pointer)
-        .align_child(Center, Center)
-        .child(
+    let clock_content: Box<dyn Widget> = if analog {
+        boxed(
+            Row::new(vec![
+                boxed(analog_clock(clock.time(true), scheme)),
+                boxed(date),
+            ])
+            .gap(10.0)
+            .align(Center),
+        )
+    } else {
+        boxed(
             Row::new(vec![
                 boxed(time),
                 boxed(icon("·", 10.0, fade(scheme.on_surface_variant, 140))),
@@ -112,7 +163,15 @@ pub fn clock(scheme: &Scheme, alpha: f32) -> (Box<dyn Widget>, f32) {
             ])
             .gap(6.0)
             .align(Center),
-        );
+        )
+    };
+
+    let time_date = Rectangle::new()
+        .width(CLOCK_CENTER_WIDTH)
+        .height(Parent)
+        .cursor(Pointer)
+        .align_child(Center, Center)
+        .child(clock_content);
 
     let row = Row::new(vec![
         boxed(search),
