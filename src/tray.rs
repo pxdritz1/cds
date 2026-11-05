@@ -8,7 +8,7 @@ use std::thread;
 use std::time::Duration;
 
 use amane::{
-    Apps, Argument, Bus, Button, Center, Column, Image, Padding, Pointer, Rectangle, Row, ScrollArea, Service, Stack,
+    Apps, Argument, Bus, Button, Center, Column, Image, Padding, Parent, Pointer, Rectangle, Row, ScrollArea, Service, Stack,
     Value, Widget,
 };
 
