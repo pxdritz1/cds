@@ -42,14 +42,13 @@ impl ColorPicker {
         Overlay::open(Panel::Color);
     }
 
-    /// Run the eyedropper only after the overlay's 200 ms exit animation is gone.
-    /// This prevents the dimmed shell layer from being included in the screen capture.
+    /// Hide the color overlay before starting a screen capture.
     pub fn pick_from_screen() {
-        Overlay::close();
-        crate::ui::Ui::refresh();
+        Overlay::close_immediately();
 
         thread::spawn(move || {
-            thread::sleep(Duration::from_millis(240));
+            // Allow the compositor to commit the frame with the overlay hidden.
+            thread::sleep(Duration::from_millis(50));
 
             let output = Command::new("hyprpicker")
                 .args(["--format", "hex", "--no-fancy"])
