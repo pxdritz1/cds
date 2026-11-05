@@ -35,6 +35,7 @@ pub struct Settings {
     flags: BTreeMap<String, bool>,
     hover_delay_ms: u64,
     language: String,
+    pinned_apps: Vec<String>,
     media_title_max_width: u32,
     wallpaper_rotation: bool,
     wallpaper_interval_minutes: u32,
@@ -61,6 +62,7 @@ impl Service for Settings {
             flags: BTreeMap::new(),
             hover_delay_ms: 500,
             language: String::from("pt-BR"),
+            pinned_apps: Vec::new(),
             media_title_max_width: 320,
             wallpaper_rotation: false,
             wallpaper_interval_minutes: 30,
@@ -170,6 +172,10 @@ impl Settings {
         self.wallpaper_interval_minutes
     }
 
+    pub fn motion_style(&self) -> &str {
+        &self.motion_style
+    }
+
     pub fn workspaces_alignment(&self) -> &str {
         &self.workspaces_alignment
     }
@@ -261,6 +267,23 @@ impl Settings {
 
     pub fn language(&self) -> &str {
         &self.language
+    }
+
+    // Pinned applications are shared by the launcher and Spotlight, not the Dock.
+    pub fn is_pinned(&self, exec: &str) -> bool {
+        self.pinned_apps.iter().any(|pinned| pinned == exec)
+    }
+
+    pub fn toggle_pinned(exec: &str) {
+        let mut settings = Self::write();
+        if let Some(index) = settings.pinned_apps.iter().position(|item| item == exec) {
+            settings.pinned_apps.remove(index);
+        } else {
+            settings.pinned_apps.push(String::from(exec));
+        }
+        settings.save();
+        drop(settings);
+        crate::ui::Ui::refresh();
     }
 
     pub fn set_language(language: &str) {
@@ -539,6 +562,7 @@ impl Settings {
                 "directory" => self.directory = expand_home_path(value),
                 "location" => self.location = String::from(value),
                 "language" => self.language = if value == "en" { String::from("en") } else { String::from("pt-BR") },
+                "pinned_app" => { if !self.pinned_apps.iter().any(|item| item == value) { self.pinned_apps.push(String::from(value)); } },
                 "media_title_max_width" => {
                     self.media_title_max_width = value.parse::<u32>().unwrap_or(320).clamp(104, 520)
                 },
@@ -598,6 +622,10 @@ impl Settings {
             self.center_alignment,
             self.status_alignment,
         );
+
+        for app in &self.pinned_apps {
+            text.push_str(&format!("pinned_app={app}\\n"));
+        }
 
         for (name, value) in &self.status_positions {
             text.push_str(&format!("status_position.{name}={value}\n"));

@@ -113,7 +113,7 @@ pub fn reserve(monitor: &Monitor) -> LayerWindow {
 
     LayerWindow::new()
         .width(Full)
-        .height(reserved_height * scale)
+        .height(reserved_height)
         .anchor_vertical(Vertical::Top)
         .layer(Layer::Bottom)
         .space(Zone::Reserve)
@@ -277,7 +277,6 @@ pub fn right(monitor: &Monitor) -> LayerWindow {
     };
 
     let (width, height, radius) = motion::follow(&format!("right:{}", monitor.name), width, height, radius);
-    let (width, height, radius) = (width * scale, height * scale, radius * scale);
 
     let island = surface(
         width,
@@ -462,7 +461,6 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
     };
 
     let (width, height, radius) = motion::follow(&monitor.name, width, height, radius);
-    let (width, height, radius) = (width * scale, height * scale, radius * scale);
 
     let target = if mode == IslandMode::Dash {
         scheme.surface_container
