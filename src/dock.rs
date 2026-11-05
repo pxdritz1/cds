@@ -4,8 +4,9 @@ use std::thread;
 use std::time::Duration;
 
 use amane::{
-    Apps, Button, Center, DesktopApp, Horizontal, Image, Layer, LayerWindow, Margin, Monitor,
-    End, Parent, Pointer, Rectangle, Row, Service, Shadow, Start, Text, Vertical, Widget, Zone,
+    Apps, Button, Canvas, Center, DesktopApp, Horizontal, Image, Layer, LayerWindow, Margin, Monitor,
+    End, Parent, Path, Pointer, Rectangle, Row, Service, Shadow, Shape, Start, Text, Vertical, Widget,
+    Zone,
 };
 
 use crate::m3;
@@ -333,19 +334,34 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
         || amane::spawn("xdg-open trash:///"),
     )));
 
-    let bar = Rectangle::new()
+    let shape_height = (dock_height - 12.0).max(1.0);
+    let shape_x = (base_width - dock_width) * 0.5;
+    let shape_y = if dock_side < 0.0 {
+        base_body_height - shape_height
+    } else {
+        0.0
+    };
+
+    // K4's Muelle keeps the drawing surface fixed and morphs the path inside
+    // it. This avoids rebuilding/resizing the Wayland layer during animation.
+    let shadow = Rectangle::new()
         .width(dock_width)
-        .height((dock_height - 12.0).max(1.0))
-        .fill(scheme.surface_container_high)
+        .height(shape_height)
+        .fill(amane::Color::TRANSPARENT)
         .radius(30.0)
-        .border(1.0, fade(scheme.outline_variant, 90))
         .shadow(
             Shadow::drop(scheme.shadow)
                 .opacity(0.34)
                 .blur(28.0)
                 .offset(0.0, 8.0),
         )
+        .translate(shape_x, shape_y);
+
+    let content = Rectangle::new()
+        .width(dock_width)
+        .height(shape_height)
         .padding(8.0)
+        .translate(shape_x, shape_y)
         .child(
             Row::new(children)
                 .gap(4.0)
@@ -354,6 +370,21 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
                 .width(Parent)
                 .height(Parent),
         );
+
+    let body = amane::Stack::new(vec![
+        Box::new(shadow),
+        Box::new(dock_shape(
+            base_width,
+            base_body_height,
+            dock_width,
+            shape_height,
+            dock_side,
+            scheme,
+        )),
+        Box::new(content),
+    ])
+    .width(base_width)
+    .height(base_body_height);
 
     let horizontal = match alignment.as_str() {
         "left" => Horizontal::Left,
@@ -394,8 +425,81 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
                 Center,
                 if position == "top" { Start } else { End },
             )
-            .child(bar),
+            .child(body),
     )
+}
+
+fn dock_shape(
+    window_width: f32,
+    canvas_height: f32,
+    shape_width: f32,
+    shape_height: f32,
+    dock_side: f32,
+    scheme: &Scheme,
+) -> Canvas {
+    let x0 = (window_width - shape_width) * 0.5;
+    let origin_y = if dock_side < 0.0 {
+        canvas_height - shape_height
+    } else {
+        0.0
+    };
+    let map_y = |y: f32| {
+        if dock_side < 0.0 {
+            origin_y + shape_height - y
+        } else {
+            origin_y + y
+        }
+    };
+
+    let radius = 30.0_f32.min(shape_height * 0.5);
+    let wing = 16.0_f32.min(shape_height * 0.5);
+    let right = x0 + shape_width;
+    let path = Path::new()
+        .move_to(x0, map_y(0.0))
+        .cubic_to(
+            x0 + wing * 0.12,
+            map_y(0.0),
+            x0 + wing,
+            map_y(wing * 0.55),
+            x0 + wing,
+            map_y(wing),
+        )
+        .line_to(x0 + wing, map_y(shape_height - radius))
+        .cubic_to(
+            x0 + wing,
+            map_y(shape_height - radius * 0.25),
+            x0 + wing + radius * 0.25,
+            map_y(shape_height),
+            x0 + wing + radius,
+            map_y(shape_height),
+        )
+        .line_to(right - wing - radius, map_y(shape_height))
+        .cubic_to(
+            right - wing - radius * 0.25,
+            map_y(shape_height),
+            right - wing,
+            map_y(shape_height - radius * 0.25),
+            right - wing,
+            map_y(shape_height - radius),
+        )
+        .line_to(right - wing, map_y(wing))
+        .cubic_to(
+            right - wing,
+            map_y(wing * 0.55),
+            right - wing * 0.12,
+            map_y(0.0),
+            right,
+            map_y(0.0),
+        )
+        .line_to(x0, map_y(0.0))
+        .close()
+        .fill(scheme.surface_container_high)
+        .stroke(1.0, fade(scheme.outline_variant, 90));
+
+    Canvas::new()
+        .width(window_width)
+        .height(canvas_height)
+        .shapes(vec![Box::new(path) as Box<dyn Shape>])
 }
 
 fn gaussian(distance: f32) -> f32 {
