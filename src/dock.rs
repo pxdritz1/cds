@@ -308,6 +308,7 @@ fn app_item(
     icon_base: f32,
     magnification: bool,
     running: bool,
+    window_id: Option<u64>,
     slot: f32,
     dock_height: f32,
 ) -> Rectangle {
@@ -322,6 +323,7 @@ fn app_item(
     let size = icon_base * scale;
     let owned = key.clone();
     let launch = exec.clone();
+    let window_id = window_id.map(|id| id.to_string());
 
     let icon: Box<dyn Widget> = match app.icon_path() {
         Some(path) if Image::loaded(path) => Box::new(
@@ -367,7 +369,13 @@ fn app_item(
         .on_hover(move |inside| motion::set_hover(owned.clone(), inside))
         .on_click(move |button| match button {
             Button::Left => {
-                amane::spawn(&launch);
+                if let Some(id) = window_id.as_deref() {
+                    let _ = Command::new("niri")
+                        .args(["msg", "action", "focus-window", "--id", id])
+                        .spawn();
+                } else {
+                    amane::spawn(&launch);
+                }
                 Overlay::close();
             }
             Button::Right => Settings::toggle_pinned(&launch),
