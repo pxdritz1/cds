@@ -193,6 +193,7 @@ pub fn window() -> Window {
     let dock_icon_size = settings.dock_icon_size();
     let dock_magnification = settings.flag("dock_magnification");
     let dock_auto_hide = settings.flag("dock_auto_hide");
+    let dock_reserve_space = settings.flag("dock_reserve_space");
     let workspaces_alignment = String::from(settings.workspaces_alignment());
     let center_alignment = String::from(settings.center_alignment());
     let status_alignment = String::from(settings.status_alignment());
@@ -290,7 +291,12 @@ pub fn window() -> Window {
                 boxed(chip("sv:dock-magnify-on", crate::lang::text("Ativada", "On"), 100.0, dock_magnification, scheme, || Settings::set_flag("dock_magnification", true))),
                 boxed(chip("sv:dock-magnify-off", crate::lang::text("Desativada", "Off"), 100.0, !dock_magnification, scheme, || Settings::set_flag("dock_magnification", false))),
             ]).gap(8.0).width(Parent)),
-            Box::new(section(TUNE, crate::lang::text("Ocultar automaticamente", "Auto-hide Dock"), scheme)),
+            Box::new(section(TUNE, crate::lang::text("Reservar espaço na tela", "Reserve screen space"), scheme)),
+            Box::new(Row::new(vec![
+                boxed(chip("sv:dock-reserve-on", crate::lang::text("Ativado", "On"), 100.0, dock_reserve_space, scheme, || Settings::set_flag("dock_reserve_space", true))),
+                boxed(chip("sv:dock-reserve-off", crate::lang::text("Desativado", "Off"), 100.0, !dock_reserve_space, scheme, || Settings::set_flag("dock_reserve_space", false))),
+            ]).gap(8.0).width(Parent)),
+            Box::new(section(TUNE, crate::lang::text("Ocultação inteligente", "Smart auto-hide"), scheme)),
             Box::new(Row::new(vec![
                 boxed(chip("sv:dock-autohide-on", crate::lang::text("Ativado", "On"), 100.0, dock_auto_hide, scheme, || Settings::set_flag("dock_auto_hide", true))),
                 boxed(chip("sv:dock-autohide-off", crate::lang::text("Desativado", "Off"), 100.0, !dock_auto_hide, scheme, || Settings::set_flag("dock_auto_hide", false))),
