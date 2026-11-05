@@ -239,52 +239,63 @@ pub fn status(scheme: &Scheme) -> (Box<dyn Widget>, f32) {
     let audio = Audio::read();
     let battery = Battery::read();
 
+    let settings = crate::settings::Settings::read();
+    let positions = [
+        String::from(settings.status_position("network")),
+        String::from(settings.status_position("bluetooth")),
+        String::from(settings.status_position("volume")),
+        String::from(settings.status_position("microphone")),
+        String::from(settings.status_position("battery")),
+    ];
+    drop(settings);
+
     let dim = fade(scheme.on_surface_variant, 130);
     let color = scheme.on_surface_variant;
+    let mut groups: [Vec<Box<dyn Widget>>; 3] = [Vec::new(), Vec::new(), Vec::new()];
+    let mut width = SIDE * 2.0 - 4.0 + 28.0;
 
-    let mut items: Vec<Box<dyn Widget>> = Vec::new();
-    let mut width = SIDE * 2.0 - 4.0;
+    // Keep the tray chevron before the first indicator, independent of grouping.
+    groups[0].push(boxed(tray_button(scheme)));
 
-    // Keep the expandable tray chevron immediately to the left of Wi-Fi.
-    items.push(boxed(tray_button(scheme)));
-    width += 28.0;
+    let mut push = |index: usize, widget: Box<dyn Widget>, extra_width: f32| {
+        let group = match positions[index].as_str() {
+            "center" => 1,
+            "right" => 2,
+            _ => 0,
+        };
+        groups[group].push(widget);
+        width += ITEM_GAP + extra_width;
+    };
 
-    items.push(boxed(icon(
+    push(0, boxed(icon(
         glyphs::wifi(&network),
         ICON,
         if network.connected() { color } else { dim },
-    )));
-    width += ITEM_GAP + ICON;
+    )), ICON);
 
     if bluetooth.available() {
         let connected = bluetooth.devices().iter().any(|device| device.connected());
-
-        items.push(boxed(icon(
+        push(1, boxed(icon(
             glyphs::bluetooth(true, bluetooth.powered(), connected, false),
             ICON,
             if bluetooth.powered() { color } else { dim },
-        )));
-        width += ITEM_GAP + ICON;
+        )), ICON);
     }
 
     let silent = audio.muted() || audio.volume() == 0;
-
-    items.push(boxed(icon(
+    push(2, boxed(icon(
         glyphs::volume(audio.volume(), audio.muted()),
         ICON,
         if silent { dim } else { color },
-    )));
-    width += ITEM_GAP + ICON;
+    )), ICON);
 
     if audio.microphone_muted() {
-        items.push(boxed(icon(glyphs::MIC_OFF, ICON, scheme.error)));
-        width += ITEM_GAP + ICON;
+        push(3, boxed(icon(glyphs::MIC_OFF, ICON, scheme.error)), ICON);
     }
 
     if battery.present() {
         let percent = battery.percent();
         let charging = battery.charging();
-
         let tint = if charging {
             scheme.primary
         } else if percent <= 15 {
@@ -295,29 +306,26 @@ pub fn status(scheme: &Scheme) -> (Box<dyn Widget>, f32) {
             color
         };
 
-        items.push(boxed(
+        push(4, boxed(
             Row::new(vec![
                 boxed(icon(glyphs::battery(percent, charging), ICON, tint)),
-                boxed(text(
-                    format!("{percent}%"),
-                    12.0,
-                    tint,
-                    amane::Weight::Medium,
-                )),
+                boxed(text(format!("{percent}%"), 12.0, tint, amane::Weight::Medium)),
             ])
             .gap(4.0)
             .align(Center),
-        ));
-
-        width += ITEM_GAP + ICON + 4.0 + if percent >= 100 { 32.0 } else { 26.0 };
+        ), ICON + 4.0 + if percent >= 100 { 32.0 } else { 26.0 });
     }
 
-    let row = Row::new(items)
-        .gap(ITEM_GAP)
-        .align(Center)
-        .width(Parent)
-        .height(Parent)
-        .justify(Center);
+    let row = Row::new(vec![
+        boxed(Row::new(groups[0].drain(..).collect()).gap(ITEM_GAP).align(Center)),
+        boxed(Row::new(groups[1].drain(..).collect()).gap(ITEM_GAP).align(Center)),
+        boxed(Row::new(groups[2].drain(..).collect()).gap(ITEM_GAP).align(Center)),
+    ])
+    .gap(ITEM_GAP)
+    .align(Center)
+    .width(Parent)
+    .height(Parent)
+    .justify(amane::SpaceBetween);
 
     (boxed(row), width)
 }
