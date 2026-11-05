@@ -153,6 +153,6 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
         ]).gap(14.0).width(Parent).height(Parent));
 
     overlay::layer("color", "cds-color-picker", &monitor.name, open, &scheme,
-        overlay::Frame { width: WIDTH, height: HEIGHT, radius: m3::shape::XL, place: overlay::Place::Spot },
+        overlay::Frame { width: WIDTH, height: HEIGHT, radius: m3::shape::XL, place: overlay::Place::Spot, full_screen: false },
         content, move |key| if key == Key::Enter { ColorPicker::copy_hex(); })
 }
