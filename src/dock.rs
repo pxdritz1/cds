@@ -347,6 +347,25 @@ fn app_matches_id(app: &DesktopApp, app_id: &str) -> bool {
         || (!target.is_empty() && (target.contains(&name) || name.contains(&target)))
 }
 
+
+pub fn reserve(monitor: &Monitor) -> LayerWindow {
+    let settings = Settings::read();
+    let mode = settings.shell_mode();
+    let enabled = settings.flag("show_dock");
+    let icon_size = settings.dock_icon_size() as f32;
+    let position = String::from(settings.dock_position());
+    drop(settings);
+    let scale = motion::mode_scale(mode, 2, motion::mode_transition());
+    if !enabled || scale <= 0.001 || position != "bottom" {
+        return LayerWindow::new().width(1.0).height(1.0).visible(false).namespace("cds-dock-reserve");
+    }
+    let dock_height = (icon_size * MAGNIFICATION + 32.0).max(96.0);
+    LayerWindow::new().width(monitor.width as f32).height(dock_height * scale)
+        .anchor_vertical(Vertical::Bottom).anchor_horizontal(Horizontal::Left)
+        .layer(Layer::Bottom).space(Zone::Reserve).namespace("cds-dock-reserve")
+        .click_through().child(Rectangle::new().width(Parent).height(Parent))
+}
+
 pub fn view(monitor: &Monitor) -> LayerWindow {
     crate::ui::Ui::watch();
 
@@ -354,12 +373,13 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
     let mode = settings.shell_mode();
     let position = String::from(settings.dock_position());
     let alignment = String::from(settings.dock_alignment());
+    let enabled = settings.flag("show_dock");
     drop(settings);
 
     let transition = motion::mode_transition();
     let dock_scale = motion::mode_scale(mode, 2, transition);
     let pointer_key = format!("dock:pointer:{}", monitor.name);
-    if dock_scale <= 0.001 {
+    if !enabled || dock_scale <= 0.001 {
         motion::set_pointer_x(pointer_key, None);
         return LayerWindow::new()
             .width(1.0)
@@ -435,12 +455,12 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
     let dock_y = if position == "top" {
         12.0
     } else {
-        (monitor.height as f32 - base_height - 14.0).max(0.0)
+        (monitor.height as f32 - base_body_height).max(0.0)
     };
     let body_y = if position == "top" {
         12.0
     } else {
-        (monitor.height as f32 - base_body_height - 14.0).max(0.0)
+        (monitor.height as f32 - base_body_height).max(0.0)
     };
     let hide_offset = hidden_offset(&position, base_body_height) * (1.0 - reveal_progress);
 
@@ -656,7 +676,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
             x: dock_x.floor() as i32,
             y: (dock_y + hide_offset).floor().max(0.0) as i32,
             width: base_width.ceil().min(monitor.width as f32) as i32,
-            height: base_height.ceil().min(monitor.height as f32) as i32,
+            height: base_body_height.ceil().min(monitor.height as f32) as i32,
         }];
         if let Some(mut picker) = picker_region {
             picker.x += dock_x.floor() as i32;
@@ -714,7 +734,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
                     .height(base_body_height)
                     .translate(
                         0.0,
-                        (if position == "top" { 12.0 } else { -14.0 }) + hide_offset,
+                        (if position == "top" { 12.0 } else { 0.0 }) + hide_offset,
                     )
                     .child(body),
             ),
