@@ -35,11 +35,14 @@ impl Service for Clock {
                 continue;
             };
 
-            if *Self::read() == fresh {
-                continue;
-            }
+            let changed = {
+                let current = Self::read();
+                *current != fresh
+            };
 
-            *Self::write() = fresh;
+            if changed {
+                *Self::write() = fresh;
+            }
         }
     }
 }
