@@ -213,6 +213,6 @@ fn action_item(
                 .radius(14.0)
                 .fill(scheme.surface_container_highest)
                 .align_child(Center, Center)
-                .child(m3::icon(glyph, icon_base * 0.58 * scale, scheme.on_surface)),
+                .child(m3::icon(glyph, ACTION_ICON * 0.58 * scale, scheme.on_surface)),
         )
 }
