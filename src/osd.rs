@@ -4,7 +4,7 @@
  * the icon swaps with the level (low, medium, high, muted, almost empty).
  */
 use std::cell::RefCell;
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 use std::time::{Duration, Instant};
 
 use amane::{
@@ -49,6 +49,7 @@ struct Memory {
     last: Snapshot,
     kind: Kind,
     since: Option<Instant>,
+    pending: VecDeque<Kind>,
 }
 
 thread_local! {
@@ -87,6 +88,7 @@ fn observe(monitor: &str, now: Snapshot) -> Option<(Kind, Duration, f32)> {
                     last: now,
                     kind: Kind::Volume,
                     since: None,
+                    pending: VecDeque::new(),
                 },
             );
 
@@ -94,41 +96,67 @@ fn observe(monitor: &str, now: Snapshot) -> Option<(Kind, Duration, f32)> {
         };
 
         let before = entry.last;
+        let mut changed = Vec::with_capacity(5);
 
-        let changed = if (now.volume, now.muted) != (before.volume, before.muted) {
-            Some(Kind::Volume)
-        } else if now.microphone_muted != before.microphone_muted {
-            Some(Kind::Microphone)
-        } else if now.brightness != before.brightness {
-            Some(Kind::Brightness)
-        } else if now.battery_present && now.charging != before.charging {
-            Some(Kind::Charger)
-        } else if now.battery_present
+        if (now.volume, now.muted) != (before.volume, before.muted) {
+            changed.push(Kind::Volume);
+        }
+        if now.microphone_muted != before.microphone_muted {
+            changed.push(Kind::Microphone);
+        }
+        if now.brightness != before.brightness {
+            changed.push(Kind::Brightness);
+        }
+        if now.battery_present && now.charging != before.charging {
+            changed.push(Kind::Charger);
+        }
+        if now.battery_present
             && !now.charging
             && now.battery <= 15
             && (before.battery > 15 || (now.battery <= 5 && before.battery > 5))
         {
-            Some(Kind::LowBattery)
-        } else {
-            None
-        };
+            changed.push(Kind::LowBattery);
+        }
 
         entry.last = now;
 
-        if let Some(kind) = changed {
-            entry.kind = kind;
-            entry.since = Some(Instant::now());
+        let now_instant = Instant::now();
+        for kind in changed {
+            if entry.since.is_some() && kind == entry.kind {
+                // Repeated input extends the active OSD's five-second window.
+                entry.since = Some(now_instant);
+            } else if !entry.pending.contains(&kind) {
+                // Keep simultaneous transitions instead of overwriting them
+                // when the snapshot advances to the newest system state.
+                entry.pending.push_back(kind);
+            }
+        }
+
+        let expired = entry.since.is_some_and(|since| {
+            let lifetime = if matches!(entry.kind, Kind::LowBattery) { ALERT } else { SHOWN };
+            now_instant.duration_since(since) >= lifetime
+        });
+
+        if expired {
+            entry.since = None;
+        }
+
+        if entry.since.is_none() {
+            if let Some(next) = entry.pending.pop_front() {
+                entry.kind = next;
+                entry.since = Some(now_instant);
+            } else {
+                return None;
+            }
         }
 
         let since = entry.since?;
-
         let lifetime = if matches!(entry.kind, Kind::LowBattery) {
             ALERT
         } else {
             SHOWN
         };
-
-        let age = since.elapsed();
+        let age = now_instant.duration_since(since);
 
         if age >= lifetime {
             return None;
