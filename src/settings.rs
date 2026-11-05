@@ -294,7 +294,7 @@ impl Settings {
     }
 
     pub fn is_pinned(&self, exec: &str) -> bool {
-        self.pinned_apps.contains(exec)
+        self.pinned_apps.iter().any(|pinned| pinned == exec)
     }
 
     pub fn toggle_pinned(exec: &str) {
