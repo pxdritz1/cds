@@ -253,7 +253,7 @@ pub fn window() -> Window {
 
     let interface = settings_card(WIDTH - PADDING * 2.0, 610.0, scheme.surface_container_low).child(
         Column::new(vec![
-            Box::new(section(TUNE, crate::lang::text("Layout da interface", "Interface layout"), scheme)),
+            Box::new(section(TUNE, crate::lang::text("Modo da interface", "Interface mode"), scheme)),
             Box::new(Row::new(vec![
                 boxed(chip("sv:mode-islands", crate::lang::text("Ilhas", "Islands"), 112.0, shell_mode == 1, scheme, || Settings::set_shell_mode(1))),
                 boxed(chip("sv:mode-dock", "Dock", 112.0, shell_mode == 2, scheme, || Settings::set_shell_mode(2))),
