@@ -159,6 +159,7 @@ pub fn window() -> Window {
     let show_workspaces = settings.flag("show_workspaces");
     let show_center_island = settings.flag("show_center_island");
     let show_status = settings.flag("show_status");
+    let show_dock = settings.flag("show_dock");
     let clock_analog = settings.flag("clock_analog");
 
     let current = String::from(settings.scheme_name());
@@ -207,7 +208,7 @@ pub fn window() -> Window {
         })
         .collect();
 
-    let interface = settings_card(WIDTH - PADDING * 2.0, 360.0, scheme.surface_container_low).child(
+    let interface = settings_card(WIDTH - PADDING * 2.0, 500.0, scheme.surface_container_low).child(
         Column::new(vec![
             Box::new(section(TUNE, crate::lang::text("Layout da interface", "Interface layout"), scheme)),
             Box::new(Row::new(vec![
@@ -241,6 +242,7 @@ pub fn window() -> Window {
                 boxed(chip("sv:show-workspaces", crate::lang::text("Espaços", "Workspaces"), 112.0, show_workspaces, scheme, || Settings::toggle_flag("show_workspaces"))),
                 boxed(chip("sv:show-center", crate::lang::text("Centro", "Center"), 100.0, show_center_island, scheme, || Settings::toggle_flag("show_center_island"))),
                 boxed(chip("sv:show-status", crate::lang::text("Status", "Status"), 100.0, show_status, scheme, || Settings::toggle_flag("show_status"))),
+                boxed(chip("sv:show-dock", "Dock", 88.0, show_dock, scheme, || Settings::toggle_flag("show_dock"))),
             ]).gap(8.0).width(Parent)),
         ])
         .gap(10.0)
