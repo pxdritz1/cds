@@ -545,7 +545,9 @@ fn app_item(
     );
     let size = icon_base * scale;
     let rise = (8.0 + 10.0 * proximity) * transition_scale;
+    let bounce = motion::bounce(&key) * dock_side;
     let launch = exec.clone();
+    let bounce_key = key.clone();
     let window_id = window_ids.first().map(|id| id.to_string());
     let window_count = window_ids.len();
 
@@ -622,6 +624,7 @@ fn app_item(
         .cursor(Pointer)
         .on_click(move |button| match button {
             Button::Left => {
+                motion::trigger_bounce(bounce_key.clone());
                 if let Some(id) = window_id.as_deref() {
                     let _ = Command::new("niri")
                         .args(["msg", "action", "focus-window", "--id", id])
@@ -639,7 +642,7 @@ fn app_item(
             Rectangle::new()
                 .width(size)
                 .height(size)
-                .translate(0.0, dock_side * rise)
+                .translate(0.0, dock_side * rise + bounce)
                 .child(amane::Stack::new(layers).width(size).height(size)),
         )
 }
