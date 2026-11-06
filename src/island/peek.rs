@@ -206,25 +206,3 @@ fn decode_file_url_path(value: &str) -> Option<String> {
     String::from_utf8(decoded).ok()
 }
 
-
-
-
-fn marquee_label(
-    content: String,
-    size: f32,
-    color: amane::Color,
-    weight: amane::Weight,
-) -> Rectangle {
-    const VIEWPORT: f32 = 104.0;
-
-    Rectangle::new()
-        .width(VIEWPORT)
-        .height(18.0)
-        .clip()
-        .align_child(amane::Start, Center)
-        .child(m3::text(content, size, color, weight))
-}
-
-fn format_time(seconds: u64) -> String {
-    format!("{:02}:{:02}", seconds / 60, seconds % 60)
-}
