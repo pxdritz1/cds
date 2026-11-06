@@ -9,7 +9,7 @@ use std::time::{Duration, Instant, SystemTime};
 
 use amane::{
     Align, Button, Center, Column, End, Full, Horizontal, InputArea, Key, Keyboard, Layer, LayerWindow,
-    Margin, Media, Monitor, Notification, Notifications, Padding, Parent, Pointer, Rectangle,
+    Margin, Monitor, Notification, Notifications, Padding, Parent, Pointer, Rectangle,
     Service, Shadow, Stack, Start, Vertical, Widget, Zone,
 };
 
@@ -73,10 +73,9 @@ const TRAY_PADDING: f32 = 8.0;
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum IslandMode {
     Compact = 0,       // the clock
-    Media = 1,         // the player-and-clock sheet
-    NoticeCompact = 2, // a notification arriving
-    Notice = 3,        // an expanded notification preview
-    Dash = 4,          // the full dash
+    NoticeCompact = 1, // a notification arriving
+    Notice = 2,        // an expanded notification preview
+    Dash = 3,          // the full dash
 }
 
 fn hidden_window(namespace: &'static str) -> LayerWindow {
@@ -96,14 +95,8 @@ pub fn reserve(monitor: &Monitor) -> LayerWindow {
     }
 
     let ui = Ui::read();
-    let media_visible = Media::read().playing()
-        && !ui.media_sheet()
-        && !ui.dash()
-        && !notification_preview_active();
     let notice_active = notification_preview_active() && !ui.dash();
-    let reserved_height = if media_visible {
-        RESERVED
-    } else if notice_active && ui.hover() {
+    let reserved_height = if notice_active && ui.hover() {
         peek::NOTICE_HEIGHT + 6.0
     } else if notice_active {
         peek::NOTICE_COMPACT_HEIGHT + 6.0
@@ -362,10 +355,6 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
     let theme = Theme::read();
     let scheme = theme.scheme();
     let notifications = Notifications::read();
-    let has_media = Media::read().playing();
-    if !has_media {
-        Ui::reset_media_sheet();
-    }
     let notice = recent(&notifications);
 
     let ui = Ui::read();
@@ -376,8 +365,6 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
         IslandMode::Notice
     } else if notice.is_some() {
         IslandMode::NoticeCompact
-    } else if has_media && !ui.media_sheet() {
-        IslandMode::Media
     } else {
         IslandMode::Compact
     };
@@ -423,15 +410,6 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
             }
         },
 
-        // Media always uses the full player layout; its geometry does not
-        // change with pointer position.
-        IslandMode::Media => (
-            peek::media(scheme, alpha),
-            peek::media_width().min(520.0),
-            peek::MEDIA_HEIGHT,
-            peek::MEDIA_HEIGHT / 2.0,
-        ),
-
         IslandMode::Compact => {
             let (content, width) = compact::clock(scheme, alpha);
 
@@ -451,19 +429,11 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
 
     let mut island = surface(width, height, radius, fill, scheme);
 
-    // The media player has its own controls; hovering never reveals the dash.
-    if mode == IslandMode::Media {
-        island = island.cursor(Pointer);
-    } else {
-        island = island.on_hover(Ui::set_hover);
-    }
+    island = island.on_hover(Ui::set_hover);
 
-    // The player sheet has its own clock and transport controls.
-    // Do not attach a parent click handler: it would swallow the clock's
-    // action for switching back to the compact island.
     if ui.dash() {
         island = island.on_click(|_| {});
-    } else if mode != IslandMode::Media {
+    } else {
         island = island.on_click(|_| Ui::toggle());
     }
 
@@ -543,7 +513,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
                 .padding(shadow_room(alignment != "center"))
                 .align_child(match alignment.as_str() { "left" => Align::from(Start), "right" => Align::from(End), _ => Center.into() }, Start)
                 .on_click(move |button| {
-                    if button == Button::Left && mode != IslandMode::Media {
+                    if button == Button::Left {
                         Ui::close();
                     }
                 })

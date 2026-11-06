@@ -66,8 +66,7 @@ pub fn clock(scheme: &Scheme, alpha: f32) -> (Box<dyn Widget>, f32) {
                 .height(36.0)
                 .cursor(Pointer)
                 .on_click(|button| match button {
-                    Button::Left => crate::ui::Ui::toggle_media_sheet(),
-                    Button::Right => crate::ui::Ui::open(crate::ui::Tab::Media),
+                    Button::Left | Button::Right => crate::ui::Ui::open(crate::ui::Tab::Media),
                     _ => {}
                 })
                 .align_child(Center, Center)
