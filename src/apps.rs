@@ -25,70 +25,74 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
 
     let open = Overlay::read().panel() == Panel::Apps;
 
-    let apps = Apps::read();
-    let list = apps.list();
-
-    let mut rows: Vec<Box<dyn Widget>> = Vec::new();
-
-    for (row, group) in list.chunks(COLUMNS).enumerate() {
-        let items: Vec<Box<dyn Widget>> = group
-            .iter()
-            .enumerate()
-            .map(|(column, app)| boxed(app_tile(app, &scheme, row * COLUMNS + column)))
-            .collect();
-
-        rows.push(boxed(Row::new(items).gap(12.0).width(Parent).justify(Center)));
-    }
-
-    let grid: Box<dyn Widget> = if rows.is_empty() {
-        boxed(m3::empty_state(
-            m3::APPS,
-            crate::lang::text("Nenhum app instalado", "No apps installed"),
-            crate::lang::text("Os programas aparecem depois da primeira varredura", "Apps will appear after the first scan"),
-            Parent,
-            220.0,
-            scheme,
-        ))
+    let content = if open {
+        let apps = Apps::read();
+        let list = apps.list();
+    
+        let mut rows: Vec<Box<dyn Widget>> = Vec::new();
+    
+        for (row, group) in list.chunks(COLUMNS).enumerate() {
+            let items: Vec<Box<dyn Widget>> = group
+                .iter()
+                .enumerate()
+                .map(|(column, app)| boxed(app_tile(app, &scheme, row * COLUMNS + column)))
+                .collect();
+    
+            rows.push(boxed(Row::new(items).gap(12.0).width(Parent).justify(Center)));
+        }
+    
+        let grid: Box<dyn Widget> = if rows.is_empty() {
+            boxed(m3::empty_state(
+                m3::APPS,
+                crate::lang::text("Nenhum app instalado", "No apps installed"),
+                crate::lang::text("Os programas aparecem depois da primeira varredura", "Apps will appear after the first scan"),
+                Parent,
+                220.0,
+                scheme,
+            ))
+        } else {
+            boxed(
+                ScrollArea::new("apps-grid", Column::new(rows).gap(8.0).width(Parent))
+                    .width(Parent)
+                    .height(Parent),
+            )
+        };
+    
+        let header = Row::new(vec![
+            boxed(scale(Type::HeadlineSmall, crate::lang::text("Aplicativos", "Applications"), scheme.on_surface)),
+            boxed(Rectangle::new().width(Parent).height(1.0)),
+            boxed(m3::icon_button(
+                "apps:spotlight",
+                m3::SEARCH,
+                40.0,
+                scheme,
+                || {
+                    Overlay::open(Panel::Spotlight);
+                },
+            )),
+        ])
+        .gap(10.0)
+        .align(Center)
+        .width(Parent);
+    
+        Rectangle::new()
+            .width(Parent)
+            .height(Parent)
+            .padding(Padding {
+                top: PADDING,
+                right: PADDING,
+                bottom: PADDING,
+                left: PADDING,
+            })
+            .child(
+                Column::new(vec![Box::new(header), grid])
+                    .width(Parent)
+                    .height(Parent)
+                    .gap(14.0),
+            );
     } else {
-        boxed(
-            ScrollArea::new("apps-grid", Column::new(rows).gap(8.0).width(Parent))
-                .width(Parent)
-                .height(Parent),
-        )
+        Rectangle::new().width(Parent).height(Parent)
     };
-
-    let header = Row::new(vec![
-        boxed(scale(Type::HeadlineSmall, crate::lang::text("Aplicativos", "Applications"), scheme.on_surface)),
-        boxed(Rectangle::new().width(Parent).height(1.0)),
-        boxed(m3::icon_button(
-            "apps:spotlight",
-            m3::SEARCH,
-            40.0,
-            scheme,
-            || {
-                Overlay::open(Panel::Spotlight);
-            },
-        )),
-    ])
-    .gap(10.0)
-    .align(Center)
-    .width(Parent);
-
-    let content = Rectangle::new()
-        .width(Parent)
-        .height(Parent)
-        .padding(Padding {
-            top: PADDING,
-            right: PADDING,
-            bottom: PADDING,
-            left: PADDING,
-        })
-        .child(
-            Column::new(vec![Box::new(header), grid])
-                .width(Parent)
-                .height(Parent)
-                .gap(14.0),
-        );
 
     overlay::layer(
         "apps",
