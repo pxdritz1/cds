@@ -129,7 +129,7 @@ binds {
 
     // Settings and control center
     Mod+Comma { spawn-sh "amane ipc call open config"; }
-    Mod+Shift+D { spawn-sh "amane ipc call mode toggle"; }
+    Mod+Shift+D { spawn-sh "amane ipc call settings dark toggle"; }
     Mod+Shift+C { spawn-sh "amane ipc call open control"; }
 
     Mod+Shift+Slash { show-hotkey-overlay; }
