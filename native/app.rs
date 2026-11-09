@@ -507,7 +507,7 @@ impl App {
             IpcCommand::Clipboard { args } => match args.first().map(String::as_str) {
                 Some("clear") => match self.clipboard_history.clear() {
                     Ok(()) => (ok("Clipboard history cleared"), Task::none()),
-                    Err(error) => (error(error.to_string()), Task::none()),
+                    Err(err) => (error(err.to_string()), Task::none()),
                 },
                 Some("list") | None => {
                     let message = self.clipboard_history.entries().iter().take(20)
