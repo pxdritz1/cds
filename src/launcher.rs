@@ -132,10 +132,10 @@ fn filtered(query: &str) -> Vec<ResultEntry> {
     if let Some(search) = query.strip_prefix('>') {
         let needle = search.trim().to_lowercase();
         let commands = [
-            ("Settings", "\u{f0493}", Action::Settings),
-            ("Color picker", "\u{f03d8}", Action::ColorPicker),
-            ("Tmux sessions", "\u{f018d}", Action::TmuxCommand),
-            ("Wallpapers", "\u{f02e9}", Action::Wallpapers),
+            ("Settings", m3::SETTINGS, Action::Settings),
+            ("Color picker", m3::PALETTE, Action::ColorPicker),
+            ("Tmux sessions", m3::TERMINAL, Action::TmuxCommand),
+            ("Wallpapers", m3::WALLPAPER, Action::Wallpapers),
         ];
 
         return commands
@@ -352,8 +352,8 @@ fn result_row(scheme: &Scheme, entry: &ResultEntry, index: usize, selected: bool
     } else {
         let glyph = match &entry.action {
             Action::App(exec) => crate::glyphs::application(&entry.name, exec),
-            Action::Tmux(_) | Action::TmuxCommand => "\u{f018d}",
-            _ => "\u{f013}",
+            Action::Tmux(_) | Action::TmuxCommand => m3::TERMINAL,
+            _ => m3::SETTINGS,
         };
         boxed(
             Rectangle::new()
