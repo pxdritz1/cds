@@ -229,7 +229,7 @@ pub fn layer(
 
     let padding = match frame.place {
         Place::Under => Padding {
-            top: 58.0,
+            top: 44.0,
             ..Padding::default()
         },
         Place::Spot => Padding {
