@@ -37,7 +37,7 @@ sudo pacman -S --needed --noconfirm \
     wayland libxkbcommon fontconfig freetype2 expat vulkan-icd-loader \
     libpulse pam curl python \
     wl-clipboard hyprpicker swayidle brightnessctl grim slurp \
-    pipewire wireplumber playerctl
+    pipewire wireplumber playerctl qt5ct qt6ct
 
 if command -v yay >/dev/null 2>&1; then
     aur_helper="yay"
@@ -134,6 +134,9 @@ PY
 else
     log "No existing Matugen configuration was found; CDS will create its runtime template configuration."
 fi
+
+log "Installing Matugen application templates."
+bash "$repo_root/scripts/install-matugen-templates.sh"
 
 log "Installing the emoji artwork assets."
 bash "$repo_root/scripts/install-emoji-assets.sh"
