@@ -110,11 +110,11 @@ for raw_path in sys.argv[1:]:
 
     additions = []
     for name, version in (("png", "0.18.1"), ("zbus", "5.19.0")):
-        if not any(re.match(rf"^{re.escape(name)}\\s*=", line) for line in lines):
+        if not any(re.match(rf"^{re.escape(name)}\s*=", line) for line in lines):
             additions.append(f'{name} = "{version}"')
 
     lines[section + 1:section + 1] = additions
-    path.write_text("\\n".join(lines) + "\\n")
+    path.write_text("\n".join(lines) + "\n")
 PY
 
 log "Building Chloe Dynamic Shell with its required dependencies."
