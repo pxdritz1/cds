@@ -74,6 +74,14 @@ fn artwork_path(source: &str) -> Option<PathBuf> {
         .unwrap_or_else(|| String::from("img"));
 
     let destination = cache_dir.join(format!("{key}.{extension}"));
+
+    if destination.is_file() {
+        let mut cache = remote_art().lock().unwrap_or_else(|error| error.into_inner());
+        cache.pending.remove(&url);
+        cache.paths.insert(url, destination.clone());
+        return Some(destination);
+    }
+
     let temporary = cache_dir.join(format!("{key}.part"));
 
     let worker_url = url.clone();
