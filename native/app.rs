@@ -1,6 +1,4 @@
 use std::collections::HashMap;
-use std::sync::Arc;
-
 use iced::widget::{button, column, container, row, text};
 use iced::{
     Alignment, Background, Color, Element, Event, Length, Subscription, Task, event, keyboard,
@@ -16,6 +14,8 @@ use iced_wayland_subscriber::shell::{ShellEvent, ShellInfo, ShellReceiver, Shell
 use iced_runtime::task;
 use iced_runtime::window::Action as WindowAction;
 use futures_util::stream;
+use niri_ipc::state::{EventStreamState, EventStreamStatePart};
+use niri_ipc::Event as NiriEvent;
 
 use crate::ipc::{self, IpcCommand, IpcEnvelope, IpcResponse};
 
@@ -54,6 +54,8 @@ enum WindowKind {
 #[derive(Debug, Clone)]
 enum Message {
     Ipc(IpcEnvelope),
+    NiriEvent(NiriEvent),
+    FocusWorkspace(u8),
     Wayland(ShellEvent),
     Event(Event),
     WindowClosed(window::Id),
@@ -71,6 +73,7 @@ struct App {
     dash_tab: DashTab,
     ipc_rx: async_channel::Receiver<IpcEnvelope>,
     shell_events: ShellReceiver,
+    niri_state: EventStreamState,
 }
 
 impl App {
@@ -84,6 +87,7 @@ impl App {
             dash_tab: DashTab::Home,
             ipc_rx,
             shell_events,
+            niri_state: EventStreamState::default(),
         }
     }
 
@@ -108,6 +112,8 @@ impl App {
             event::listen().map(Message::Event),
             window::close_events().map(Message::WindowClosed),
             self.shell_events.listen().map(Message::Wayland),
+            Subscription::run_with_id("cds-niri", crate::services::niri::subscribe)
+                .map(Message::NiriEvent),
         ])
     }
 
@@ -117,6 +123,14 @@ impl App {
                 let (response, task) = self.handle_ipc(envelope.request.command);
                 let _ = envelope.reply.send_blocking(response);
                 task
+            }
+            Message::NiriEvent(event) => {
+                let _ = self.niri_state.apply(event);
+                Task::none()
+            }
+            Message::FocusWorkspace(index) => {
+                crate::services::niri::focus_workspace(index);
+                Task::none()
             }
             Message::Wayland(event) => {
                 match event {
@@ -254,10 +268,49 @@ impl App {
     }
 
     fn bar_view(&self) -> Element<'_, Message> {
-        let workspaces = container(
+        let mut workspaces = self
+            .niri_state
+            .workspaces
+            .workspaces
+            .values()
+            .collect::<Vec<_>>();
+        workspaces.sort_by_key(|workspace| {
+            (workspace.output.clone().unwrap_or_default(), workspace.idx)
+        });
+
+        let workspace_buttons = workspaces
+            .into_iter()
+            .map(|workspace| {
+                let label = workspace
+                    .name
+                    .clone()
+                    .unwrap_or_else(|| workspace.idx.to_string());
+                let label = if workspace.is_focused {
+                    format!("● {label}")
+                } else {
+                    label
+                };
+                button(text(label).size(13))
+                    .on_press(Message::FocusWorkspace(workspace.idx))
+                    .into()
+            })
+            .collect::<Vec<Element<'_, Message>>>();
+
+        let focused_title = self
+            .niri_state
+            .windows
+            .windows
+            .values()
+            .find(|window| window.is_focused)
+            .and_then(|window| window.title.as_deref())
+            .unwrap_or("Desktop");
+
+        let workspace_group = container(
             row![
                 text("◉").size(17),
-                text("Workspaces").size(13),
+                iced::widget::row(workspace_buttons)
+                    .spacing(4)
+                    .align_y(Alignment::Center),
                 button("Apps").on_press(Message::OpenPanel(Panel::Apps)),
             ]
             .spacing(10)
@@ -269,6 +322,7 @@ impl App {
         let center = container(
             row![
                 button("Search").on_press(Message::OpenPanel(Panel::Spotlight)),
+                text(focused_title).size(13),
                 text("CDS").size(15),
                 button("Dash").on_press(Message::OpenDash(DashTab::Home)),
             ]
@@ -291,7 +345,7 @@ impl App {
         .style(surface_style(0.90));
 
         container(
-            row![workspaces, center, status]
+            row![workspace_group, center, status]
                 .spacing(10)
                 .align_y(Alignment::Center)
                 .width(Length::Fill)
