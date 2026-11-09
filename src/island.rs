@@ -66,7 +66,6 @@ const LEFT_HEIGHT: f32 = 400.0;
 
 const RIGHT_HEIGHT: f32 = 400.0;
 
-const TRAY_RADIUS: f32 = 26.0;
 const TRAY_PADDING: f32 = 8.0;
 
 // what the center island is showing, which decides its size and how content fades
