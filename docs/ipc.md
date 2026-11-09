@@ -1,94 +1,66 @@
-# IPC reference
+# CDS IPC reference
 
-Send commands through the Amane CLI:
-
-```bash
-amane ipc call <command> [arguments...]
-```
+The shell exposes a local Unix socket at `$XDG_RUNTIME_DIR/cds.sock`. Use the `cds` executable; the CLI sends structured requests to the running shell.
 
 ## Panels
 
-| Command | Action |
-| --- | --- |
-| open launcher | Open the application launcher |
-| open apps | Open the application grid |
-| open spotlight | Open search and quick actions |
-| open clipboard | Open clipboard history |
-| open power | Open the power menu |
-| open control | Open the control center |\n| open color | Open the HEX color picker |\n| open emoji | Open the searchable emoji picker |
-| open config | Open shell settings |
-| closed | Close open panels |
-| lock | Lock the current session |
-
-## Dash
-
 ```bash
-amane ipc call dash
-amane ipc call dash home
-amane ipc call dash media
-amane ipc call dash weather
-amane ipc call dash wallpapers
-amane ipc call dash alerts
+cds open launcher
+cds open apps
+cds open spotlight
+cds open clipboard
+cds open power
+cds open control
+cds open config
+cds open color
+cds open emoji
+cds close
+cds lock
 ```
 
-Supported tabs: home, media, weather, wallpapers and alerts. Older aliases such as clima, papeis and alertas are still accepted.
+Panel aliases retained from the previous implementation include `menu`, `grade`, `clip`, `settings`, `color-picker` and `emoji-picker`.
 
-## Tray
-
-```bash
-amane ipc call tray toggle
-amane ipc call tray close
-amane ipc call tray list
-amane ipc call tray focus <id>
-amane ipc call tray close-window <id>
-```
-
-## Settings
+## Dashboard
 
 ```bash
-amane ipc call settings wallpaper <image>
-amane ipc call settings wallpaper
-amane ipc call settings wallpapers
-amane ipc call settings dark true
-amane ipc call settings dark false
-amane ipc call settings dark toggle
-amane ipc call settings scheme <name>
-amane ipc call settings directory <path>
-amane ipc call settings location <latitude,longitude>
-amane ipc call settings location auto
-amane ipc call settings refresh
-amane ipc call settings motion m3      # Material 3 timing
-amane ipc call settings motion fluent  # Fluent timing
-amane ipc call settings position
-# Reports the fixed layout: workspaces=left, center=notch, status=right
-amane ipc call settings clock analog
-amane ipc call settings clock digital
+cds dash
+cds dash home
+cds dash media
+cds dash weather
+cds dash wallpapers
+cds dash alerts
 ```
 
-The Settings window also exposes appearance, wallpaper folder, weather coordinates, hover behavior, language, motion language and clock style. Workspaces, the center Island and the status group can each be aligned independently.
+Aliases `clima`, `papeis` and `alertas` remain accepted.
 
-Supported Matugen schemes: scheme-tonal-spot, scheme-content, scheme-expressive, scheme-neutral, scheme-vibrant, scheme-rainbow, scheme-fruit-salad and scheme-fidelity.
+## Service command surface
 
-## Theme
+These command groups are part of the parity target and will be enabled as their native services land:
 
 ```bash
-amane ipc call theme set <image> [scheme] [dark|light]
-amane ipc call theme color <hex> [scheme] [dark|light]
+cds tray toggle
+cds tray close
+cds tray list
+cds tray focus <id>
+cds tray close-window <id>
+
+cds settings wallpaper <image>
+cds settings wallpaper
+cds settings wallpapers
+cds settings dark toggle
+cds settings scheme <name>
+cds settings directory <path>
+cds settings location <latitude,longitude>
+cds settings location auto
+cds settings motion m3
+cds settings motion fluent
+cds settings clock analog
+cds settings clock digital
+cds settings refresh
+
+cds theme set <image> [scheme] [dark|light]
+cds theme color <hex> [scheme] [dark|light]
+cds weather
 ```
 
-## Weather
-
-```bash
-amane ipc call weather
-```
-
-Weather data comes from Open-Meteo and is cached in ~/.cache/chloe-dynamic-shell/weather.json. The service refreshes in the background.
-
-## Example
-
-```bash
-amane ipc call open launcher
-amane ipc call settings wallpaper ~/Pictures/Wallpapers/example.png
-amane ipc call settings location -20.44,-54.65
-amane ipc call tray list
-```
+**Current foundation status:** the native IPC transport and initial open/dash/close/lock routes are committed. Tray, settings, theme and weather currently return an explicit not-yet-ported response; they are not functional yet.

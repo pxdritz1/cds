@@ -1,90 +1,62 @@
-# Architecture
+# Native architecture
 
-## Overview
+## Runtime
 
-Chloe Dynamic Shell is a collection of Amane windows backed by shared services. The compositor manages the layer surfaces; Amane handles rendering, input and service updates.
+CDS is one native Rust process. Iced owns application state, the message loop, widget tree and rendering. iced_exwlshell provides the Wayland shell roles that ordinary Iced windows do not provide:
+
+- wlr-layer-shell surfaces for the bar, islands, overlays and wallpaper layer.
+- ext-session-lock for the lock screen.
+- Per-output surface lifecycle and shell events.
+
+The app starts through `cds daemon` or `cds run`. A Unix-domain IPC server lives at `$XDG_RUNTIME_DIR/cds.sock`; the `cds` CLI sends structured requests to the running process. The socket is private to the current user.
+
+## Target module layout
 
 ```text
-niri
- ├─ Island and Dash
- ├─ Launcher, Spotlight and application grid
- ├─ Clipboard and power menu
- ├─ Control center and Settings
- ├─ Lock screen
- └─ Wallpaper layer
-
-Amane services
- ├─ Settings and Theme
- ├─ UI and Overlay state
- ├─ Weather, Clock and Clipboard
- ├─ Tray, Launcher and Spotlight
- └─ System services provided by Amane
+native/
+  main.rs                 CLI entry point
+  cli.rs                  cds commands and source-checkout build actions
+  paths.rs                XDG paths
+  ipc.rs                  Unix socket protocol and server
+  app.rs                  Iced daemon, window registry and shell messages
+  services/
+    niri.rs               Niri IPC and workspace/focused-window state
+    settings.rs           Persistent preferences
+    theme.rs              Matugen palette and wallpaper integration
+    media.rs              MPRIS
+    tray.rs               StatusNotifierWatcher and dbusmenu
+    notifications.rs      org.freedesktop.Notifications service
+    clipboard.rs          Clipboard history
+    audio.rs              Audio devices, volume and microphone
+    network.rs            NetworkManager and Wi-Fi
+    bluetooth.rs          BlueZ
+    weather.rs            Open-Meteo
+    desktop_apps.rs       Desktop entries, icons and launching
+  ui/
+    island/               Compact, Media, Notice and Dash
+    panels/               Launcher, Spotlight, Apps, Clipboard, Power, Control
+    settings/             Settings window
+    lockscreen.rs         Session-lock surface and PAM
+    m3/                   Material 3 components and tokens
+    motion.rs             M3 and Fluent motion
 ```
 
-## Main modules
+The old `src/` tree is retained temporarily as a behavioral reference and is not compiled by the native binary. It will be retired after each feature has a native replacement and passes validation.
 
-| Module | Responsibility |
-| --- | --- |
-| main.rs | Register windows and IPC handlers |
-| island.rs | Island surfaces, modes and transitions |
-| island/compact.rs | Workspaces, clock, weather and system status |
-| island/dash.rs | Dash tabs and cards |
-| island/peek.rs | Media and notification previews |
-| island/widgets.rs | Shared Island widgets |
-| overlay.rs | Panel state, layer placement and outside-click handling |
-| settings.rs | Persistent preferences and wallpaper selection |
-| settingsview.rs | Settings window |
-| lang.rs | Language-aware UI strings |
-| theme.rs | Matugen, color tokens and font setup |
-| motion.rs | Animation timing and state transitions |
-| ipc.rs | CLI command handlers |
-| control.rs | Audio, network and device controls |
-| weather.rs | Open-Meteo data and forecast parsing |
-| tray.rs | StatusNotifierWatcher and tray items |
-| lockscreen.rs | Session lock screen and password input |
+## State and concurrency
 
-## Services and rendering
+- UI state changes happen through Iced messages.
+- D-Bus, filesystem, network and subprocess work must not run in the drawing path.
+- Long-lived services publish typed updates to the Iced message loop.
+- D-Bus calls and subprocesses are asynchronous; expensive parsing and image work stay off the UI thread.
+- Settings and caches use the XDG paths documented in the README.
+- Layer surfaces are tracked by Iced window ID and output; closing a surface removes its state.
 
-Modules that implement Amane's Service trait share a synchronized state. Views read that state while building widgets; actions update it through the service write guard.
+## Design invariants
 
-Keep slow work out of the drawing path:
-
-- File and network operations run in background workers.
-- Service locks should not be held while running subprocesses.
-- Only publish new service state when the data has changed.
-- Coalesce repeated work when only the latest request matters.
-- Use the shared motion scheduler for continuous animations.
-
-## Island layout and motion
-
-The shell uses three independently configurable Island surfaces: workspaces,
-center Island and status. Each can be enabled or disabled, and their horizontal
-placement can be adjusted independently.
-
-Overlay transitions use a restrained bubble burst behind the panel. The motion
-language can be switched between Material 3 and Fluent timing presets. Animation
-frames are requested through the shared frame-pulse service so only windows
-subscribed to active motion are woken.
-
-## Overlays
-
-Panels are separate layer windows created through overlay::layer. The helper handles monitor focus, keyboard exclusivity, backdrop, placement and visibility transitions.
-
-The panel stays mapped until its closing animation finishes. Escape and outside clicks close the active panel.
-
-## Tray
-
-The tray service watches registered StatusNotifierItems over D-Bus and keeps a cached list for the Island. Item activation and context-menu support depend on the application exporting the corresponding interfaces.
-
-## Persistence
-
-| Path | Data |
-| --- | --- |
-| ~/.config/chloe-dynamic-shell/settings.conf | Appearance, wallpaper, location, hover and language settings |
-| ~/.cache/chloe-dynamic-shell/colors.conf | Generated Matugen colors |
-| ~/.cache/chloe-dynamic-shell/clipboard.conf | Clipboard history |
-| ~/.cache/chloe-dynamic-shell/weather.json | Last weather response |
-
-## Language
-
-The selected language is stored in settings.conf. Brazilian Portuguese is the default for existing installations; English can be selected in Settings. UI strings use the shared language helper so the preference is applied consistently.
+1. No dependency on Amane at build time or runtime.
+2. The command and binary name is `cds`.
+3. Existing panel names, keybindings and interaction semantics are retained.
+4. Multi-monitor behavior is first-class; surfaces are not hard-coded to one output.
+5. The Material 3 palette remains Matugen-driven, with pt-BR/English language selection.
+6. Feature parity is not declared until static validation and live Niri/Wayland tests pass.

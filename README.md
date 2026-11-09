@@ -1,110 +1,84 @@
 # Chloe Dynamic Shell
 
-A Wayland desktop shell written in Rust with Amane and a Material 3-inspired interface.
+A native Rust desktop shell for Wayland and Niri, with a Material 3-inspired interface.
 
-## Features
+> **Native port in progress.** The Amane implementation remains on its original branch. This branch replaces the runtime with Iced and a native Wayland shell backend. Feature parity is tracked in [docs/porting.md](docs/porting.md); do not treat the port as complete until runtime and feature checks pass.
 
-- Top notch with workspace indicators, focused-window title and app icon, digital/analog clock, weather shortcut and tray.
-- Dash with system overview, media, weather, wallpapers and notifications.
-- Spotlight and application launcher.
-- Control center for Wi-Fi, Bluetooth, audio, microphone and brightness.
-- Session lock screen using ext-session-lock and PAM.
-- Searchable clipboard history, emoji picker and HEX color picker.
-- Matugen themes, wallpaper settings and optional timed wallpaper rotation.
-- M3 or Fluent motion timing with animated bubble transitions between panels.
-- Brazilian Portuguese and English, selectable in Settings.
+## Runtime stack
 
-## Requirements
+- **Iced 0.14** for UI, rendering and application state.
+- **iced_exwlshell 0.21.4** for Wayland layer-shell and ext-session-lock.
+- **zbus** for D-Bus integrations: MPRIS, StatusNotifier and notifications.
+- **niri-ipc** for Niri workspace and focused-window state.
+- **freedesktop-desktop-entry** and **freedesktop-icons** for desktop applications and icons.
+- Tokio, reqwest, notify, serde and supporting crates for asynchronous services and persistence.
 
-The shell targets a Wayland compositor with layer-shell support. It integrates with Niri, Matugen, wl-clipboard, PulseAudio-compatible `pactl`, PAM and `hyprpicker` for the screen eyedropper. Weather lookup and the bundled emoji-asset installer use `curl`.
+The shell targets Wayland compositors with wlr-layer-shell; Niri is the primary target. The lock screen requires compositor support for ext-session-lock and a working PAM configuration.
 
-### Arch Linux / CachyOS
+## Build
 
-Install an AUR helper (`yay` or `paru`), then run the installer from the repository root:
+```bash
+cargo build --release --bin cds
+```
+
+Install the executable:
+
+```bash
+cargo install --path . --bin cds --force
+```
+
+Or use the installer:
 
 ```bash
 bash scripts/install.sh
 ```
 
-The installer installs Amane's system dependencies, Rust, `niri-git`, `matugen-bin`, Qt color-control tools and the CDS runtime utilities. It creates `~/.config/amane`, copies the CDS sources, compiles the shell, and backs up the existing Niri and Matugen configuration before applying changes.
-
-It also installs and registers Matugen templates for:
-
-- **Zed:** dark and light themes in `~/.config/zed/themes`. Select Chloe Dynamic Shell in the theme selector.
-- **Prism Launcher:** widget theme in the Prism Launcher themes directory. Select Chloe Dynamic Shell in Settings → Appearance → Widgets.
-- **Zen Browser:** imports the generated stylesheet into detected profiles and enables the user stylesheet preference.
-- **GTK 3 and GTK 4:** generates `colors.css` and imports it from each GTK `gtk.css`.
-- **Qt 5 and Qt 6:** generates palettes for qt5ct and qt6ct and configures their color scheme paths. Set `QT_QPA_PLATFORMTHEME=qt5ct` or `qt6ct` for applications using the corresponding Qt version.
-
-The installer comments out legacy Niri, SCSS and Alacritty Matugen template sections rather than deleting them. To restore one, remove the leading `#` from its section in `~/.config/matugen/config.toml`.
-
-## Run
+The installer does not replace the user's Niri configuration. To install the example configuration explicitly:
 
 ```bash
-amane dev       # build and reload during development
-amane compile   # build the optimized binary
-amane run       # launch the compiled shell
+bash scripts/install.sh --install-niri-config
 ```
 
-## IPC
+## Commands
 
 ```bash
-amane ipc call open launcher
-amane ipc call open spotlight
-amane ipc call open control
-amane ipc call dash weather
-amane ipc call settings dark toggle
-amane ipc call lock
-amane ipc call closed
+cds run                 # start the shell if it is not running
+cds daemon              # start the shell in the foreground
+cds dev                 # cargo run from a source checkout
+cds compile             # optimized build from a source checkout
+
+cds open launcher
+cds open apps
+cds open spotlight
+cds open clipboard
+cds open power
+cds open control
+cds open config
+cds open color
+cds open emoji
+
+cds dash [home|media|weather|wallpapers|alerts]
+cds close
+cds lock
 ```
 
-See the [IPC reference](docs/ipc.md) and [niri keybindings](docs/binds.md). The ported personal Niri configuration is in `docs/niri-config.kdl`; install it with `bash scripts/install-niri-config.sh` (the script creates a timestamped backup first).
+The command surface also reserves `cds tray`, `cds settings`, `cds theme` and `cds weather`; their service handlers are being migrated. See [docs/ipc.md](docs/ipc.md).
 
-## Project layout
+## Configuration and runtime paths
 
-```text
-src/
-  apps.rs             Application grid
-  clipboard.rs        Clipboard history
-  clock.rs            Clock and date
-  control.rs          Control center
-  ipc.rs              CLI command handlers
-  island.rs           Island windows and state
-  launcher.rs         Application launcher
-  lang.rs             UI language helper
-  lockscreen.rs       Session lock screen
-  m3.rs               Material 3 components
-  motion.rs            Animation helpers
-  overlay.rs          Shared overlay handling
-  settings.rs         Persistent preferences
-  settingsview.rs     Settings window
-  spotlight.rs        Search and quick actions
-  theme.rs            Matugen and color tokens
-  tray.rs              Status notifier support
-  weather.rs           Weather data
-  island/              Island and Dash components
-docs/
-  architecture.md      Internal design
-  binds.md              Example niri shortcuts
-  ipc.md                IPC reference
-```
+- Settings: `~/.config/chloe-dynamic-shell/`
+- Cache: `~/.cache/chloe-dynamic-shell/`
+- Persistent data: `~/.local/share/chloe-dynamic-shell/`
+- IPC socket: `$XDG_RUNTIME_DIR/cds.sock`
 
-## Fonts
+The executable and all shell-facing commands are named `cds`. No Amane CLI or Amane-generated project is used by this branch.
 
-The interface uses Google Sans Flex and Material Symbols Rounded. To generate static Google Sans Flex instances:
+## Existing design and features
 
-```bash
-python -m pip install fonttools
-python scripts/google-sans-static.py GoogleSansFlex.ttf ~/.local/share/fonts/GoogleSansFlex
-fc-cache -f
-```
+The migration target includes the existing Dynamic Island (workspaces, center notch and status group), Compact/Media/Notice/Dash modes, Home/Media/Weather/Wallpapers/Alerts tabs, launcher, Spotlight, application grid, clipboard history, StatusNotifier tray and dbusmenu, MPRIS, Control Center, Wi-Fi/Bluetooth/audio/microphone/brightness controls, notifications, session lock, settings, Matugen, wallpaper rotation, weather, OSD, power menu, emoji picker, HEX color picker, pt-BR/English strings, Material 3 components and M3/Fluent motion.
 
-## Configuration
-
-Settings are stored in ~/.config/chloe-dynamic-shell/settings.conf. Runtime caches live in ~/.cache/chloe-dynamic-shell/.
-
-Matugen combines the user's configuration with the shell template when generating colors.
+The source-to-native mapping and validation state live in [docs/porting.md](docs/porting.md).
 
 ## License
 
-Apache-2.0. See LICENSE.
+Apache-2.0. See [LICENSE](LICENSE).

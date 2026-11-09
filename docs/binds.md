@@ -1,15 +1,10 @@
 # Niri keybindings
 
-The shell does not register global shortcuts. Add the commands below to
-`~/.config/niri/config.kdl`. The complete example matching the current
-personal setup is in [niri-config.kdl](niri-config.kdl).
-
-## CDS panels
+CDS does not register global shortcuts. Add the commands below to `~/.config/niri/config.kdl`. The full personal example is in [niri-config.kdl](niri-config.kdl).
 
 | Shortcut | Action |
 | --- | --- |
-| Mod+D | Application launcher |
-| Mod+Space / XF86LaunchB | Application launcher |
+| Mod+D / Mod+Space / XF86LaunchB | Application launcher |
 | Mod+Shift+Space | Spotlight |
 | Mod+period | Emoji picker |
 | Mod+P | HEX color picker |
@@ -24,50 +19,29 @@ personal setup is in [niri-config.kdl](niri-config.kdl).
 Example:
 
 ```kdl
-Mod+D           { spawn-sh "amane ipc call open launcher"; }
-Mod+Space       { spawn-sh "amane ipc call open launcher"; }
-Mod+Shift+Space { spawn-sh "amane ipc call open spotlight"; }
-Mod+period      { spawn-sh "amane ipc call open emoji"; }
-Mod+P           { spawn-sh "amane ipc call open color"; }
-Mod+Shift+V     { spawn-sh "amane ipc call open clipboard"; }
-Mod+Comma       { spawn-sh "amane ipc call open config"; }
-Mod+Shift+E     { spawn-sh "amane ipc call open power"; }
-Mod+Shift+D     { spawn-sh "amane ipc call mode toggle"; }
-Mod+Shift+C     { spawn-sh "amane ipc call open control"; }
-Mod+Shift+W     { spawn-sh "amane ipc call dash wallpapers"; }
-Mod+Shift+L     { spawn-sh "amane ipc call lock"; }
-Escape          { spawn-sh "amane ipc call closed"; }
+Mod+D           { spawn-sh "cds open launcher"; }
+Mod+Space       { spawn-sh "cds open launcher"; }
+Mod+Shift+Space { spawn-sh "cds open spotlight"; }
+XF86LaunchB     { spawn-sh "cds open launcher"; }
+Mod+period      { spawn-sh "cds open emoji"; }
+Mod+P           { spawn-sh "cds open color"; }
+Mod+Shift+V     { spawn-sh "cds open clipboard"; }
+Mod+Comma       { spawn-sh "cds open config"; }
+Mod+Shift+E     { spawn-sh "cds open power"; }
+Mod+Shift+C     { spawn-sh "cds open control"; }
+Mod+Shift+W     { spawn-sh "cds dash wallpapers"; }
+Mod+Shift+L     { spawn-sh "cds lock"; }
+Escape          { spawn-sh "cds close"; }
 ```
 
-## Keyboard navigation
+## Keyboard and pointer behavior to preserve
 
-| Panel | Keys |
-| --- | --- |
-| Launcher | Up/Down to select, Enter to launch, Esc to close |
-| Spotlight | Up/Down to select, Enter to run, Esc to close |
-| Application grid | Click to launch, Esc to close |
-| Emoji picker | Search, arrow keys to select, Enter or click to copy |
-| Color picker | Enter or click to copy the valid `#RRGGBB` value |
-| Clipboard | Up/Down to select, Enter to copy, Esc to close |
-| Power menu | Up/Down to select, Enter to run, Esc to close |
-| Settings | Enter applies the focused field, Esc closes |
-| Control center | Click toggles controls; sliders can be dragged |
-| Dash | Esc closes |
-| Tray | Esc closes when focused; clicking outside closes its menu |
-
-## Mouse
-
-| Element | Left click | Right click |
-| --- | --- | --- |
-| Tray item | Activate | Open its context menu |
-| Launcher result | Launch the app | Pin/unpin |
-| Spotlight app result | Launch the app | Pin/unpin |
-| Emoji | Copy emoji | — |
-| Color copy action | Copy HEX | — |
-| Clipboard entry | Copy the item | — |
-| Island tray chevron | Toggle the tray | — |
-| Outside an open panel | Close the panel | — |
-
-## IPC
-
-See [ipc.md](ipc.md) for the complete command reference.
+- Launcher and Spotlight: Up/Down selection, Enter activation, Escape close.
+- App grid: click to launch, Escape close.
+- Emoji: search, arrow selection, Enter/click to copy.
+- Color picker: valid HEX input and copy.
+- Clipboard: Up/Down selection, Enter to copy, Escape close.
+- Power menu: keyboard selection and activation.
+- Tray: left-click activate, right-click context menu.
+- Launcher/Spotlight results: right-click pin/unpin.
+- Outside click: close the active panel.

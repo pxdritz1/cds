@@ -1,5 +1,5 @@
-// Personal Niri configuration, ported to use Chloe Dynamic Shell (CDS)
-// instead of Noctalia/DMS panels. Keep compositor-only settings here.
+// Personal Niri configuration, ported to use Chloe Dynamic Shell (CDS).
+// Keep compositor-only settings here; all shell commands use the cds executable.
 
 prefer-no-csd
 
@@ -7,8 +7,8 @@ spawn-sh-at-startup "sleep 5 && exec goofcord"
 spawn-sh-at-startup "sleep 5 && exec pkill -f blueman-applet"
 spawn-sh-at-startup "sleep 5 && exec pkill -f nm-applet"
 
-spawn-at-startup "amane" "run"
-spawn-at-startup "swayidle" "-w" "timeout" "300" "amane ipc call lock" "timeout" "600" "systemctl suspend"
+spawn-at-startup "cds" "run"
+spawn-at-startup "swayidle" "-w" "timeout" "300" "cds lock" "timeout" "600" "systemctl suspend"
 spawn-at-startup "bash" "/home/px/.config/niri/scripts/pip-follow.sh"
 
 window-rule {
@@ -111,26 +111,26 @@ binds {
     Mod+Q { close-window; }
 
     // CDS launcher and Spotlight
-    Mod+D { spawn-sh "amane ipc call open launcher"; }
-    Mod+Space { spawn-sh "amane ipc call open launcher"; }
-    Mod+Shift+Space { spawn-sh "amane ipc call open spotlight"; }
-    XF86LaunchB { spawn-sh "amane ipc call open launcher"; }
+    Mod+D { spawn-sh "cds open launcher"; }
+    Mod+Space { spawn-sh "cds open launcher"; }
+    Mod+Shift+Space { spawn-sh "cds open spotlight"; }
+    XF86LaunchB { spawn-sh "cds open launcher"; }
 
     // CDS utility pickers
-    Mod+P { spawn-sh "amane ipc call open color"; }
-    Mod+period { spawn-sh "amane ipc call open emoji"; }
+    Mod+P { spawn-sh "cds open color"; }
+    Mod+period { spawn-sh "cds open emoji"; }
 
     Mod+N { spawn "nautilus"; }
 
     // Wallpaper panel, power menu and clipboard
-    Mod+Shift+W { spawn-sh "amane ipc call dash wallpapers"; }
-    Mod+Shift+E { spawn-sh "amane ipc call open power"; }
-    Mod+Shift+V { spawn-sh "amane ipc call open clipboard"; }
+    Mod+Shift+W { spawn-sh "cds dash wallpapers"; }
+    Mod+Shift+E { spawn-sh "cds open power"; }
+    Mod+Shift+V { spawn-sh "cds open clipboard"; }
 
     // Settings and control center
-    Mod+Comma { spawn-sh "amane ipc call open config"; }
-    Mod+Shift+D { spawn-sh "amane ipc call settings dark toggle"; }
-    Mod+Shift+C { spawn-sh "amane ipc call open control"; }
+    Mod+Comma { spawn-sh "cds open config"; }
+    Mod+Shift+D { spawn-sh "cds settings dark toggle"; }
+    Mod+Shift+C { spawn-sh "cds open control"; }
 
     Mod+Shift+Slash { show-hotkey-overlay; }
     XF86LaunchA { toggle-overview; }
@@ -168,6 +168,5 @@ binds {
     Ctrl+Alt+E { quit; }
 }
 
-// Noctalia owns its own configuration and IPC; CDS replaces its shell panels.
-// Keep the Matugen include if this file still contains settings you use.
+// Keep the user's existing Matugen include.
 include "~/.config/niri/matugen.kdl"
