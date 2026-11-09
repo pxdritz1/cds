@@ -71,21 +71,16 @@ struct App {
     windows: HashMap<window::Id, WindowKind>,
     active_panel: Option<window::Id>,
     dash_tab: DashTab,
-    ipc_rx: async_channel::Receiver<IpcEnvelope>,
     shell_events: ShellReceiver,
     niri_state: EventStreamState,
 }
 
 impl App {
-    fn new(
-        ipc_rx: async_channel::Receiver<IpcEnvelope>,
-        shell_events: ShellReceiver,
-    ) -> Self {
+    fn new(shell_events: ShellReceiver) -> Self {
         Self {
             windows: HashMap::new(),
             active_panel: None,
             dash_tab: DashTab::Home,
-            ipc_rx,
             shell_events,
             niri_state: EventStreamState::default(),
         }
@@ -96,24 +91,15 @@ impl App {
     }
 
     fn subscription(&self) -> Subscription<Message> {
-        let ipc_rx = self.ipc_rx.clone();
-        let ipc = Subscription::run_with_id("cds-ipc", move || {
-            stream::unfold(ipc_rx.clone(), |receiver| async move {
-                receiver
-                    .recv()
-                    .await
-                    .ok()
-                    .map(|envelope| (Message::Ipc(envelope), receiver))
-            })
-        });
+        let ipc = Subscription::run(crate::ipc::subscribe).map(Message::Ipc);
+        let niri = Subscription::run(crate::services::niri::subscribe).map(Message::NiriEvent);
 
         Subscription::batch(vec![
             ipc,
             event::listen().map(Message::Event),
             window::close_events().map(Message::WindowClosed),
             self.shell_events.listen().map(Message::Wayland),
-            Subscription::run_with_id("cds-niri", crate::services::niri::subscribe)
-                .map(Message::NiriEvent),
+            niri,
         ])
     }
 
@@ -487,10 +473,11 @@ pub fn run() -> anyhow::Result<()> {
     paths.create_user_directories()?;
 
     let (ipc_rx, _socket_guard) = ipc::start_server()?;
+    ipc::set_subscription_receiver(ipc_rx);
     let (shell_broadcast, shell_events) = iced_wayland_subscriber::shell::channel();
 
     daemon(
-        move || App::new(ipc_rx.clone(), shell_events.clone()),
+        move || App::new(shell_events.clone()),
         App::namespace,
         App::update,
         App::view,

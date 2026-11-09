@@ -3,12 +3,16 @@ use std::os::unix::fs::PermissionsExt;
 use std::os::unix::net::{UnixListener, UnixStream};
 use std::path::PathBuf;
 use std::thread;
+use std::sync::OnceLock;
 use std::time::Duration;
 
 use anyhow::{Context, Result, bail};
 use serde::{Deserialize, Serialize};
+use futures_util::{Stream, stream};
 
 use crate::paths;
+
+static IPC_RECEIVER: OnceLock<async_channel::Receiver<IpcEnvelope>> = OnceLock::new();
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "command", rename_all = "snake_case")]
@@ -38,6 +42,25 @@ pub struct IpcResponse {
 pub struct IpcEnvelope {
     pub request: IpcRequest,
     pub reply: async_channel::Sender<IpcResponse>,
+}
+
+pub fn set_subscription_receiver(receiver: async_channel::Receiver<IpcEnvelope>) {
+    let _ = IPC_RECEIVER.set(receiver);
+}
+
+pub fn subscribe() -> impl Stream<Item = IpcEnvelope> + Send + 'static {
+    let receiver = IPC_RECEIVER
+        .get()
+        .expect("CDS IPC receiver must be registered before starting the Iced daemon")
+        .clone();
+
+    stream::unfold(receiver, |receiver| async move {
+        receiver
+            .recv()
+            .await
+            .ok()
+            .map(|envelope| (envelope, receiver))
+    })
 }
 
 pub struct SocketGuard {
