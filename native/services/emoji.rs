@@ -1,14 +1,11 @@
 use std::path::PathBuf;
-use std::sync::{Mutex, OnceLock};
 
 use anyhow::{Context, Result};
 use emojis::Emoji;
-use nucleo::{Config, Matcher, Utf32Str};
 use tokio::process::Command;
 
 use crate::paths::Paths;
-
-static FUZZY_MATCHER: OnceLock<Mutex<Matcher>> = OnceLock::new();
+use crate::services::fuzzy;
 
 #[derive(Debug, Clone, Copy)]
 pub struct EmojiEntry {
@@ -47,32 +44,16 @@ pub fn search(query: &str, limit: usize) -> Vec<EmojiEntry> {
             .collect();
     }
 
-    let matcher = FUZZY_MATCHER.get_or_init(|| Mutex::new(Matcher::new(Config::DEFAULT)));
-    let mut matcher = matcher.lock().unwrap_or_else(|error| error.into_inner());
-    let mut query_buffer = Vec::new();
-    let needle = Utf32Str::new(&query, &mut query_buffer);
-
     let mut matches = emojis::iter()
         .filter_map(|emoji| {
             let glyph = emoji.as_str();
-            let name = emoji.name();
-            let shortcode = emoji.shortcode().unwrap_or_default().replace('_', " ");
             let aliases = portuguese_aliases(glyph).join(" ");
-            let haystack_text = format!("{name} {shortcode} {aliases}");
-            let mut haystack_buffer = Vec::new();
-            let haystack = Utf32Str::new(&haystack_text, &mut haystack_buffer);
-            let score = matcher.fuzzy_match(haystack, needle)?;
-
-            let prefix_bonus = if name.to_lowercase().starts_with(&query)
-                || shortcode.to_lowercase().starts_with(&query)
-            {
-                1_000
-            } else {
-                0
-            };
+            let shortcode = emoji.shortcode().unwrap_or_default().replace('_', " ");
+            let haystack = format!("{} {} {}", emoji.name(), shortcode, aliases);
+            let score = fuzzy::score(&query, &haystack)?;
 
             Some((
-                score as u32 + prefix_bonus,
+                score as u32,
                 EmojiEntry {
                     emoji,
                     group: group_name(emoji.group()),
