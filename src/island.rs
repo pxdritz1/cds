@@ -14,7 +14,6 @@ use amane::{
 };
 
 use crate::motion;
-use crate::m3::scale;
 use crate::settings::Settings;
 use crate::overlay::{Overlay, Panel};
 use crate::theme::{Scheme, Theme, fade};
@@ -114,7 +113,7 @@ pub fn reserve(monitor: &Monitor) -> LayerWindow {
 
     LayerWindow::new()
         .width(Full)
-        .height(reserved_height * scale)
+        .height(reserved_height)
         .anchor_vertical(Vertical::Top)
         .layer(Layer::Bottom)
         .space(Zone::Reserve)
@@ -278,7 +277,7 @@ pub fn right(monitor: &Monitor) -> LayerWindow {
     };
 
     let (width, height, radius) = motion::follow(&format!("right:{}", monitor.name), width, height, radius);
-    let (width, height, radius) = (width * scale, height * scale, radius * scale);
+    let (width, height, radius) = (width, height, radius);
 
     let island = surface(
         width,
@@ -463,7 +462,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
     };
 
     let (width, height, radius) = motion::follow(&monitor.name, width, height, radius);
-    let (width, height, radius) = (width * scale, height * scale, radius * scale);
+    let (width, height, radius) = (width, height, radius);
 
     let target = if mode == IslandMode::Dash {
         scheme.surface_container
