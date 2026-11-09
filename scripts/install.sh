@@ -9,6 +9,7 @@ niri_config="$config_home/niri/config.kdl"
 matugen_config="$config_home/matugen/config.toml"
 temporary_dir="$(mktemp -d)"
 backup_stamp="$(date +%Y%m%d-%H%M%S)"
+matugen_legacy_disabled=0
 
 cleanup() {
     rm -rf -- "$temporary_dir"
@@ -28,6 +29,7 @@ fail() {
 
 command -v pacman >/dev/null 2>&1 || fail "This installer currently supports Arch Linux and CachyOS only."
 command -v sudo >/dev/null 2>&1 || fail "sudo is required."
+[[ -f "$repo_root/Cargo.toml" && -f "$repo_root/src/main.rs" && -f "$repo_root/docs/niri-config.kdl" ]] || fail "Run this script from a complete Chloe Dynamic Shell repository checkout."
 
 log "Installing system dependencies."
 sudo pacman -S --needed --noconfirm \
@@ -127,6 +129,7 @@ flush()
 path.write_text("\n".join(output) + "\n")
 PY
     log "Backed up Matugen configuration to $backup."
+    matugen_legacy_disabled=1
     log "Legacy Niri, SCSS, and Alacritty template sections were commented out, not deleted."
 else
     log "No existing Matugen configuration was found; CDS will create its runtime template configuration."
