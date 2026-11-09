@@ -502,7 +502,7 @@ impl App {
             IpcCommand::ClipboardPush { content } => match self.clipboard_history.push(&content) {
                 Ok(true) => (ok("Clipboard history updated"), Task::none()),
                 Ok(false) => (ok("Clipboard selection ignored"), Task::none()),
-                Err(error) => (error(error.to_string()), Task::none()),
+                Err(err) => (error(err.to_string()), Task::none()),
             },
             IpcCommand::Clipboard { args } => match args.first().map(String::as_str) {
                 Some("clear") => match self.clipboard_history.clear() {
