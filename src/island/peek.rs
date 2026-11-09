@@ -18,10 +18,33 @@ use super::widgets::{
 pub const MEDIA_WIDTH: f32 = 300.0;
 pub const MEDIA_COMPACT_HEIGHT: f32 = 40.0;
 pub const MEDIA_HEIGHT: f32 = 71.0;
-pub const NOTICE_COMPACT_WIDTH: f32 = 260.0;
+pub const NOTICE_COMPACT_MIN_WIDTH: f32 = 104.0;
+pub const NOTICE_COMPACT_MAX_WIDTH: f32 = 700.0;
 pub const NOTICE_COMPACT_HEIGHT: f32 = 40.0;
 pub const NOTICE_WIDTH: f32 = 364.0;
 pub const NOTICE_HEIGHT: f32 = 72.0;
+
+/// Fit the compact notification island to its title while keeping room for the app icon and padding.
+pub fn notice_compact_width(notification: &Notification) -> f32 {
+    let title = notification.summary();
+    let measured_text = m3::text(&title, 13.0, amane::Color::TRANSPARENT, amane::Weight::SemiBold);
+    let measured = m3::measured(&measured_text);
+    let title_width = if measured > 0.0 {
+        measured + 4.0
+    } else {
+        title.chars().map(|c| {
+            if c.is_whitespace() || "ilI.,'!:;|".contains(c) { 3.8 }
+            else if "MW@#%&".contains(c) { 10.0 }
+            else if c.is_ascii_uppercase() { 8.2 }
+            else if c.is_ascii() { 7.0 }
+            else { 8.5 }
+        }).sum::<f32>() + 4.0
+    };
+
+    (title_width + 32.0 + 10.0 + 28.0)
+        .max(NOTICE_COMPACT_MIN_WIDTH)
+        .min(NOTICE_COMPACT_MAX_WIDTH)
+}
 
 /// Calculate the media island width from visible content and the configured title limit.
 pub fn media_width() -> f32 {
@@ -212,6 +235,7 @@ pub fn notice_compact(
     let row = Row::new(vec![boxed(avatar), boxed(title)])
         .gap(10.0)
         .align(Center)
+        .justify(amane::Space::Center)
         .width(Parent)
         .height(Parent);
 
