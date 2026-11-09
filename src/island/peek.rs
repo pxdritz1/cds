@@ -166,11 +166,10 @@ pub fn media(scheme: &Scheme, alpha: f32, expanded: bool) -> Box<dyn Widget> {
     };
 
     let timeline = Row::new(vec![
-        boxed(m3::scale_label(
+        boxed(m3::scale(
             Type::LabelSmall,
             format_time(position),
             scheme.on_surface_variant,
-            1,
         )),
         boxed(m3::progress_line(
             fraction,
@@ -178,11 +177,10 @@ pub fn media(scheme: &Scheme, alpha: f32, expanded: bool) -> Box<dyn Widget> {
             scheme.primary,
             scheme.surface_container_highest,
         )),
-        boxed(m3::scale_label(
+        boxed(m3::scale(
             Type::LabelSmall,
             format_time(length),
             scheme.on_surface_variant,
-            1,
         )),
     ])
     .gap(6.0)
