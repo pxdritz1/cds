@@ -25,7 +25,6 @@ const BAR_HEIGHT: f32 = 40.0;
 const NOTCH_WIDTH: f32 = 260.0;
 const NOTCH_HEIGHT: f32 = 44.0;
 const NOTCH_RADIUS: f32 = 22.0;
-const MARGIN: i32 = 10;
 const NOTICE_TIME: Duration = Duration::from_secs(5);
 
 struct NoticeTimer {
@@ -116,14 +115,6 @@ pub fn reserve(monitor: &Monitor) -> LayerWindow {
         .child(Rectangle::new().width(Parent).height(Parent))
 }
 
-// windows sit flush with the screen edge so the drop shadow can fall off the
-// island naturally; the old margin moves into the window as padding
-fn shadow_room(sides: bool) -> Padding {
-    let side = if sides { MARGIN as f32 } else { 0.0 };
-
-    Padding { top: MARGIN as f32, right: side, bottom: 0.0, left: side }
-}
-
 // the surface every island shares: fill, soft border and the drop shadow
 fn surface(width: f32, height: f32, radius: f32, fill: amane::Color, scheme: &Scheme) -> Rectangle {
     Rectangle::new()
@@ -195,7 +186,7 @@ pub fn left(monitor: &Monitor) -> LayerWindow {
 
     let island = side_surface(
         side_width,
-        BAR_HEIGHT,
+        NOTCH_HEIGHT,
         compact::base_fill(scheme),
         scheme,
         false,
@@ -220,7 +211,7 @@ pub fn left(monitor: &Monitor) -> LayerWindow {
             x: 0,
             y: 0,
             width: (bar_width + 20.0).min(side_width).ceil() as i32,
-            height: BAR_HEIGHT.ceil() as i32,
+            height: NOTCH_HEIGHT.ceil() as i32,
         }])
         .child(
             Rectangle::new()
@@ -283,9 +274,10 @@ pub fn right(monitor: &Monitor) -> LayerWindow {
     };
 
     let side_width = ((monitor.width as f32 - NOTCH_WIDTH) / 2.0).max(0.0);
+    let surface_height = height.max(NOTCH_HEIGHT);
     let island = side_surface(
         side_width,
-        height,
+        surface_height,
         compact::status_fill(scheme),
         scheme,
         true,
@@ -318,7 +310,7 @@ pub fn right(monitor: &Monitor) -> LayerWindow {
             x: (monitor.width as f32 - status_width - 20.0).max(side_width).max(0.0) as i32,
             y: 0,
             width: (status_width + 20.0).min(side_width).ceil() as i32,
-            height: height.ceil() as i32,
+            height: surface_height.ceil() as i32,
         }])
         .on_key(|key| {
             if key == Key::Escape {
