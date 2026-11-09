@@ -121,19 +121,17 @@ pub async fn copy_to_clipboard(emoji: &Emoji) -> Result<()> {
 }
 
 fn group_name(group: emojis::Group) -> &'static str {
-    use emojis::Group::*;
-
-    match group {
-        SmileysAndEmotion => "Smileys & Emotion",
-        PeopleAndBody => "People & Body",
-        Component => "Component",
-        AnimalsAndNature => "Animals & Nature",
-        FoodAndDrink => "Food & Drink",
-        TravelAndPlaces => "Travel & Places",
-        Activities => "Activities",
-        Objects => "Objects",
-        Symbols => "Symbols",
-        Flags => "Flags",
+    match format!("{group:?}").as_str() {
+        "SmileysAndEmotion" => "Smileys & Emotion",
+        "PeopleAndBody" => "People & Body",
+        "AnimalsAndNature" => "Animals & Nature",
+        "FoodAndDrink" => "Food & Drink",
+        "TravelAndPlaces" => "Travel & Places",
+        "Activities" => "Activities",
+        "Objects" => "Objects",
+        "Symbols" => "Symbols",
+        "Flags" => "Flags",
+        _ => "Other",
     }
 }
 

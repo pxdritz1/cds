@@ -3,7 +3,7 @@ use std::env;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use anyhow::{Context, Result, bail};
+use anyhow::{Context, Result};
 use freedesktop_desktop_entry::{
     DesktopEntry, Iter, current_desktop, default_paths, get_languages_from_env,
 };
@@ -44,7 +44,7 @@ impl DesktopApp {
             (program.clone(), args.to_vec())
         };
 
-        let mut command = Command::new(program);
+        let mut command = Command::new(&program);
         command.args(args);
 
         if let Some(directory) = &self.working_directory {
