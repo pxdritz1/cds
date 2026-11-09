@@ -149,5 +149,9 @@ printf 'Niri configuration: %s\n' "$niri_config"
 printf 'Matugen: matugen-bin\n'
 printf 'Niri: niri-git\n'
 printf '\n'
-printf 'The previous Matugen template sections were commented out. To re-enable one, remove the leading # from its section in %s.\n' "$matugen_config"
+if [[ "$matugen_legacy_disabled" -eq 1 ]]; then
+    printf 'Legacy Matugen sections were commented out, not deleted. Remove the leading # from a section in %s to restore it.\n' "$matugen_config"
+fi
+printf 'Select Chloe Dynamic Shell in Zed and Prism Launcher after the first Matugen palette generation.\n'
+printf 'For Qt applications, set QT_QPA_PLATFORMTHEME to qt5ct or qt6ct according to the application Qt version.\n'
 printf 'Review the installed Niri configuration before restarting your session.\n'
