@@ -89,7 +89,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
                     .width(Parent)
                     .height(Parent)
                     .gap(14.0),
-            );
+            )
     } else {
         Rectangle::new().width(Parent).height(Parent)
     };
