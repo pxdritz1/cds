@@ -1,10 +1,14 @@
 use std::path::PathBuf;
+use std::sync::{Mutex, OnceLock};
 
 use anyhow::{Context, Result};
 use emojis::Emoji;
+use nucleo::{Config, Matcher, Utf32Str};
 use tokio::process::Command;
 
 use crate::paths::Paths;
+
+static FUZZY_MATCHER: OnceLock<Mutex<Matcher>> = OnceLock::new();
 
 #[derive(Debug, Clone, Copy)]
 pub struct EmojiEntry {
@@ -33,38 +37,47 @@ impl EmojiEntry {
 pub fn search(query: &str, limit: usize) -> Vec<EmojiEntry> {
     let query = query.trim().to_lowercase();
 
-    let mut matches = emojis::iter()
-        .filter_map(|emoji| {
-            let entry = EmojiEntry {
+    if query.is_empty() {
+        return emojis::iter()
+            .take(limit)
+            .map(|emoji| EmojiEntry {
                 emoji,
                 group: group_name(emoji.group()),
-            };
+            })
+            .collect();
+    }
 
-            if query.is_empty() {
-                return Some((0_u8, entry));
-            }
+    let matcher = FUZZY_MATCHER.get_or_init(|| Mutex::new(Matcher::new(Config::DEFAULT)));
+    let mut matcher = matcher.lock().unwrap_or_else(|error| error.into_inner());
+    let mut query_buffer = Vec::new();
+    let needle = Utf32Str::new(&query, &mut query_buffer);
 
-            let name = emoji.name().to_lowercase();
-            let shortcode = emoji.shortcode().unwrap_or_default().replace('_', " ");
-            let shortcode = shortcode.to_lowercase();
+    let mut matches = emojis::iter()
+        .filter_map(|emoji| {
             let glyph = emoji.as_str();
+            let name = emoji.name();
+            let shortcode = emoji.shortcode().unwrap_or_default().replace('_', " ");
+            let aliases = portuguese_aliases(glyph).join(" ");
+            let haystack_text = format!("{name} {shortcode} {aliases}");
+            let mut haystack_buffer = Vec::new();
+            let haystack = Utf32Str::new(&haystack_text, &mut haystack_buffer);
+            let score = matcher.fuzzy_match(haystack, needle)?;
 
-            let score = if name == query || shortcode == query {
-                100
-            } else if name.starts_with(&query) || shortcode.starts_with(&query) {
-                80
-            } else if name.contains(&query) || shortcode.contains(&query) || glyph.contains(&query) {
-                60
-            } else if portuguese_aliases(glyph)
-                .iter()
-                .any(|alias| alias.contains(&query))
+            let prefix_bonus = if name.to_lowercase().starts_with(&query)
+                || shortcode.to_lowercase().starts_with(&query)
             {
-                50
+                1_000
             } else {
-                return None;
+                0
             };
 
-            Some((score, entry))
+            Some((
+                score as u32 + prefix_bonus,
+                EmojiEntry {
+                    emoji,
+                    group: group_name(emoji.group()),
+                },
+            ))
         })
         .collect::<Vec<_>>();
 
