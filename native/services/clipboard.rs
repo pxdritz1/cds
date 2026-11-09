@@ -24,7 +24,7 @@ impl ClipboardHistory {
         };
 
         for line in contents.lines().filter(|line| !line.is_empty()) {
-            history.insert(unescape(line));
+            history.entries.push(unescape(line));
         }
         history.entries.truncate(HISTORY_LIMIT);
         history
