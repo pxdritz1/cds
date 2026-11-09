@@ -59,9 +59,8 @@ amane ipc call settings location auto
 amane ipc call settings refresh
 amane ipc call settings motion m3      # Material 3 timing
 amane ipc call settings motion fluent  # Fluent timing
-amane ipc call settings position workspaces left
-amane ipc call settings position center center
-amane ipc call settings position status right
+amane ipc call settings position
+# Reports the fixed layout: workspaces=left, center=notch, status=right
 amane ipc call settings clock analog
 amane ipc call settings clock digital
 ```
