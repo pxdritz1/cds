@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use iced::widget::{button, column, container, row, text};
+use iced::widget::{button, column, container, row, scrollable, text, text_input};
 use iced::{
     Alignment, Background, Color, Element, Event, Length, Subscription, Task, event, keyboard,
     window,
@@ -13,11 +13,11 @@ use iced_exwlshell::to_exwlshell_message;
 use iced_wayland_subscriber::shell::{ShellEvent, ShellInfo, ShellReceiver, ShellType};
 use iced_runtime::task;
 use iced_runtime::window::Action as WindowAction;
-use futures_util::stream;
 use niri_ipc::state::{EventStreamState, EventStreamStatePart};
 use niri_ipc::Event as NiriEvent;
 
 use crate::ipc::{self, IpcCommand, IpcEnvelope, IpcResponse};
+use crate::services::desktop_apps::DesktopApp;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Panel {
@@ -65,6 +65,21 @@ enum Message {
     CloseActive,
     CloseWindow(window::Id),
     LockAppeared(window::Id),
+    AppsQuery(String),
+    AppsSearchResults(Vec<String>),
+    LaunchApp(String),
+    AppLaunchFinished(Result<(), String>),
+    EmojiQuery(String),
+    CopyEmoji(String),
+    ClipboardActionFinished(Result<(), String>),
+    ShowColorPicker,
+    CancelColorPicker,
+    ColorChanged(Color),
+    ColorSelected(Color),
+    ColorHexChanged(String),
+    CopyColor,
+    Eyedropper,
+    EyedropperResult(Result<String, String>),
 }
 
 struct App {
@@ -73,16 +88,35 @@ struct App {
     dash_tab: DashTab,
     shell_events: ShellReceiver,
     niri_state: EventStreamState,
+    apps: Vec<DesktopApp>,
+    app_query: String,
+    app_results: Vec<String>,
+    emoji_query: String,
+    color_picker_open: bool,
+    selected_color: Color,
+    color_hex: String,
+    last_error: Option<String>,
 }
 
 impl App {
     fn new(shell_events: ShellReceiver) -> Self {
+        let apps = crate::services::desktop_apps::scan();
+        let app_results = apps.iter().map(|app| app.id.clone()).collect();
+
         Self {
             windows: HashMap::new(),
             active_panel: None,
             dash_tab: DashTab::Home,
             shell_events,
             niri_state: EventStreamState::default(),
+            apps,
+            app_query: String::new(),
+            app_results,
+            emoji_query: String::new(),
+            color_picker_open: false,
+            selected_color: Color::from_rgb(0.40, 0.32, 0.65),
+            color_hex: "#6750A4".into(),
+            last_error: None,
         }
     }
 
@@ -155,6 +189,126 @@ impl App {
                 self.windows.insert(id, WindowKind::Lock);
                 Task::none()
             }
+            Message::AppsQuery(query) => {
+                self.app_query = query.clone();
+                let apps = self.apps.clone();
+                Task::perform(
+                    async move {
+                        tokio::task::spawn_blocking(move || {
+                            crate::services::desktop_apps::search(&apps, &query, 1000)
+                                .into_iter()
+                                .map(|app| app.id.clone())
+                                .collect::<Vec<_>>()
+                        })
+                        .await
+                        .unwrap_or_default()
+                    },
+                    Message::AppsSearchResults,
+                )
+            }
+            Message::AppsSearchResults(results) => {
+                self.app_results = results;
+                Task::none()
+            }
+            Message::LaunchApp(id) => {
+                let Some(app) = self.apps.iter().find(|app| app.id == id).cloned() else {
+                    return Task::none();
+                };
+                Task::perform(
+                    async move { app.launch().map_err(|error| error.to_string()) },
+                    Message::AppLaunchFinished,
+                )
+            }
+            Message::AppLaunchFinished(result) => match result {
+                Ok(()) => self.close_active(),
+                Err(error) => {
+                    self.last_error = Some(error);
+                    Task::none()
+                }
+            },
+            Message::EmojiQuery(query) => {
+                self.emoji_query = query;
+                Task::none()
+            }
+            Message::CopyEmoji(glyph) => Task::perform(
+                async move {
+                    crate::services::emoji::copy_text(&glyph)
+                        .await
+                        .map_err(|error| error.to_string())
+                },
+                Message::ClipboardActionFinished,
+            ),
+            Message::ClipboardActionFinished(result) => match result {
+                Ok(()) => self.close_active(),
+                Err(error) => {
+                    self.last_error = Some(error);
+                    Task::none()
+                }
+            },
+            Message::ShowColorPicker => {
+                self.color_picker_open = true;
+                Task::none()
+            }
+            Message::CancelColorPicker => {
+                self.color_picker_open = false;
+                Task::none()
+            }
+            Message::ColorChanged(color) => {
+                self.selected_color = color;
+                self.color_hex = color_to_hex(color);
+                Task::none()
+            }
+            Message::ColorSelected(color) => {
+                self.selected_color = color;
+                self.color_hex = color_to_hex(color);
+                self.color_picker_open = false;
+                Task::none()
+            }
+            Message::ColorHexChanged(hex) => {
+                self.color_hex = hex.clone();
+                if let Some(color) = parse_hex_color(&hex) {
+                    self.selected_color = color;
+                }
+                Task::none()
+            }
+            Message::CopyColor => iced::clipboard::write(self.color_hex.clone()),
+            Message::Eyedropper => Task::perform(
+                async move {
+                    let status = tokio::process::Command::new("hyprpicker")
+                        .args(["-a", "-f", "hex"])
+                        .status()
+                        .await
+                        .map_err(|error| error.to_string())?;
+                    if !status.success() {
+                        return Err(format!("hyprpicker exited with status {status}"));
+                    }
+                    let output = tokio::process::Command::new("wl-paste")
+                        .arg("--no-newline")
+                        .output()
+                        .await
+                        .map_err(|error| error.to_string())?;
+                    String::from_utf8(output.stdout)
+                        .map(|value| value.trim().to_owned())
+                        .map_err(|error| error.to_string())
+                },
+                Message::EyedropperResult,
+            ),
+            Message::EyedropperResult(result) => match result {
+                Ok(hex) => {
+                    if let Some(color) = parse_hex_color(&hex) {
+                        self.selected_color = color;
+                        self.color_hex = color_to_hex(color);
+                        self.last_error = None;
+                    } else {
+                        self.last_error = Some(format!("Invalid color returned by hyprpicker: {hex}"));
+                    }
+                    Task::none()
+                }
+                Err(error) => {
+                    self.last_error = Some(error);
+                    Task::none()
+                }
+            },
             _ => Task::none(),
         }
     }
@@ -344,6 +498,13 @@ impl App {
     }
 
     fn panel_view(&self, panel: Panel, id: window::Id) -> Element<'_, Message> {
+        match panel {
+            Panel::Apps | Panel::Launcher | Panel::Spotlight => return self.apps_panel_view(panel, id),
+            Panel::Emoji => return self.emoji_panel_view(id),
+            Panel::Color => return self.color_panel_view(id),
+            _ => {}
+        }
+
         let title = match panel {
             Panel::Launcher => "Application launcher",
             Panel::Apps => "Applications",
@@ -402,6 +563,252 @@ impl App {
             .into()
     }
 
+    fn apps_panel_view(&self, panel: Panel, id: window::Id) -> Element<'_, Message> {
+        let full_grid = panel == Panel::Apps;
+        let title = match panel {
+            Panel::Apps => "Aplicativos",
+            Panel::Launcher => "Launcher",
+            _ => "Spotlight",
+        };
+
+        let search = text_input("Buscar aplicativos…", &self.app_query)
+            .on_input(Message::AppsQuery)
+            .padding(12)
+            .size(16);
+
+        let visible_limit = if full_grid { 1000 } else { 16 };
+        let results = self
+            .app_results
+            .iter()
+            .take(visible_limit)
+            .filter_map(|id| self.apps.iter().find(|app| &app.id == id))
+            .collect::<Vec<_>>();
+
+        let columns = if full_grid { 6 } else { 1 };
+        let mut rows: Vec<Element<'_, Message>> = Vec::new();
+
+        for chunk in results.chunks(columns) {
+            let cells = chunk
+                .iter()
+                .map(|app| {
+                    let icon = app_icon(app.icon.as_ref());
+                    if full_grid {
+                        button(
+                            column![
+                                icon,
+                                text(app.name.clone()).size(13),
+                            ]
+                            .spacing(8)
+                            .align_x(Alignment::Center),
+                        )
+                        .width(Length::Fixed(116.0))
+                        .height(Length::Fixed(112.0))
+                        .on_press(Message::LaunchApp(app.id.clone()))
+                        .into()
+                    } else {
+                        button(
+                            row![
+                                icon,
+                                column![
+                                    text(app.name.clone()).size(15),
+                                    text(app.description.clone()).size(11),
+                                ]
+                                .spacing(3),
+                            ]
+                            .spacing(12)
+                            .align_y(Alignment::Center),
+                        )
+                        .width(Length::Fill)
+                        .on_press(Message::LaunchApp(app.id.clone()))
+                        .into()
+                    }
+                })
+                .collect::<Vec<Element<'_, Message>>>();
+
+            rows.push(iced::widget::row(cells).spacing(8).into());
+        }
+
+        let results_view: Element<'_, Message> = if rows.is_empty() {
+            container(
+                column![
+                    text("Nenhum aplicativo encontrado").size(17),
+                    text("Tente outro nome ou palavra-chave.").size(12),
+                ]
+                .spacing(8)
+                .align_x(Alignment::Center),
+            )
+            .width(Length::Fill)
+            .padding(24)
+            .into()
+        } else {
+            scrollable(column(rows).spacing(8))
+                .height(Length::Fill)
+                .into()
+        };
+
+        let error_view: Element<'_, Message> = self
+            .last_error
+            .as_ref()
+            .map(|error| text(error.clone()).size(12).into())
+            .unwrap_or_else(|| text("").into());
+
+        let body = column![
+            text(title).size(24),
+            search,
+            error_view,
+            results_view,
+            button("Fechar").on_press(Message::CloseWindow(id)),
+        ]
+        .spacing(14)
+        .width(Length::Fill)
+        .height(Length::Fill);
+
+        if full_grid {
+            container(body)
+                .padding(24)
+                .width(Length::Fill)
+                .height(Length::Fill)
+                .style(surface_style(0.98))
+                .into()
+        } else {
+            let card = container(body)
+                .padding(24)
+                .max_width(760)
+                .height(Length::Shrink)
+                .style(surface_style(0.98));
+
+            container(card)
+                .width(Length::Fill)
+                .height(Length::Fill)
+                .center_x(Length::Fill)
+                .center_y(Length::Fill)
+                .style(|_| container::Style {
+                    background: Some(Background::Color(Color::from_rgba(0.02, 0.02, 0.03, 0.48))),
+                    ..Default::default()
+                })
+                .into()
+        }
+    }
+
+    fn emoji_panel_view(&self, id: window::Id) -> Element<'_, Message> {
+        let entries = crate::services::emoji::search(&self.emoji_query, 128);
+        let mut rows: Vec<Element<'_, Message>> = Vec::new();
+
+        for chunk in entries.chunks(8) {
+            let cells = chunk
+                .iter()
+                .map(|entry| {
+                    button(
+                        column![
+                            text(entry.glyph()).size(27),
+                            text(entry.name()).size(10),
+                        ]
+                        .spacing(4)
+                        .align_x(Alignment::Center),
+                    )
+                    .width(Length::Fixed(78.0))
+                    .height(Length::Fixed(76.0))
+                    .on_press(Message::CopyEmoji(entry.glyph().to_owned()))
+                    .into()
+                })
+                .collect::<Vec<Element<'_, Message>>>();
+
+            rows.push(iced::widget::row(cells).spacing(6).into());
+        }
+
+        let results: Element<'_, Message> = if rows.is_empty() {
+            text("Nenhum emoji encontrado.").into()
+        } else {
+            scrollable(column(rows).spacing(6))
+                .height(Length::Fixed(420.0))
+                .into()
+        };
+
+        let body = column![
+            text("Emoji picker").size(24),
+            text_input("Pesquisar emoji…", &self.emoji_query)
+                .on_input(Message::EmojiQuery)
+                .padding(12),
+            results,
+            button("Fechar").on_press(Message::CloseWindow(id)),
+        ]
+        .spacing(12);
+
+        let card = container(body)
+            .padding(24)
+            .max_width(760)
+            .style(surface_style(0.98));
+
+        container(card)
+            .width(Length::Fill)
+            .height(Length::Fill)
+            .center_x(Length::Fill)
+            .center_y(Length::Fill)
+            .style(|_| container::Style {
+                background: Some(Background::Color(Color::from_rgba(0.02, 0.02, 0.03, 0.48))),
+                ..Default::default()
+            })
+            .into()
+    }
+
+    fn color_panel_view(&self, id: window::Id) -> Element<'_, Message> {
+        let picker = iced_aw::widget::color_picker::ColorPicker::new(
+            self.color_picker_open,
+            self.selected_color,
+            button("Abrir seletor de cores").on_press(Message::ShowColorPicker),
+            Message::CancelColorPicker,
+            Message::ColorSelected,
+        )
+        .on_color_change(Message::ColorChanged);
+
+        let preview = container(text(self.color_hex.clone()).size(18))
+            .padding(16)
+            .width(Length::Fill)
+            .style(|_| container::Style {
+                background: Some(Background::Color(self.selected_color)),
+                ..Default::default()
+            });
+
+        let error_view: Element<'_, Message> = self
+            .last_error
+            .as_ref()
+            .map(|error| text(error.clone()).size(12).into())
+            .unwrap_or_else(|| text("").into());
+
+        let body = column![
+            text("HEX color picker").size(24),
+            preview,
+            picker,
+            text_input("#RRGGBB", &self.color_hex)
+                .on_input(Message::ColorHexChanged)
+                .padding(12),
+            row![
+                button("Copiar HEX").on_press(Message::CopyColor),
+                button("Capturar cor da tela").on_press(Message::Eyedropper),
+            ]
+            .spacing(8),
+            error_view,
+            button("Fechar").on_press(Message::CloseWindow(id)),
+        ]
+        .spacing(14);
+
+        let card = container(body)
+            .padding(24)
+            .max_width(560)
+            .style(surface_style(0.98));
+
+        container(card)
+            .width(Length::Fill)
+            .height(Length::Fill)
+            .center_x(Length::Fill)
+            .center_y(Length::Fill)
+            .style(|_| container::Style {
+                background: Some(Background::Color(Color::from_rgba(0.02, 0.02, 0.03, 0.48))),
+                ..Default::default()
+            })
+            .into()
+    }
+
     fn lock_view(&self, id: window::Id) -> Element<'_, Message> {
         container(
             column![
@@ -419,6 +826,47 @@ impl App {
         .center_y(Length::Fill)
         .into()
     }
+}
+
+fn app_icon(path: Option<&std::path::PathBuf>) -> Element<'static, Message> {
+    let Some(path) = path else {
+        return text("◉").size(38).into();
+    };
+
+    if path.extension().is_some_and(|extension| extension == "svg") {
+        iced::widget::svg::Svg::new(iced::widget::svg::Handle::from_path(path.clone()))
+            .width(Length::Fixed(48.0))
+            .height(Length::Fixed(48.0))
+            .into()
+    } else {
+        iced::widget::image::Image::new(iced::widget::image::Handle::from_path(path.clone()))
+            .width(Length::Fixed(48.0))
+            .height(Length::Fixed(48.0))
+            .content_fit(iced::ContentFit::Contain)
+            .into()
+    }
+}
+
+fn parse_hex_color(value: &str) -> Option<Color> {
+    let value = value.trim().trim_start_matches('#');
+    if value.len() != 6 {
+        return None;
+    }
+
+    let red = u8::from_str_radix(&value[0..2], 16).ok()?;
+    let green = u8::from_str_radix(&value[2..4], 16).ok()?;
+    let blue = u8::from_str_radix(&value[4..6], 16).ok()?;
+
+    Some(Color::from_rgb8(red, green, blue))
+}
+
+fn color_to_hex(color: Color) -> String {
+    format!(
+        "#{:02X}{:02X}{:02X}",
+        (color.r * 255.0).round() as u8,
+        (color.g * 255.0).round() as u8,
+        (color.b * 255.0).round() as u8,
+    )
 }
 
 fn surface_style(alpha: f32) -> impl Fn(&iced::Theme) -> container::Style {

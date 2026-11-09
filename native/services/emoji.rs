@@ -106,9 +106,13 @@ pub fn asset_path(emoji: &Emoji) -> Option<PathBuf> {
 }
 
 pub async fn copy_to_clipboard(emoji: &Emoji) -> Result<()> {
+    copy_text(emoji.as_str()).await
+}
+
+pub async fn copy_text(value: &str) -> Result<()> {
     let status = Command::new("wl-copy")
         .arg("--")
-        .arg(emoji.as_str())
+        .arg(value)
         .status()
         .await
         .context("could not start wl-copy")?;
