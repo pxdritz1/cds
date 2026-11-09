@@ -264,14 +264,10 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
         String::from(crate::lang::text("↑↓ selecionar  ·  Enter conectar  ·  Esc fechar", "↑↓ choose  ·  Enter attach  ·  Esc close"))
     } else if query.starts_with('>') {
         String::from(crate::lang::text("↑↓ selecionar  ·  Enter executar  ·  Esc fechar", "↑↓ choose  ·  Enter run  ·  Esc close"))
+    } else if crate::settings::Settings::read().language() == "en" {
+        format!("{count} applications  ·  ↑↓ choose  ·  Enter open  ·  right-click pins")
     } else {
-        format!(
-            "{}  ·  ↑↓ selecionar  ·  Enter abrir  ·  clique direito fixa",
-            crate::lang::text(
-                &format!("{count} aplicativos"),
-                &format!("{count} applications")
-            )
-        )
+        format!("{count} aplicativos  ·  ↑↓ selecionar  ·  Enter abrir  ·  clique direito fixa")
     };
 
     let footer = Row::new(vec![
@@ -365,7 +361,7 @@ fn result_row(scheme: &Scheme, entry: &ResultEntry, index: usize, selected: bool
         )
     };
 
-    let description = entry.description.as_deref().unwrap_or(match entry.action {
+    let description = entry.description.as_deref().unwrap_or(match &entry.action {
         Action::Tmux(_) => "Tmux session",
         Action::App(_) => crate::lang::text("Aplicativo", "Application"),
         _ => "",
