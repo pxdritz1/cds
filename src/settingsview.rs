@@ -3,7 +3,6 @@ use amane::{
     Widget, Window,
 };
 
-use crate::m3;
 use crate::island::widgets::{
     DARK_MODE, LIGHT_MODE, OPEN_NEW, CLEAR_DAY, TUNE, MUSIC, boxed, chip, icon, label, text,
 };
