@@ -37,7 +37,7 @@ This is the parity contract for the Iced rewrite. The old implementation is the 
 | Dynamic notification island | Notice mode with content-sized layout | Pending |
 | Media Island | MPRIS, artwork, timeline and controls | Pending |
 | Dash Home/Media/Weather/Wallpapers/Alerts | Dash tabs | Initial tab state scaffold; content pending |
-| Launcher | Desktop entries, Nucleo fuzzy search, app launch and keyboard navigation | Native search and launch UI implemented; keyboard selection, pinning and visual parity pending |
+| Launcher | Desktop entries, Nucleo fuzzy search, app launch and keyboard navigation | Native search, launch and ↑↓/Enter keyboard selection implemented; pinning and visual parity pending |
 | Spotlight | Shared Nucleo app search plus quick actions | Native app search implemented; quick actions and visual parity pending |
 | Full-screen app grid | Desktop entries, icon theme and six-column grid | Native scan, icon lookup, grid and launch implemented; pinning and visual parity pending |
 | Clipboard history | `wl-paste --watch`, persistent 80-item text history, deduplication, search and copy | Native watcher, sensitive-selection filtering, legacy-format migration and keyboard navigation implemented; live Wayland validation pending |
