@@ -67,6 +67,8 @@ enum Message {
     LockAppeared(window::Id),
     AppsQuery(String),
     AppsSearchResults(Vec<String>),
+    AppsMove(isize),
+    LaunchSelectedApp,
     LaunchApp(String),
     AppLaunchFinished(Result<(), String>),
     EmojiQuery(String),
@@ -99,6 +101,7 @@ struct App {
     apps: Vec<DesktopApp>,
     app_query: String,
     app_results: Vec<String>,
+    app_selected: usize,
     emoji_query: String,
     color_picker_open: bool,
     selected_color: Color,
@@ -126,6 +129,7 @@ impl App {
             apps,
             app_query: String::new(),
             app_results,
+            app_selected: 0,
             emoji_query: String::new(),
             color_picker_open: false,
             selected_color: Color::from_rgb(0.40, 0.32, 0.65),
@@ -191,9 +195,17 @@ impl App {
                     ..
                 }) if self.active_panel_is(Panel::Clipboard) => Task::done(Message::ClipboardMove(1)),
                 Event::Keyboard(keyboard::Event::KeyPressed {
+                    key: keyboard::Key::Named(keyboard::key::Named::ArrowDown),
+                    ..
+                }) if self.active_apps_panel() => Task::done(Message::AppsMove(1)),
+                Event::Keyboard(keyboard::Event::KeyPressed {
                     key: keyboard::Key::Named(keyboard::key::Named::ArrowUp),
                     ..
                 }) if self.active_panel_is(Panel::Clipboard) => Task::done(Message::ClipboardMove(-1)),
+                Event::Keyboard(keyboard::Event::KeyPressed {
+                    key: keyboard::Key::Named(keyboard::key::Named::ArrowUp),
+                    ..
+                }) if self.active_apps_panel() => Task::done(Message::AppsMove(-1)),
                 Event::Keyboard(keyboard::Event::KeyPressed {
                     key: keyboard::Key::Named(keyboard::key::Named::Enter),
                     ..
@@ -204,6 +216,10 @@ impl App {
                         .cloned();
                     selected.map_or_else(Task::none, |value| Task::done(Message::CopyClipboard(value)))
                 }
+                Event::Keyboard(keyboard::Event::KeyPressed {
+                    key: keyboard::Key::Named(keyboard::key::Named::Enter),
+                    ..
+                }) if self.active_apps_panel() => Task::done(Message::LaunchSelectedApp),
                 _ => Task::none(),
             },
             Message::WindowClosed(id) => {
@@ -268,6 +284,7 @@ impl App {
             }
             Message::AppsQuery(query) => {
                 self.app_query = query.clone();
+                self.app_selected = 0;
                 let apps = self.apps.clone();
                 Task::perform(
                     async move {
@@ -285,7 +302,22 @@ impl App {
             }
             Message::AppsSearchResults(results) => {
                 self.app_results = results;
+                self.app_selected = 0;
                 Task::none()
+            }
+            Message::AppsMove(delta) => {
+                let count = self.app_results.len();
+                if count > 0 {
+                    self.app_selected = (self.app_selected as isize + delta)
+                        .rem_euclid(count as isize) as usize;
+                }
+                Task::none()
+            }
+            Message::LaunchSelectedApp => {
+                self.app_results
+                    .get(self.app_selected)
+                    .cloned()
+                    .map_or_else(Task::none, |id| Task::done(Message::LaunchApp(id)))
             }
             Message::LaunchApp(id) => {
                 let Some(app) = self.apps.iter().find(|app| app.id == id).cloned() else {
@@ -787,7 +819,11 @@ impl App {
                             row![
                                 icon,
                                 column![
-                                    text(app.name.clone()).size(15),
+                                    text(format!(
+                                        "{}{}",
+                                        if self.app_results.get(self.app_selected) == Some(&app.id) { "● " } else { "" },
+                                        app.name
+                                    )).size(15),
                                     text(app.description.clone()).size(11),
                                 ]
                                 .spacing(3),
@@ -1011,6 +1047,15 @@ impl App {
         self.active_panel
             .and_then(|id| self.windows.get(&id))
             .is_some_and(|kind| matches!(kind, WindowKind::Panel(active) if *active == panel))
+    }
+
+    fn active_apps_panel(&self) -> bool {
+        self.active_panel
+            .and_then(|id| self.windows.get(&id))
+            .is_some_and(|kind| matches!(
+                kind,
+                WindowKind::Panel(Panel::Launcher | Panel::Apps | Panel::Spotlight)
+            ))
     }
 
     fn color_panel_view(&self, id: window::Id) -> Element<'_, Message> {
