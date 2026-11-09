@@ -6,7 +6,7 @@
 use std::time::Duration;
 
 use amane::{
-    Audio, Battery, Bluetooth, Button, Center, Color, Image, Media, Monitor, Network, Parent, Pointer, Rectangle,
+    Audio, Battery, Bluetooth, Button, Center, Color, Image, Monitor, Network, Parent, Pointer, Rectangle,
     Row, Service, Stack, Widget, Workspace, Workspaces,
 };
 
@@ -20,7 +20,7 @@ use crate::theme::{Scheme, fade, mix};
 use crate::tray::Tray;
 use crate::weather::Weather;
 
-use super::widgets::{EXPAND_MORE, MUSIC, boxed, icon, text};
+use super::widgets::{EXPAND_MORE, boxed, icon, text};
 
 const DOT: f32 = 8.0;
 const FOCUSED: f32 = 28.0;
@@ -57,50 +57,20 @@ pub fn clock(scheme: &Scheme, alpha: f32) -> (Box<dyn Widget>, f32) {
         .align_child(Center, Center)
         .child(icon(crate::m3::SEARCH, ICON, scheme.on_surface_variant));
 
-    let media_playing = Media::read().playing();
     let weather = Weather::read();
-    let weather_icon: Box<dyn Widget> = if media_playing {
-        boxed(
-            Rectangle::new()
-                .width(26.0)
-                .height(36.0)
-                .cursor(Pointer)
-                .on_click(|button| match button {
-                    Button::Left => crate::ui::Ui::toggle_media_sheet(),
-                    Button::Right => crate::ui::Ui::open(crate::ui::Tab::Media),
-                    _ => {}
-                })
-                .align_child(Center, Center)
-                .child(
-                    Stack::new(vec![
-                        boxed(m3::cookie(12.0, 26.0, scheme.primary_container)),
-                        boxed(
-                            Rectangle::new()
-                                .width(26.0)
-                                .height(26.0)
-                                .align_child(Center, Center)
-                                .child(icon(MUSIC, 13.0, scheme.on_primary_container)),
-                        ),
-                    ])
-                    .width(26.0)
-                    .height(26.0),
-                ),
-        )
-    } else {
-        boxed(
-            Rectangle::new()
-                .width(26.0)
-                .height(36.0)
-                .cursor(Pointer)
-                .on_click(|button| {
-                    if button == Button::Left {
-                        crate::ui::Ui::open(crate::ui::Tab::Weather);
-                    }
-                })
-                .align_child(Center, Center)
-                .child(icon(weather.glyph(), ICON, scheme.on_surface_variant)),
-        )
-    };
+    let weather_icon: Box<dyn Widget> = boxed(
+        Rectangle::new()
+            .width(26.0)
+            .height(36.0)
+            .cursor(Pointer)
+            .on_click(|button| {
+                if button == Button::Left {
+                    crate::ui::Ui::open(crate::ui::Tab::Weather);
+                }
+            })
+            .align_child(Center, Center)
+            .child(icon(weather.glyph(), ICON, scheme.on_surface_variant)),
+    );
 
     let clock_content = Row::new(vec![
         boxed(time),

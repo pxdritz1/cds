@@ -43,6 +43,7 @@ impl Panel {
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum Place {
     Under,
+    Notch,
     Spot,
     Right,
     Middle,
@@ -172,7 +173,11 @@ pub fn layer(
     Ui::watch();
 
     let presence = motion::presence(name, open);
-    let burst = motion::fade(&format!("{name}:bubbles"), if open { 1 } else { 0 });
+    let burst = if frame.place == Place::Notch {
+        1.0
+    } else {
+        motion::fade(&format!("{name}:bubbles"), if open { 1 } else { 0 })
+    };
     let focused = Overlay::on_focused_monitor(monitor);
     let visible = focused && (open || presence > 0.001);
 
@@ -183,6 +188,7 @@ pub fn layer(
     let dim = match frame.place {
         Place::Right => 0.16,
         Place::Under => 0.40,
+        Place::Notch => 0.0,
         Place::Spot => 0.45,
         Place::Middle => 0.55,
     };
@@ -232,6 +238,10 @@ pub fn layer(
             top: 58.0,
             ..Padding::default()
         },
+        Place::Notch => Padding {
+            top: 44.0,
+            ..Padding::default()
+        },
         Place::Spot => Padding {
             top: 130.0,
             ..Padding::default()
@@ -262,7 +272,7 @@ pub fn layer(
         .padding(padding);
 
     let panel_layer = match frame.place {
-        Place::Under => panel_layer.align_child(Center, Start),
+        Place::Under | Place::Notch => panel_layer.align_child(Center, Start),
         Place::Spot => panel_layer.align_child(Center, Start),
         Place::Right => panel_layer.align_child(End, Start),
         Place::Middle => panel_layer.align_child(Center, Center),

@@ -4,7 +4,7 @@ use amane::{
 };
 
 use crate::island::widgets::{
-    DARK_MODE, LIGHT_MODE, OPEN_NEW, CLEAR_DAY, TUNE, MUSIC, boxed, chip, icon, label, text,
+    DARK_MODE, LIGHT_MODE, OPEN_NEW, CLEAR_DAY, TUNE, boxed, chip, icon, label, text,
 };
 use crate::settings::Settings;
 use crate::theme::{Scheme, Theme};
@@ -178,17 +178,9 @@ pub fn window() -> Window {
     let hover_dash = settings.flag("hover_dash");
     let hover_delay_ms = settings.hover_delay_ms();
     let trans_meter_colors = settings.flag("trans_meter_colors");
-    let media_title = settings.flag("media_show_title");
-    let media_artist = settings.flag("media_show_artist");
-    let media_clock = settings.flag("media_show_clock");
-    let media_artwork = settings.flag("media_show_artwork");
-    let media_title_max_width = settings.media_title_max_width();
     let wallpaper_rotation = settings.wallpaper_rotation();
     let wallpaper_interval_minutes = settings.wallpaper_interval_minutes();
     let motion_style = String::from(settings.motion_style());
-    let workspaces_alignment = String::from(settings.workspaces_alignment());
-    let center_alignment = String::from(settings.center_alignment());
-    let status_alignment = String::from(settings.status_alignment());
     let network_position = String::from(settings.status_position("network"));
     let bluetooth_position = String::from(settings.status_position("bluetooth"));
     let volume_position = String::from(settings.status_position("volume"));
@@ -262,25 +254,8 @@ pub fn window() -> Window {
         .width(Parent),
     );
 
-    let positions = settings_card(WIDTH - PADDING * 2.0, 500.0, scheme.surface_container_low).child(
+    let positions = settings_card(WIDTH - PADDING * 2.0, 380.0, scheme.surface_container_low).child(
         Column::new(vec![
-            Box::new(section(TUNE, crate::lang::text("Posição dos elementos", "Element placement"), scheme)),
-            Box::new(section(TUNE, crate::lang::text("Espaços de trabalho", "Workspaces"), scheme)),
-            Box::new(Row::new(vec![
-                boxed(chip("sv:workspaces-left", crate::lang::text("Esquerda", "Left"), 100.0, workspaces_alignment == "left", scheme, || Settings::set_workspaces_alignment("left"))),
-                boxed(chip("sv:workspaces-right", crate::lang::text("Direita", "Right"), 100.0, workspaces_alignment == "right", scheme, || Settings::set_workspaces_alignment("right"))),
-            ]).gap(8.0).width(Parent)),
-            Box::new(section(TUNE, crate::lang::text("Ilha central", "Center Island"), scheme)),
-            Box::new(Row::new(vec![
-                boxed(chip("sv:center-left", crate::lang::text("Esquerda", "Left"), 100.0, center_alignment == "left", scheme, || Settings::set_center_alignment("left"))),
-                boxed(chip("sv:center-center", crate::lang::text("Centro", "Center"), 100.0, center_alignment == "center", scheme, || Settings::set_center_alignment("center"))),
-                boxed(chip("sv:center-right", crate::lang::text("Direita", "Right"), 100.0, center_alignment == "right", scheme, || Settings::set_center_alignment("right"))),
-            ]).gap(8.0).width(Parent)),
-            Box::new(section(TUNE, crate::lang::text("Posição do grupo de status", "Status group position"), scheme)),
-            Box::new(Row::new(vec![
-                boxed(chip("sv:status-left", crate::lang::text("Esquerda", "Left"), 100.0, status_alignment == "left", scheme, || Settings::set_status_alignment("left"))),
-                boxed(chip("sv:status-right", crate::lang::text("Direita", "Right"), 100.0, status_alignment == "right", scheme, || Settings::set_status_alignment("right"))),
-            ]).gap(8.0).width(Parent)),
             Box::new(section(TUNE, crate::lang::text("Posição de cada indicador", "Individual indicator placement"), scheme)),
             boxed(indicator_position(crate::lang::text("Wi-Fi", "Wi-Fi"), "network", &network_position, scheme)),
             boxed(indicator_position(crate::lang::text("Bluetooth", "Bluetooth"), "bluetooth", &bluetooth_position, scheme)),
@@ -340,28 +315,6 @@ pub fn window() -> Window {
         ])
         .gap(10.0)
         .width(Parent),
-    );
-
-    let media_settings = settings_card(WIDTH - PADDING * 2.0, 184.0, scheme.surface_container_low).child(
-        Column::new(vec![
-            Box::new(section(MUSIC, crate::lang::text("Player de mídia", "Media player"), scheme)),
-            Box::new(Row::new(vec![
-                boxed(chip("sv:media-title", crate::lang::text("Título", "Title"), 112.0, media_title, scheme, || { Settings::toggle_flag("media_show_title"); crate::ui::Ui::refresh(); })),
-                boxed(chip("sv:media-artist", crate::lang::text("Artista", "Artist"), 112.0, media_artist, scheme, || { Settings::toggle_flag("media_show_artist"); crate::ui::Ui::refresh(); })),
-                boxed(chip("sv:media-clock", crate::lang::text("Relógio", "Clock"), 112.0, media_clock, scheme, || { Settings::toggle_flag("media_show_clock"); crate::ui::Ui::refresh(); })),
-                boxed(chip("sv:media-artwork", crate::lang::text("Capa", "Artwork"), 112.0, media_artwork, scheme, || { Settings::toggle_flag("media_show_artwork"); crate::ui::Ui::refresh(); })),
-            ]).gap(8.0).width(Parent)),
-            Box::new(section(TUNE, crate::lang::text("Largura máxima do título", "Maximum title width"), scheme)),
-            Box::new(Row::new(vec![
-                boxed(chip("sv:media-width-104", "104 px", 72.0, media_title_max_width == 104, scheme, || Settings::set_media_title_max_width(104))),
-                boxed(chip("sv:media-width-160", "160 px", 72.0, media_title_max_width == 160, scheme, || Settings::set_media_title_max_width(160))),
-                boxed(chip("sv:media-width-220", "220 px", 72.0, media_title_max_width == 220, scheme, || Settings::set_media_title_max_width(220))),
-                boxed(chip("sv:media-width-280", "280 px", 72.0, media_title_max_width == 280, scheme, || Settings::set_media_title_max_width(280))),
-                boxed(chip("sv:media-width-320", "320 px", 72.0, media_title_max_width == 320, scheme, || Settings::set_media_title_max_width(320))),
-                boxed(chip("sv:media-width-400", "400 px", 72.0, media_title_max_width == 400, scheme, || Settings::set_media_title_max_width(400))),
-                boxed(chip("sv:media-width-520", "520 px", 72.0, media_title_max_width == 520, scheme, || Settings::set_media_title_max_width(520))),
-            ]).gap(6.0).width(Parent)),
-        ]).gap(9.0).width(Parent),
     );
 
     let appearance = settings_card(WIDTH - PADDING * 2.0, 330.0, scheme.surface_container_low).child(
@@ -534,7 +487,6 @@ pub fn window() -> Window {
                             Box::new(appearance),
                             Box::new(interface),
                             Box::new(positions),
-                            Box::new(media_settings),
                             Box::new(behavior),
                             Box::new(wallpapers),
                             Box::new(wallpaper_rotation_card),
