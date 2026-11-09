@@ -394,6 +394,26 @@ impl App {
                 }
                 _ => (error("Usage: cds theme color <hex> | cds theme set <image>"), Task::none()),
             },
+            IpcCommand::ClipboardPush { content } => match self.clipboard_history.push(&content) {
+                Ok(true) => (ok("Clipboard history updated"), Task::none()),
+                Ok(false) => (ok("Clipboard selection ignored"), Task::none()),
+                Err(error) => (error(error.to_string()), Task::none()),
+            },
+            IpcCommand::Clipboard { args } => match args.first().map(String::as_str) {
+                Some("clear") => match self.clipboard_history.clear() {
+                    Ok(()) => (ok("Clipboard history cleared"), Task::none()),
+                    Err(error) => (error(error.to_string()), Task::none()),
+                },
+                Some("list") | None => {
+                    let message = self.clipboard_history.entries().iter().take(20)
+                        .enumerate()
+                        .map(|(index, value)| format!("{}. {}", index + 1, clipboard_preview(value)))
+                        .collect::<Vec<_>>()
+                        .join("\n");
+                    (ok(message), Task::none())
+                }
+                _ => (error("Usage: cds clipboard list | cds clipboard clear"), Task::none()),
+            },
             IpcCommand::Weather => (
                 error("The weather service is part of the next migration step"),
                 Task::none(),
