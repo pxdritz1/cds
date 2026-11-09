@@ -81,6 +81,10 @@ enum Message {
     Eyedropper,
     EyedropperResult(Result<String, String>),
     ThemeGenerated(Result<crate::services::theme::ThemeTokens, String>),
+    ClipboardQuery(String),
+    ClipboardMove(isize),
+    CopyClipboard(String),
+    ClearClipboard,
 }
 
 struct App {
@@ -98,6 +102,9 @@ struct App {
     color_hex: String,
     last_error: Option<String>,
     theme_tokens: Option<crate::services::theme::ThemeTokens>,
+    clipboard_history: crate::services::clipboard::ClipboardHistory,
+    clipboard_query: String,
+    clipboard_selected: usize,
 }
 
 impl App {
@@ -120,6 +127,9 @@ impl App {
             color_hex: "#6750A4".into(),
             last_error: None,
             theme_tokens: crate::services::theme::ThemeTokens::load().ok().flatten(),
+            clipboard_history: crate::services::clipboard::ClipboardHistory::load(),
+            clipboard_query: String::new(),
+            clipboard_selected: 0,
         }
     }
 
@@ -169,6 +179,24 @@ impl App {
                     key: keyboard::Key::Named(keyboard::key::Named::Escape),
                     ..
                 }) => self.close_active(),
+                Event::Keyboard(keyboard::Event::KeyPressed {
+                    key: keyboard::Key::Named(keyboard::key::Named::ArrowDown),
+                    ..
+                }) if self.active_panel_is(Panel::Clipboard) => Task::done(Message::ClipboardMove(1)),
+                Event::Keyboard(keyboard::Event::KeyPressed {
+                    key: keyboard::Key::Named(keyboard::key::Named::ArrowUp),
+                    ..
+                }) if self.active_panel_is(Panel::Clipboard) => Task::done(Message::ClipboardMove(-1)),
+                Event::Keyboard(keyboard::Event::KeyPressed {
+                    key: keyboard::Key::Named(keyboard::key::Named::Enter),
+                    ..
+                }) if self.active_panel_is(Panel::Clipboard) => {
+                    let selected = self.clipboard_history
+                        .search(&self.clipboard_query, crate::services::clipboard::HISTORY_LIMIT)
+                        .get(self.clipboard_selected)
+                        .cloned();
+                    selected.map_or_else(Task::none, |value| Task::done(Message::CopyClipboard(value)))
+                }
                 _ => Task::none(),
             },
             Message::WindowClosed(id) => {
@@ -312,6 +340,37 @@ impl App {
                     Task::none()
                 }
             },
+            Message::ClipboardQuery(query) => {
+                self.clipboard_query = query;
+                self.clipboard_selected = 0;
+                Task::none()
+            }
+            Message::ClipboardMove(delta) => {
+                let count = self.clipboard_history.search(&self.clipboard_query, crate::services::clipboard::HISTORY_LIMIT).len();
+                if count > 0 {
+                    let last = count.saturating_sub(1) as isize;
+                    self.clipboard_selected = (self.clipboard_selected as isize + delta)
+                        .clamp(0, last) as usize;
+                }
+                Task::none()
+            }
+            Message::CopyClipboard(value) => Task::perform(
+                async move {
+                    crate::services::clipboard::copy_text(&value)
+                        .await
+                        .map_err(|error| error.to_string())
+                },
+                Message::ClipboardActionFinished,
+            ),
+            Message::ClearClipboard => {
+                if let Err(error) = self.clipboard_history.clear() {
+                    self.last_error = Some(error.to_string());
+                } else {
+                    self.clipboard_selected = 0;
+                    self.last_error = None;
+                }
+                Task::none()
+            }
             Message::ThemeGenerated(result) => match result {
                 Ok(theme) => {
                     self.theme_tokens = Some(theme);
@@ -573,6 +632,7 @@ impl App {
             Panel::Apps | Panel::Launcher | Panel::Spotlight => return self.apps_panel_view(panel, id),
             Panel::Emoji => return self.emoji_panel_view(id),
             Panel::Color => return self.color_panel_view(id),
+            Panel::Clipboard => return self.clipboard_panel_view(id),
             _ => {}
         }
 
@@ -822,6 +882,91 @@ impl App {
             .into()
     }
 
+    fn clipboard_panel_view(&self, id: window::Id) -> Element<'_, Message> {
+        let entries = self
+            .clipboard_history
+            .search(&self.clipboard_query, crate::services::clipboard::HISTORY_LIMIT);
+        let selected = self.clipboard_selected.min(entries.len().saturating_sub(1));
+        let mut rows: Vec<Element<'_, Message>> = Vec::new();
+
+        for (index, value) in entries.iter().enumerate() {
+            let marker = if index == selected { "●" } else { "○" };
+            rows.push(
+                button(
+                    row![
+                        text(marker).size(14),
+                        column![
+                            text(clipboard_preview(value)).size(14),
+                            text(clipboard_meta(value)).size(11),
+                        ]
+                        .spacing(2),
+                    ]
+                    .spacing(12)
+                    .align_y(Alignment::Center),
+                )
+                .width(Length::Fill)
+                .on_press(Message::CopyClipboard(value.clone()))
+                .into(),
+            );
+        }
+
+        let list: Element<'_, Message> = if rows.is_empty() {
+            container(
+                column![
+                    text("O clipboard está vazio").size(16),
+                    text("Copie algo para aparecer aqui.").size(12),
+                ]
+                .spacing(8)
+                .align_x(Alignment::Center),
+            )
+            .width(Length::Fill)
+            .padding(28)
+            .into()
+        } else {
+            scrollable(column(rows).spacing(4))
+                .height(Length::Fixed(330.0))
+                .into()
+        };
+
+        let body = column![
+            row![
+                text("Área de transferência").size(22),
+                button("Limpar").on_press(Message::ClearClipboard),
+            ]
+            .spacing(12)
+            .align_y(Alignment::Center),
+            text_input("Buscar no clipboard…", &self.clipboard_query)
+                .on_input(Message::ClipboardQuery)
+                .padding(12),
+            list,
+            text(format!("{} itens · ↑↓ selecionar · Enter copiar · Esc fechar", entries.len())).size(11),
+            button("Fechar").on_press(Message::CloseWindow(id)),
+        ]
+        .spacing(12);
+
+        let card = container(body)
+            .padding(24)
+            .max_width(700)
+            .style(self.surface_style(0.98));
+
+        container(card)
+            .width(Length::Fill)
+            .height(Length::Fill)
+            .center_x(Length::Fill)
+            .center_y(Length::Fill)
+            .style(|_| container::Style {
+                background: Some(Background::Color(Color::from_rgba(0.02, 0.02, 0.03, 0.48))),
+                ..Default::default()
+            })
+            .into()
+    }
+
+    fn active_panel_is(&self, panel: Panel) -> bool {
+        self.active_panel
+            .and_then(|id| self.windows.get(&id))
+            .is_some_and(|kind| matches!(kind, WindowKind::Panel(active) if *active == panel))
+    }
+
     fn color_panel_view(&self, id: window::Id) -> Element<'_, Message> {
         let picker = iced_aw::widget::color_picker::ColorPicker::new(
             self.color_picker_open,
@@ -911,6 +1056,25 @@ impl App {
         .center_y(Length::Fill)
         .into()
     }
+}
+
+fn clipboard_preview(value: &str) -> String {
+    let flat = value.split_whitespace().collect::<Vec<_>>().join(" ");
+    if flat.chars().count() > 78 {
+        let mut preview = flat.chars().take(77).collect::<String>();
+        preview.push('…');
+        preview
+    } else {
+        flat
+    }
+}
+
+fn clipboard_meta(value: &str) -> String {
+    format!(
+        "{} caracteres · {} linhas",
+        value.chars().count(),
+        value.lines().count().max(1)
+    )
 }
 
 fn app_icon(path: Option<&std::path::PathBuf>) -> Element<'static, Message> {
