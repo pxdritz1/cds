@@ -39,6 +39,7 @@ pub struct Settings {
     wallpaper_rotation: bool,
     wallpaper_interval_minutes: u32,
     motion_style: String,
+    pinned_apps: BTreeMap<String, bool>,
     workspaces_alignment: String,
     center_alignment: String,
     status_alignment: String,
@@ -65,6 +66,7 @@ impl Service for Settings {
             wallpaper_rotation: false,
             wallpaper_interval_minutes: 30,
             motion_style: String::from("m3"),
+            pinned_apps: BTreeMap::new(),
             workspaces_alignment: String::from("left"),
             center_alignment: String::from("center"),
             status_alignment: String::from("right"),
@@ -164,6 +166,26 @@ impl Settings {
 
     pub fn wallpaper_rotation(&self) -> bool {
         self.wallpaper_rotation
+    }
+
+    pub fn motion_style(&self) -> &str {
+        &self.motion_style
+    }
+
+    pub fn is_pinned(&self, exec: &str) -> bool {
+        self.pinned_apps.get(exec).copied().unwrap_or(false)
+    }
+
+    pub fn toggle_pinned(exec: &str) {
+        let mut settings = Self::write();
+        if settings.is_pinned(exec) {
+            settings.pinned_apps.remove(exec);
+        } else {
+            settings.pinned_apps.insert(String::from(exec), true);
+        }
+        settings.save();
+        drop(settings);
+        crate::ui::Ui::refresh();
     }
 
     pub fn wallpaper_interval_minutes(&self) -> u32 {
@@ -564,7 +586,9 @@ impl Settings {
                     self.hover_delay_ms = value.parse::<u64>().unwrap_or(500).clamp(100, 2000)
                 },
                 other => {
-                    if let Some(name) = other.strip_prefix("flag.") {
+                    if let Some(exec) = other.strip_prefix("pinned.") {
+                        self.pinned_apps.insert(String::from(exec), value == "true");
+                    } else if let Some(name) = other.strip_prefix("flag.") {
                         if !matches!(name, "show_dock" | "dock_magnification" | "dock_reserve_space" | "dock_auto_hide") {
                             self.flags.insert(String::from(name), value == "true");
                         }
@@ -601,6 +625,10 @@ impl Settings {
 
         for (name, value) in &self.status_positions {
             text.push_str(&format!("status_position.{name}={value}\n"));
+        }
+
+        for (exec, value) in &self.pinned_apps {
+            text.push_str(&format!("pinned.{exec}={value}\n"));
         }
 
         for (name, value) in &self.flags {
