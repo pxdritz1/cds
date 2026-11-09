@@ -1,23 +1,17 @@
 use std::path::Path as FsPath;
 
 use amane::{
-    Apps, Center, Column, Image, Media, Notification, Notifications, Padding, Parent,
-    Rectangle, Row, Service, SpaceBetween, Widget,
+    Apps, Center, Column, Image, Notification, Notifications, Padding, Parent,
+    Rectangle, Row, Service, Widget,
 };
 
-use crate::m3::{self, Type};
+use crate::m3;
 
-use crate::art::{artwork, media_labels};
-use crate::clock::Clock;
 use crate::theme::Scheme;
-use crate::settings::Settings;
 use super::widgets::{
     BELL, CLOSE, boxed, icon, icon_button, label,
 };
 
-pub const MEDIA_WIDTH: f32 = 300.0;
-pub const MEDIA_COMPACT_HEIGHT: f32 = 40.0;
-pub const MEDIA_HEIGHT: f32 = 71.0;
 pub const NOTICE_COMPACT_MIN_WIDTH: f32 = 104.0;
 pub const NOTICE_COMPACT_MAX_WIDTH: f32 = 700.0;
 pub const NOTICE_COMPACT_HEIGHT: f32 = 40.0;
@@ -44,175 +38,6 @@ pub fn notice_compact_width(notification: &Notification) -> f32 {
     (title_width + 32.0 + 10.0 + 28.0)
         .max(NOTICE_COMPACT_MIN_WIDTH)
         .min(NOTICE_COMPACT_MAX_WIDTH)
-}
-
-/// Calculate the media island width from visible content and the configured title limit.
-pub fn media_width() -> f32 {
-    let media = Media::read();
-    let (title, _) = media_labels(&media);
-    let settings = Settings::read();
-    let show_title = settings.flag("media_show_title");
-    let show_artist = settings.flag("media_show_artist");
-    let show_clock = settings.flag("media_show_clock");
-    let show_artwork = settings.flag("media_show_artwork");
-    let max_title_width = settings.media_title_max_width() as f32;
-    drop(settings);
-
-    let info_width = media_info_width(&title, show_title, show_artist, max_title_width);
-    let mut count = 2usize;
-    let mut content = 64.0;
-    if show_artwork { count += 1; content += 38.0; }
-    if info_width > 0.0 { count += 1; content += info_width; }
-    if show_clock { count += 1; content += 42.0; }
-    (content + count.saturating_sub(1) as f32 * 5.0 + 20.0).max(MEDIA_WIDTH).min(740.0)
-}
-
-fn media_info_width(title: &str, show_title: bool, show_artist: bool, max_width: f32) -> f32 {
-    if !show_title && !show_artist { return 0.0; }
-    if !show_title { return 104.0; }
-    let measured_text = m3::text(title, 13.0, amane::Color::TRANSPARENT, amane::Weight::SemiBold);
-    let measured = m3::measured(&measured_text);
-    let estimated = if measured > 0.0 {
-        measured + 4.0
-    } else {
-        title.chars().map(|c| {
-            if c.is_whitespace() || "ilI.,'!:;|".contains(c) { 3.8 }
-            else if "MW@#%&".contains(c) { 10.0 }
-            else if c.is_ascii_uppercase() { 8.2 }
-            else if c.is_ascii() { 7.0 }
-            else { 8.5 }
-        }).sum::<f32>() + 4.0
-    };
-    estimated.max(104.0).min(max_width.max(104.0))
-}
-
-fn media_title_label(content: String, size: f32, color: amane::Color, weight: amane::Weight, width: f32) -> Rectangle {
-    Rectangle::new().width(width).height(18.0).clip()
-        .align_child(amane::Start, Center)
-        .child(m3::text(content, size, color, weight))
-}
-
-pub fn media(scheme: &Scheme, alpha: f32, expanded: bool) -> Box<dyn Widget> {
-    let media = Media::read();
-    let playing = media.playing();
-    let glyph = if playing { m3::PAUSE } else { m3::PLAY };
-    let (title, artist) = media_labels(&media);
-
-    let settings = Settings::read();
-    let show_title = settings.flag("media_show_title");
-    let show_artist = settings.flag("media_show_artist");
-    let show_clock = settings.flag("media_show_clock");
-    let show_artwork = settings.flag("media_show_artwork");
-    let title_max_width = settings.media_title_max_width() as f32;
-    drop(settings);
-
-    let info_width = media_info_width(&title, show_title, show_artist, title_max_width);
-    let mut info_lines: Vec<Box<dyn Widget>> = Vec::new();
-    if show_title {
-        info_lines.push(boxed(media_title_label(title, 13.0, scheme.on_surface, amane::Weight::SemiBold, info_width)));
-    }
-    if show_artist {
-        info_lines.push(boxed(m3::scale_label(Type::LabelSmall, artist, scheme.on_surface_variant, 1)));
-    }
-    let info = if info_lines.is_empty() {
-        None
-    } else {
-        Some(boxed(Column::new(info_lines).gap(1.0).width(info_width)))
-    };
-
-    let clock_view = if show_clock {
-        let clock = Clock::read();
-        let clock_column = Column::new(vec![
-            boxed(m3::scale_label(Type::LabelMedium, clock.time(true), scheme.on_surface, 1)),
-            boxed(m3::scale_label(Type::LabelSmall, clock.short_date(), scheme.on_surface_variant, 1)),
-        ]).gap(1.0).width(42.0).align(Center);
-        let clock_height = if expanded { 46.0 } else { 34.0 };
-        Some(boxed(Rectangle::new().width(42.0).height(clock_height).align_child(Center, Center).child(clock_column)))
-    } else { None };
-
-    let mut row_children: Vec<Box<dyn Widget>> = Vec::new();
-    if show_artwork {
-        let artwork_size = if expanded { 38.0 } else { 28.0 };
-        row_children.push(boxed(artwork(media.art_url(), artwork_size, 12.0, scheme)));
-    }
-    if let Some(info) = info { row_children.push(info); }
-    row_children.push(boxed(m3::round_button(
-        "peek-play",
-        glyph,
-        if expanded { 34.0 } else { 30.0 },
-        scheme.primary,
-        scheme.on_primary,
-        Media::play_pause,
-    )));
-    row_children.push(boxed(m3::round_button(
-        "peek-next",
-        m3::NEXT,
-        if expanded { 30.0 } else { 28.0 },
-        scheme.secondary_container,
-        scheme.on_secondary_container,
-        Media::next,
-    )));
-    if let Some(clock_view) = clock_view { row_children.push(clock_view); }
-
-    let row_height = if expanded { 46.0 } else { 34.0 };
-    let row = Row::new(row_children).gap(5.0).align(Center).width(Parent).height(row_height);
-
-    let position = media.position().as_secs();
-    let length = media.length().as_secs();
-    let fraction = if length > 0 {
-        position as f32 / length as f32
-    } else {
-        0.0
-    };
-
-    let timeline = Row::new(vec![
-        boxed(m3::scale(
-            Type::LabelSmall,
-            format_time(position),
-            scheme.on_surface_variant,
-        )),
-        boxed(m3::progress_line(
-            fraction,
-            154.0,
-            scheme.primary,
-            scheme.surface_container_highest,
-        )),
-        boxed(m3::scale(
-            Type::LabelSmall,
-            format_time(length),
-            scheme.on_surface_variant,
-        )),
-    ])
-    .gap(6.0)
-    .align(Center)
-    .justify(SpaceBetween)
-    .width(Parent)
-    .height(18.0);
-
-    let mut content_children = vec![boxed(row)];
-    if expanded {
-        content_children.push(boxed(timeline));
-    }
-
-    let content = Column::new(content_children)
-        .gap(1.0)
-        .width(Parent)
-        .height(Parent);
-
-    boxed(
-        Rectangle::new()
-            .width(Parent)
-            .height(Parent)
-            .opacity(alpha)
-            .cursor(amane::Pointer)
-            .padding(Padding {
-                top: 3.0,
-                right: 10.0,
-                bottom: 3.0,
-                left: 10.0,
-            })
-            .child(content),
-    )
 }
 
 pub fn notice_compact(
@@ -406,24 +231,3 @@ fn decode_file_url_path(value: &str) -> Option<String> {
 }
 
 
-
-
-fn marquee_label(
-    content: String,
-    size: f32,
-    color: amane::Color,
-    weight: amane::Weight,
-) -> Rectangle {
-    const VIEWPORT: f32 = 104.0;
-
-    Rectangle::new()
-        .width(VIEWPORT)
-        .height(18.0)
-        .clip()
-        .align_child(amane::Start, Center)
-        .child(m3::text(content, size, color, weight))
-}
-
-fn format_time(seconds: u64) -> String {
-    format!("{:02}:{:02}", seconds / 60, seconds % 60)
-}
