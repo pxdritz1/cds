@@ -28,7 +28,6 @@ fail() {
 
 command -v pacman >/dev/null 2>&1 || fail "This installer currently supports Arch Linux and CachyOS only."
 command -v sudo >/dev/null 2>&1 || fail "sudo is required."
-command -v git >/dev/null 2>&1 || true
 
 log "Installing system dependencies."
 sudo pacman -S --needed --noconfirm \
@@ -80,7 +79,6 @@ amane new "$amane_config"
 log "Installing Chloe Dynamic Shell sources."
 mkdir -p "$amane_config/src"
 cp -a "$repo_root/src/." "$amane_config/src/"
-cp "$repo_root/Cargo.toml" "$amane_config/CDS-Cargo.toml"
 
 log "Compiling Chloe Dynamic Shell."
 amane compile
@@ -107,10 +105,9 @@ text = path.read_text()
 lines = text.splitlines()
 output = []
 section = []
-header = None
 
 def flush():
-    global section, header
+    global section
     if not section:
         return
     block = "\n".join(section)
@@ -121,7 +118,6 @@ def flush():
     else:
         output.extend(section)
     section = []
-    header = None
 
 for line in lines:
     if re.match(r"^\s*\[", line):
