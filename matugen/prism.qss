@@ -1,0 +1,34 @@
+QWidget {
+    color: palette(window-text);
+    background-color: palette(window);
+    selection-background-color: palette(highlight);
+    selection-color: palette(highlighted-text);
+}
+QLineEdit, QTextEdit, QPlainTextEdit, QComboBox, QSpinBox, QDoubleSpinBox {
+    color: palette(text);
+    background-color: palette(base);
+    border: 1px solid palette(mid);
+    selection-background-color: palette(highlight);
+    selection-color: palette(highlighted-text);
+}
+QPushButton, QToolButton {
+    color: palette(button-text);
+    background-color: palette(button);
+    border: 1px solid palette(mid);
+    padding: 4px 8px;
+}
+QPushButton:hover, QToolButton:hover {
+    border-color: palette(highlight);
+}
+QTabBar::tab:selected {
+    color: palette(highlighted-text);
+    background-color: palette(highlight);
+}
+QMenu, QMenuBar {
+    color: palette(window-text);
+    background-color: palette(window);
+}
+QToolTip {
+    color: palette(tooltip-text);
+    background-color: palette(tooltip-base);
+}
