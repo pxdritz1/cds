@@ -30,7 +30,7 @@ command -v sudo >/dev/null 2>&1 || fail "sudo is required."
 
 log "Installing native build and runtime dependencies."
 sudo pacman -S --needed --noconfirm \
-    base-devel git rustup pkgconf gcc \
+    base-devel git rustup pkgconf gcc clang llvm \
     wayland libxkbcommon fontconfig freetype2 expat vulkan-icd-loader \
     libpulse pam curl python \
     wl-clipboard hyprpicker swayidle brightnessctl grim slurp \
