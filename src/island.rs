@@ -9,7 +9,7 @@ use std::time::{Duration, Instant, SystemTime};
 
 use amane::{
     Align, Button, Center, Column, End, Full, Horizontal, InputArea, Key, Keyboard, Layer, LayerWindow,
-    Margin, Media, Monitor, Notification, Notifications, Padding, Parent, Pointer, Rectangle,
+    Margin, Monitor, Notification, Notifications, Padding, Parent, Pointer, Rectangle,
     Service, Shadow, Stack, Start, Vertical, Widget, Zone,
 };
 
@@ -22,6 +22,9 @@ use crate::ui::Ui;
 
 const RESERVED: f32 = 52.0;
 const BAR_HEIGHT: f32 = 40.0;
+const NOTCH_WIDTH: f32 = 260.0;
+const NOTCH_HEIGHT: f32 = 44.0;
+const NOTCH_RADIUS: f32 = 22.0;
 const MARGIN: i32 = 10;
 const NOTICE_TIME: Duration = Duration::from_secs(5);
 
@@ -72,11 +75,10 @@ const TRAY_PADDING: f32 = 8.0;
 // what the center island is showing, which decides its size and how content fades
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum IslandMode {
-    Compact = 0,       // the clock
-    Media = 1,         // the player-and-clock sheet
-    NoticeCompact = 2, // a notification arriving
-    Notice = 3,        // an expanded notification preview
-    Dash = 4,          // the full dash
+    Compact = 0,       // the top notch and clock
+    NoticeCompact = 1, // a notification arriving
+    Notice = 2,        // an expanded notification preview
+    Dash = 3,          // the full dash
 }
 
 fn hidden_window(namespace: &'static str) -> LayerWindow {
@@ -96,14 +98,8 @@ pub fn reserve(monitor: &Monitor) -> LayerWindow {
     }
 
     let ui = Ui::read();
-    let media_visible = Media::read().playing()
-        && !ui.media_sheet()
-        && !ui.dash()
-        && !notification_preview_active();
     let notice_active = notification_preview_active() && !ui.dash();
-    let reserved_height = if media_visible {
-        RESERVED
-    } else if notice_active && ui.hover() {
+    let reserved_height = if notice_active && ui.hover() {
         peek::NOTICE_HEIGHT + 6.0
     } else if notice_active {
         peek::NOTICE_COMPACT_HEIGHT + 6.0
@@ -137,6 +133,25 @@ fn surface(width: f32, height: f32, radius: f32, fill: amane::Color, scheme: &Sc
         .height(height)
         .fill(fill)
         .radius(radius)
+        .clip()
+        .shadow(
+            Shadow::drop(scheme.shadow)
+                .opacity(0.38)
+                .blur(24.0)
+                .offset(0.0, 8.0),
+        )
+        .border(1.0, fade(scheme.outline_variant, 80))
+}
+
+
+// A notch hangs from the top edge: square upper corners, curved lower corners.
+fn notch_surface(width: f32, height: f32, radius: f32, fill: amane::Color, scheme: &Scheme) -> Rectangle {
+    Rectangle::new()
+        .width(width)
+        .height(height)
+        .fill(fill)
+        .radius_bottom_left(radius)
+        .radius_bottom_right(radius)
         .clip()
         .shadow(
             Shadow::drop(scheme.shadow)
@@ -363,31 +378,8 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
     let theme = Theme::read();
     let scheme = theme.scheme();
     let notifications = Notifications::read();
-    let has_media = Media::read().playing();
-    if !has_media {
-        Ui::reset_media_sheet();
-    }
     let notice = recent(&notifications);
-
-    // Never acquire the Ui write lock while a Ui read guard is alive.
-    // The media sheet is click-only, so clear a stale hover before taking
-    // the read guard used to build this frame.
-    let clear_media_hover = {
-        let ui = Ui::read();
-        !ui.dash()
-            && notice.is_none()
-            && has_media
-            && !ui.media_sheet()
-            && ui.hover()
-    };
-
-    if clear_media_hover {
-        Ui::set_hover(false);
-    }
-
     let ui = Ui::read();
-
-    let media_hover_key = format!("media-island:{}", monitor.name);
 
     let mode = if ui.dash() {
         IslandMode::Dash
@@ -395,8 +387,6 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
         IslandMode::Notice
     } else if notice.is_some() {
         IslandMode::NoticeCompact
-    } else if has_media && !ui.media_sheet() {
-        IslandMode::Media
     } else {
         IslandMode::Compact
     };
@@ -442,22 +432,10 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
             }
         },
 
-        // Keep the media player inside the exact same 260x40 footprint as
-        // the regular center island. Playback changes content, never geometry.
-        IslandMode::Media => {
-            let expanded = motion::hover(&media_hover_key) > 0.5;
-            (
-                peek::media(scheme, alpha, expanded),
-                if expanded { peek::media_width().min(520.0) } else { 260.0 },
-                if expanded { peek::MEDIA_HEIGHT } else { BAR_HEIGHT },
-                if expanded { peek::MEDIA_HEIGHT / 2.0 } else { crate::m3::shape::ISLAND_COMPACT },
-            )
-        },
-
         IslandMode::Compact => {
-            let (content, width) = compact::clock(scheme, alpha);
+            let (content, _) = compact::clock(scheme, alpha);
 
-            (content, width, BAR_HEIGHT, crate::m3::shape::ISLAND_COMPACT)
+            (content, NOTCH_WIDTH, NOTCH_HEIGHT, NOTCH_RADIUS)
         }
     };
 
@@ -472,26 +450,16 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
 
     let fill = motion::color("island-fill", target, motion::SELECT_DURATION);
 
-    let mut island = surface(width, height, radius, fill, scheme);
-
-    // The media sheet is click-only: hovering it never reveals the dash.
-    if mode == IslandMode::Media {
-        let hover_key = media_hover_key;
-        island = island
-            .cursor(Pointer)
-            .on_hover(move |inside| {
-                motion::set_hover(hover_key.clone(), inside);
-            });
+    let mut island = if mode == IslandMode::Compact {
+        notch_surface(width, height, NOTCH_RADIUS, fill, scheme)
     } else {
-        island = island.on_hover(Ui::set_hover);
+        surface(width, height, radius, fill, scheme)
     }
+    .on_hover(Ui::set_hover);
 
-    // The player sheet has its own clock and transport controls.
-    // Do not attach a parent click handler: it would swallow the clock's
-    // action for switching back to the compact island.
     if ui.dash() {
         island = island.on_click(|_| {});
-    } else if mode != IslandMode::Media {
+    } else {
         island = island.on_click(|_| Ui::toggle());
     }
 
@@ -539,7 +507,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
         .namespace("cds-island")
         .input_region(vec![InputArea {
             x: region_x as i32,
-            y: if overlay_open { 0 } else { MARGIN },
+            y: if overlay_open { 0 } else { 0 },
             width: region_width.ceil() as i32,
             height: region_height.ceil() as i32,
         }])
@@ -552,10 +520,10 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
             Rectangle::new()
                 .width(Parent)
                 .height(Parent)
-                .padding(shadow_room(alignment != "center"))
+                .padding(Padding { top: 0.0, right: 0.0, bottom: 0.0, left: 0.0 })
                 .align_child(match alignment.as_str() { "left" => Align::from(Start), "right" => Align::from(End), _ => Center.into() }, Start)
                 .on_click(move |button| {
-                    if button == Button::Left && mode != IslandMode::Media {
+                    if button == Button::Left {
                         Ui::close();
                     }
                 })
