@@ -27,3 +27,5 @@ jobs:
         run: cargo fmt --all
       - name: Check native binary
         run: cargo check --bin cds
+      - name: Run native unit tests
+        run: cargo test --bin cds
