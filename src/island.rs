@@ -419,7 +419,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
         IslandMode::NoticeCompact => match notice {
             Some(notification) => (
                 peek::notice_compact(scheme, notification, alpha),
-                peek::NOTICE_COMPACT_WIDTH,
+                peek::notice_compact_width(notification),
                 peek::NOTICE_COMPACT_HEIGHT,
                 peek::NOTICE_COMPACT_HEIGHT / 2.0,
             ),
