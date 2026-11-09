@@ -25,7 +25,8 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
 
     let open = Overlay::read().panel() == Panel::Apps;
 
-    let list = Apps::read().list().to_vec();
+    let apps = Apps::read();
+    let list = apps.list();
 
     let mut rows: Vec<Box<dyn Widget>> = Vec::new();
 
@@ -121,7 +122,7 @@ fn app_tile(app: &DesktopApp, scheme: &Scheme, index: usize) -> Rectangle {
     let owned = String::from(key);
 
     let icon_box: Box<dyn Widget> = match app.icon_path() {
-        Some(path) if Image::loaded(path) => {
+        Some(path) if path.is_file() => {
             let pixels = 88u32;
 
             Box::new(

@@ -258,7 +258,7 @@ fn result_row(scheme: &Scheme, app: &DesktopApp, index: usize, selected: bool) -
     let (fill, color) = row_fill(&key, selected, scheme);
 
     let icon_box: Box<dyn Widget> = match app.icon_path() {
-        Some(path) if Image::loaded(path) => boxed(
+        Some(path) if path.is_file() => boxed(
             Rectangle::new()
                 .width(36.0)
                 .height(36.0)

@@ -79,12 +79,22 @@ impl Overlay {
         Ui::close();
         crate::tray::Tray::close();
 
+        if Self::read().panel == Panel::Launcher && panel != Panel::Launcher {
+            crate::launcher::Launcher::reset();
+        }
+
         Self::write().panel = panel;
     }
 
     pub fn close() {
-        if Self::read().panel == Panel::None {
+        let panel = Self::read().panel;
+
+        if panel == Panel::None {
             return;
+        }
+
+        if panel == Panel::Launcher {
+            crate::launcher::Launcher::reset();
         }
 
         Self::write().panel = Panel::None;
@@ -96,6 +106,10 @@ impl Overlay {
 
         if panel == Panel::None {
             return;
+        }
+
+        if panel == Panel::Launcher {
+            crate::launcher::Launcher::reset();
         }
 
         Self::write().panel = Panel::None;
