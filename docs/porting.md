@@ -11,8 +11,21 @@ This is the parity contract for the Iced rewrite. The old implementation is the 
 | Layer-shell bar and overlays | wlr-layer-shell via iced_exwlshell | Foundation committed; visual parity pending |
 | ext-session-lock | iced_exwlshell session-lock actions | Crate selected; implementation pending |
 | IPC commands | Private Unix socket + `cds` CLI | Initial open/dash/close/lock route committed |
-| XDG paths | chloe-dynamic-shell config/cache/data dirs | Initial path helper committed |
+| XDG paths | `~/.config/cds`, `~/.cache/cds`, `~/.local/share/cds` | Standardized in native path helper |
 | Niri workspaces and focused window | `niri-ipc` event stream | Dependency selected; implementation pending |
+
+## Native crate capabilities
+
+| Capability | Crate | Planned use |
+| --- | --- | --- |
+| Iced widget extensions | `iced_aw` 0.14.1 | Color picker, context menus, tabs, menus and utility widgets |
+| Fuzzy search | `nucleo` 0.5 | Async search across desktop apps, actions, clipboard and emoji |
+| Emoji catalog | `emojis` 0.9 | Unicode 17 metadata, groups, shortcodes and skin-tone variants |
+| SVG artwork | `resvg` 0.49 | Render Noto emoji, app artwork and SVG assets to raster surfaces |
+| Image resizing | `fast_image_resize` 6.1 | SIMD thumbnails, cover art and wallpaper previews |
+| Image decoding | `image` 0.25 | PNG, JPEG, WebP, GIF, BMP and ICO assets |
+| Image cache | `lru` 0.18 | Bounded thumbnail and artwork cache |
+| Material color | `material-color-utils` 0.1.3 | HCT, dynamic M3 schemes and image-derived colors |
 
 ## Shell and panels
 

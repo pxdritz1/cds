@@ -5,7 +5,7 @@ repo_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 config_home="${XDG_CONFIG_HOME:-$HOME/.config}"
 data_home="${XDG_DATA_HOME:-$HOME/.local/share}"
 matugen_home="$config_home/matugen"
-template_home="$matugen_home/templates/chloe-dynamic-shell"
+template_home="$matugen_home/templates/cds"
 generated_home="$matugen_home/generated"
 prism_home="$data_home/PrismLauncher"
 flatpak_prism_home="$HOME/.var/app/org.prismlauncher.PrismLauncher/data/PrismLauncher"
@@ -48,15 +48,15 @@ entries = {
     "cds_prism_stylesheet": (templates / "prism.qss", prism_home / "themes/Chloe Dynamic Shell/themeStyle.css"),
     "cds_gtk3": (templates / "gtk.css", config_home / "gtk-3.0/colors.css"),
     "cds_gtk4": (templates / "gtk.css", config_home / "gtk-4.0/colors.css"),
-    "cds_qt5ct": (templates / "qtct.conf", config_home / "qt5ct/colors/chloe-dynamic-shell.conf"),
-    "cds_qt6ct": (templates / "qtct.conf", config_home / "qt6ct/colors/chloe-dynamic-shell.conf"),
+    "cds_qt5ct": (templates / "qtct.conf", config_home / "qt5ct/colors/cds.conf"),
+    "cds_qt6ct": (templates / "qtct.conf", config_home / "qt6ct/colors/cds.conf"),
     "cds_zen": (templates / "zen.css", generated / "zen-userChrome.css"),
     "cds_niri": (templates / "niri.kdl", config_home / "niri/matugen.kdl"),
     "cds_alacritty": (templates / "alacritty.toml", config_home / "alacritty/cds-colors.toml"),
-    "cds_kitty": (templates / "kitty.conf", config_home / "kitty/chloe-dynamic-shell.conf"),
-    "cds_micro": (templates / "micro.micro", config_home / "micro/colorschemes/chloe-dynamic-shell.micro"),
-    "cds_neovim": (templates / "neovim.lua", config_home / "nvim/colors/chloe-dynamic-shell.lua"),
-    "cds_helix": (templates / "helix.toml", config_home / "helix/themes/chloe-dynamic-shell.toml"),
+    "cds_kitty": (templates / "kitty.conf", config_home / "kitty/cds.conf"),
+    "cds_micro": (templates / "micro.micro", config_home / "micro/colorschemes/cds.micro"),
+    "cds_neovim": (templates / "neovim.lua", config_home / "nvim/colors/cds.lua"),
+    "cds_helix": (templates / "helix.toml", config_home / "helix/themes/cds.toml"),
     "cds_spicetify": (templates / "spicetify.ini", config_home / "spicetify/Themes/Comfy/color.ini"),
 }
 
@@ -245,7 +245,7 @@ if alacritty_updated != alacritty_old:
 # Kitty: include the generated palette from the main kitty.conf.
 ensure_line(
     config_home / "kitty/kitty.conf",
-    f"include {config_home}/kitty/chloe-dynamic-shell.conf"
+    f"include {config_home}/kitty/cds.conf"
 )
 
 # Micro: select the generated colorscheme in settings.json.
@@ -261,7 +261,7 @@ if micro_settings.exists():
     except json.JSONDecodeError:
         micro_settings_valid = False
 if micro_settings_valid:
-    micro_data["colorscheme"] = "chloe-dynamic-shell"
+    micro_data["colorscheme"] = "cds"
     micro_settings.parent.mkdir(parents=True, exist_ok=True)
     micro_serialized = json.dumps(micro_data, indent=4) + "\n"
     if not micro_settings.exists() or micro_settings.read_text() != micro_serialized:
@@ -275,7 +275,7 @@ nvim_dir = config_home / "nvim"
 nvim_lua = nvim_dir / "init.lua"
 nvim_vim = nvim_dir / "init.vim"
 if nvim_lua.exists() or not nvim_vim.exists():
-    ensure_line(nvim_lua, 'vim.cmd.colorscheme("chloe-dynamic-shell")')
+    ensure_line(nvim_lua, 'vim.cmd.colorscheme("cds")')
 else:
     ensure_line(nvim_vim, "colorscheme chloe-dynamic-shell")
 
@@ -284,7 +284,7 @@ set_toml_key(
     config_home / "helix/config.toml",
     "editor",
     "theme",
-    '"chloe-dynamic-shell"'
+    '"cds"'
 )
 
 # Spicetify: select Comfy and its Matugen-generated color scheme.

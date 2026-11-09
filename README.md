@@ -11,6 +11,11 @@ A native Rust desktop shell for Wayland and Niri, with a Material 3-inspired int
 - **zbus** for D-Bus integrations: MPRIS, StatusNotifier and notifications.
 - **niri-ipc** for Niri workspace and focused-window state.
 - **freedesktop-desktop-entry** and **freedesktop-icons** for desktop applications and icons.
+- `iced_aw` for the color picker, context menus, tabs and other Iced widgets.
+- `nucleo` for fast, asynchronous fuzzy search in Launcher, Spotlight and emoji search.
+- `emojis` for current Unicode emoji metadata, groups and skin-tone variants.
+- `resvg` and `fast_image_resize` for SVG artwork and SIMD-accelerated image resizing; `lru` for bounded image/artwork caches.
+- `material-color-utils` for Material 3 HCT, dynamic schemes and wallpaper-derived palette extraction.
 - Tokio, reqwest, notify, serde and supporting crates for asynchronous services and persistence.
 
 The shell targets Wayland compositors with wlr-layer-shell; Niri is the primary target. The lock screen requires compositor support for ext-session-lock and a working PAM configuration.
@@ -66,9 +71,9 @@ The command surface also reserves `cds tray`, `cds settings`, `cds theme` and `c
 
 ## Configuration and runtime paths
 
-- Settings: `~/.config/chloe-dynamic-shell/`
-- Cache: `~/.cache/chloe-dynamic-shell/`
-- Persistent data: `~/.local/share/chloe-dynamic-shell/`
+- Settings: `~/.config/cds/`
+- Cache: `~/.cache/cds/`
+- Persistent data: `~/.local/share/cds/`
 - IPC socket: `$XDG_RUNTIME_DIR/cds.sock`
 
 The executable and all shell-facing commands are named `cds`. No Amane CLI or Amane-generated project is used by this branch.

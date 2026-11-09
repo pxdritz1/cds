@@ -8,7 +8,7 @@ CDS is one native Rust process. Iced owns application state, the message loop, w
 - ext-session-lock for the lock screen.
 - Per-output surface lifecycle and shell events.
 
-The app starts through `cds daemon` or `cds run`. A Unix-domain IPC server lives at `$XDG_RUNTIME_DIR/cds.sock`; the `cds` CLI sends structured requests to the running process. The socket is private to the current user.
+The app starts through `cds daemon` or `cds run`. Settings live in `~/.config/cds/`, cache in `~/.cache/cds/`, and persistent data in `~/.local/share/cds/`. A Unix-domain IPC server lives at `$XDG_RUNTIME_DIR/cds.sock`; the `cds` CLI sends structured requests to the running process. The socket is private to the current user.
 
 ## Target module layout
 
@@ -51,6 +51,10 @@ The old `src/` tree is retained temporarily as a behavioral reference and is not
 - D-Bus calls and subprocesses are asynchronous; expensive parsing and image work stay off the UI thread.
 - Settings and caches use the XDG paths documented in the README.
 - Layer surfaces are tracked by Iced window ID and output; closing a surface removes its state.
+- Search uses the `nucleo` worker off the UI thread; result snapshots are sent back as Iced messages.
+- Emoji metadata comes from `emojis`; artwork is loaded from Noto SVG assets and rasterized through `resvg` where needed.
+- Image decode, SIMD resize (`fast_image_resize`), SVG rasterization and thumbnail generation happen in background tasks. A bounded `lru` cache avoids repeated decode work.
+- Material 3 source colors and tonal schemes use `material-color-utils`; the Matugen integration remains available for exporting colors to external applications.
 
 ## Design invariants
 
