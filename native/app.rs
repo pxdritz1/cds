@@ -197,7 +197,9 @@ impl App {
                 Event::Keyboard(keyboard::Event::KeyPressed {
                     key: keyboard::Key::Named(keyboard::key::Named::ArrowDown),
                     ..
-                }) if self.active_apps_panel() => Task::done(Message::AppsMove(1)),
+                }) if self.active_apps_panel() => Task::done(Message::AppsMove(
+                    if self.active_panel_is(Panel::Apps) { 6 } else { 1 }
+                )),
                 Event::Keyboard(keyboard::Event::KeyPressed {
                     key: keyboard::Key::Named(keyboard::key::Named::ArrowUp),
                     ..
@@ -205,7 +207,9 @@ impl App {
                 Event::Keyboard(keyboard::Event::KeyPressed {
                     key: keyboard::Key::Named(keyboard::key::Named::ArrowUp),
                     ..
-                }) if self.active_apps_panel() => Task::done(Message::AppsMove(-1)),
+                }) if self.active_apps_panel() => Task::done(Message::AppsMove(
+                    if self.active_panel_is(Panel::Apps) { -6 } else { -1 }
+                )),
                 Event::Keyboard(keyboard::Event::KeyPressed {
                     key: keyboard::Key::Named(keyboard::key::Named::Enter),
                     ..
@@ -216,6 +220,14 @@ impl App {
                         .cloned();
                     selected.map_or_else(Task::none, |value| Task::done(Message::CopyClipboard(value)))
                 }
+                Event::Keyboard(keyboard::Event::KeyPressed {
+                    key: keyboard::Key::Named(keyboard::key::Named::ArrowLeft),
+                    ..
+                }) if self.active_apps_panel() => Task::done(Message::AppsMove(-1)),
+                Event::Keyboard(keyboard::Event::KeyPressed {
+                    key: keyboard::Key::Named(keyboard::key::Named::ArrowRight),
+                    ..
+                }) if self.active_apps_panel() => Task::done(Message::AppsMove(1)),
                 Event::Keyboard(keyboard::Event::KeyPressed {
                     key: keyboard::Key::Named(keyboard::key::Named::Enter),
                     ..
@@ -805,7 +817,11 @@ impl App {
                         button(
                             column![
                                 icon,
-                                text(app.name.clone()).size(13),
+                                text(format!(
+                                    "{}{}",
+                                    if self.app_results.get(self.app_selected) == Some(&app.id) { "● " } else { "" },
+                                    app.name
+                                )).size(13),
                             ]
                             .spacing(8)
                             .align_x(Alignment::Center),
