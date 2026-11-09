@@ -162,65 +162,73 @@ fn notch_surface(width: f32, height: f32, radius: f32, fill: amane::Color, schem
         .border(1.0, fade(scheme.outline_variant, 80))
 }
 
+
+fn side_surface(width: f32, height: f32, fill: amane::Color, scheme: &Scheme, right_side: bool) -> Rectangle {
+    let surface = Rectangle::new()
+        .width(width)
+        .height(height)
+        .fill(fill);
+    let surface = if right_side {
+        surface.radius_bottom_left(NOTCH_RADIUS)
+    } else {
+        surface.radius_bottom_right(NOTCH_RADIUS)
+    };
+    surface
+        .clip()
+        .shadow(
+            Shadow::drop(scheme.shadow)
+                .opacity(0.38)
+                .blur(24.0)
+                .offset(0.0, 8.0),
+        )
+        .border(1.0, fade(scheme.outline_variant, 80))
+}
+
 pub fn left(monitor: &Monitor) -> LayerWindow {
-    let settings = Settings::read();
-    let enabled = settings.flag("show_workspaces");
-    let alignment = String::from(settings.workspaces_alignment());
-    drop(settings);
-    let top_margin = 0;
+    let enabled = Settings::read().flag("show_workspaces");
     if !enabled {
         return hidden_window("cds-left");
     }
 
-    let horizontal = if alignment == "right" {
-        Horizontal::Right
-    } else {
-        Horizontal::Left
-    };
-    let side_margin = Margin { top: top_margin, ..Margin::default() };
-
     let theme = Theme::read();
     let scheme = theme.scheme();
-
     let (bar, bar_width) = compact::workspaces(monitor, scheme);
+    let side_width = ((monitor.width as f32 - NOTCH_WIDTH) / 2.0).max(0.0);
 
-    let bar_row = Rectangle::new()
-        .width(Parent)
-        .height(BAR_HEIGHT)
-        .child(Stack::new(vec![bar]).width(Parent).height(Parent));
+    let island = side_surface(
+        side_width,
+        BAR_HEIGHT,
+        compact::base_fill(scheme),
+        scheme,
+        false,
+    )
+    .child(
+        Rectangle::new()
+            .width(Parent)
+            .height(Parent)
+            .padding(Padding { top: 0.0, right: 8.0, bottom: 0.0, left: 10.0 })
+            .align_child(Align::from(Start), Center)
+            .child(Stack::new(vec![bar]).width(Parent).height(Parent)),
+    );
 
-    let (width, height, radius) =
-        motion::follow(&format!("left:{}", monitor.name), bar_width, BAR_HEIGHT, BAR_HEIGHT / 2.0);
-
-    let island = surface(width, height, radius, compact::base_fill(scheme), scheme)
-        .child(Stack::new(vec![Box::new(bar_row)]).width(Parent).height(Parent));
-
-    let window = LayerWindow::new()
-        .width(LEFT_WIDTH)
+    LayerWindow::new()
+        .width(Full)
         .height(LEFT_HEIGHT)
         .anchor_vertical(Vertical::Top)
-        .anchor_horizontal(horizontal)
         .layer(Layer::Top)
         .space(Zone::Ignore)
-        .margin(side_margin)
-        .namespace("cds-left");
-    window
+        .namespace("cds-left")
         .input_region(vec![InputArea {
-            x: if alignment == "right" {
-                (LEFT_WIDTH - width - MARGIN as f32).max(0.0) as i32
-            } else {
-                MARGIN
-            },
-            y: MARGIN,
-            width: width.ceil() as i32,
-            height: height.ceil() as i32,
+            x: 0,
+            y: 0,
+            width: side_width.ceil() as i32,
+            height: BAR_HEIGHT.ceil() as i32,
         }])
         .child(
             Rectangle::new()
                 .width(Parent)
                 .height(Parent)
-                .padding(shadow_room(true))
-                .align_child(if alignment == "right" { Align::from(End) } else { Align::from(Start) }, Start)
+                .align_child(Align::from(Start), Start)
                 .child(island),
         )
 }
@@ -228,35 +236,21 @@ pub fn left(monitor: &Monitor) -> LayerWindow {
 pub fn right(monitor: &Monitor) -> LayerWindow {
     let settings = Settings::read();
     let enabled = settings.flag("show_status");
-    let alignment = String::from(settings.status_alignment());
     drop(settings);
-    let top_margin = 0;
     if !enabled {
         return hidden_window("cds-right");
     }
 
-    let horizontal = if alignment == "left" {
-        Horizontal::Left
-    } else {
-        Horizontal::Right
-    };
-    let side_margin = Margin { top: top_margin, ..Margin::default() };
-
     let theme = Theme::read();
     let scheme = theme.scheme();
-
     let tray_open = Tray::read().open();
     let tray_count = Tray::read().items().len();
-    let side_align = if alignment == "left" { Align::from(Start) } else { Align::from(End) };
     let (status, status_width) = compact::status(scheme);
+    let side_align = Align::from(End);
 
-    let (content, width, height, radius): (Box<dyn Widget>, f32, f32, f32) = if tray_open {
+    let (content, _width, height): (Box<dyn Widget>, f32, f32) = if tray_open {
         let (menu, menu_width, menu_height) = tray::menu(scheme);
-
-        // Center the single icon; keep a multi-icon tray aligned to the right.
-        let menu_slot = Rectangle::new()
-            .width(Parent)
-            .height(menu_height);
+        let menu_slot = Rectangle::new().width(Parent).height(menu_height);
         let menu_slot = if tray_count == 1 {
             menu_slot.align_child(Center, Center)
         } else {
@@ -277,29 +271,26 @@ pub fn right(monitor: &Monitor) -> LayerWindow {
                     .height(Parent)
                     .padding(Padding {
                         top: 0.0,
-                        right: TRAY_PADDING,
+                        right: 10.0,
                         bottom: TRAY_PADDING,
                         left: TRAY_PADDING,
                     })
                     .child(column),
             ),
-            f32::max(status_width, menu_width + TRAY_PADDING * 2.0),
+            menu_width.max(status_width) + TRAY_PADDING * 2.0,
             BAR_HEIGHT + TRAY_PADDING + menu_height + TRAY_PADDING,
-            TRAY_RADIUS,
         )
     } else {
-        (status, status_width, BAR_HEIGHT, BAR_HEIGHT / 2.0)
+        (status, status_width, BAR_HEIGHT)
     };
 
-    let (width, height, radius) = motion::follow(&format!("right:{}", monitor.name), width, height, radius);
-    let (width, height, radius) = (width, height, radius);
-
-    let island = surface(
-        width,
+    let side_width = ((monitor.width as f32 - NOTCH_WIDTH) / 2.0).max(0.0);
+    let island = side_surface(
+        side_width,
         height,
-        radius,
         compact::status_fill(scheme),
         scheme,
+        true,
     )
     .cursor(Pointer)
     .on_hover(|inside| motion::set_hover("status-island", inside))
@@ -308,30 +299,29 @@ pub fn right(monitor: &Monitor) -> LayerWindow {
             Overlay::toggle(Panel::Control);
         }
     })
-    .child(Stack::new(vec![content]).width(Parent).height(Parent));
-
-    let (region, keyboard) = (
-        vec![InputArea {
-            x: if alignment == "left" { MARGIN } else { (RIGHT_WIDTH - width - MARGIN as f32).max(0.0) as i32 },
-            y: MARGIN,
-            width: width.ceil() as i32,
-            height: height.ceil() as i32,
-        }],
-        if tray_open { Keyboard::OnDemand } else { Keyboard::None },
+    .child(
+        Rectangle::new()
+            .width(Parent)
+            .height(Parent)
+            .padding(Padding { top: 0.0, right: 10.0, bottom: 0.0, left: 8.0 })
+            .align_child(Align::from(End), Center)
+            .child(Stack::new(vec![content]).width(Parent).height(Parent)),
     );
 
-    let window = LayerWindow::new()
-        .width(RIGHT_WIDTH)
+    LayerWindow::new()
+        .width(Full)
         .height(RIGHT_HEIGHT)
         .anchor_vertical(Vertical::Top)
-        .anchor_horizontal(horizontal)
         .layer(Layer::Top)
         .space(Zone::Ignore)
-        .margin(side_margin)
-        .keyboard(keyboard)
-        .namespace("cds-right");
-    window
-        .input_region(region)
+        .keyboard(if tray_open { Keyboard::OnDemand } else { Keyboard::None })
+        .namespace("cds-right")
+        .input_region(vec![InputArea {
+            x: (monitor.width as f32 - side_width).max(0.0) as i32,
+            y: 0,
+            width: side_width.ceil() as i32,
+            height: height.ceil() as i32,
+        }])
         .on_key(|key| {
             if key == Key::Escape {
                 Tray::close();
@@ -341,8 +331,6 @@ pub fn right(monitor: &Monitor) -> LayerWindow {
             Rectangle::new()
                 .width(Parent)
                 .height(Parent)
-                // Leaving the tray's input area dismisses it. This does not
-                // open the tray on hover; it only observes pointer departure.
                 .on_hover(move |inside| {
                     if tray_open && !inside {
                         Tray::close();
@@ -353,8 +341,7 @@ pub fn right(monitor: &Monitor) -> LayerWindow {
                         Tray::close();
                     }
                 })
-                .padding(shadow_room(true))
-                .align_child(if alignment == "left" { Align::from(Start) } else { Align::from(End) }, Start)
+                .align_child(Align::from(End), Start)
                 .child(island),
         )
 }
