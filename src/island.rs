@@ -14,6 +14,7 @@ use amane::{
 };
 
 use crate::motion;
+use crate::m3::scale;
 use crate::settings::Settings;
 use crate::overlay::{Overlay, Panel};
 use crate::theme::{Scheme, Theme, fade};
