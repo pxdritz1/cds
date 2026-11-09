@@ -237,7 +237,7 @@ pub fn right(monitor: &Monitor) -> LayerWindow {
     let (status, status_width) = compact::status(scheme);
     let side_align = Align::from(End);
 
-    let (content, _width, height): (Box<dyn Widget>, f32, f32) = if tray_open {
+    let (content, content_width, height): (Box<dyn Widget>, f32, f32) = if tray_open {
         let (menu, menu_width, menu_height) = tray::menu(scheme);
         let menu_slot = Rectangle::new().width(Parent).height(menu_height);
         let menu_slot = if tray_count == 1 {
@@ -307,9 +307,9 @@ pub fn right(monitor: &Monitor) -> LayerWindow {
         .keyboard(if tray_open { Keyboard::OnDemand } else { Keyboard::None })
         .namespace("cds-right")
         .input_region(vec![InputArea {
-            x: (monitor.width as f32 - status_width - 20.0).max(side_width).max(0.0) as i32,
+            x: (monitor.width as f32 - content_width - 20.0).max(side_width).max(0.0) as i32,
             y: 0,
-            width: (status_width + 20.0).min(side_width).ceil() as i32,
+            width: (content_width + 20.0).min(side_width).ceil() as i32,
             height: surface_height.ceil() as i32,
         }])
         .on_key(|key| {
