@@ -63,10 +63,8 @@ pub(crate) fn notification_preview_active() -> bool {
 const CENTER_WIDTH: f32 = 760.0;
 const CENTER_HEIGHT: f32 = 480.0;
 
-const LEFT_WIDTH: f32 = 520.0;
 const LEFT_HEIGHT: f32 = 400.0;
 
-const RIGHT_WIDTH: f32 = 340.0;
 const RIGHT_HEIGHT: f32 = 400.0;
 
 const TRAY_RADIUS: f32 = 26.0;
@@ -221,7 +219,7 @@ pub fn left(monitor: &Monitor) -> LayerWindow {
         .input_region(vec![InputArea {
             x: 0,
             y: 0,
-            width: side_width.ceil() as i32,
+            width: (bar_width + 20.0).min(side_width).ceil() as i32,
             height: BAR_HEIGHT.ceil() as i32,
         }])
         .child(
@@ -317,9 +315,9 @@ pub fn right(monitor: &Monitor) -> LayerWindow {
         .keyboard(if tray_open { Keyboard::OnDemand } else { Keyboard::None })
         .namespace("cds-right")
         .input_region(vec![InputArea {
-            x: (monitor.width as f32 - side_width).max(0.0) as i32,
+            x: (monitor.width as f32 - status_width - 20.0).max(side_width).max(0.0) as i32,
             y: 0,
-            width: side_width.ceil() as i32,
+            width: (status_width + 20.0).min(side_width).ceil() as i32,
             height: height.ceil() as i32,
         }])
         .on_key(|key| {
@@ -347,19 +345,12 @@ pub fn right(monitor: &Monitor) -> LayerWindow {
 }
 
 pub fn view(monitor: &Monitor) -> LayerWindow {
-    let settings = Settings::read();
-    let enabled = settings.flag("show_center_island");
-    let alignment = String::from(settings.center_alignment());
-    drop(settings);
+    let enabled = Settings::read().flag("show_center_island");
     if !enabled {
         return hidden_window("cds-island");
     }
 
-    let horizontal = match alignment.as_str() {
-        "left" => Horizontal::Left,
-        "right" => Horizontal::Right,
-        _ => Horizontal::Middle,
-    };
+    let horizontal = Horizontal::Middle;
     let side_margin = Margin::default();
 
     let theme = Theme::read();
@@ -401,8 +392,8 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
                 peek::NOTICE_COMPACT_HEIGHT / 2.0,
             ),
             None => {
-                let (content, width) = compact::clock(scheme, alpha);
-                (content, width, BAR_HEIGHT, crate::m3::shape::ISLAND_COMPACT)
+                let (content, _) = compact::clock(scheme, alpha);
+                (content, NOTCH_WIDTH, NOTCH_HEIGHT, NOTCH_RADIUS)
             }
         },
 
@@ -469,12 +460,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
     let (region_x, region_width) = if overlay_open {
         (0.0, CENTER_WIDTH)
     } else {
-        let x = match alignment.as_str() {
-            "left" => MARGIN as f32,
-            "right" => (CENTER_WIDTH - width - MARGIN as f32).max(0.0),
-            _ => ((CENTER_WIDTH - width) / 2.0).max(0.0),
-        };
-        (x, width)
+        (((CENTER_WIDTH - width) / 2.0).max(0.0), width)
     };
 
     let region_height = if overlay_open { CENTER_HEIGHT } else { height };
@@ -508,7 +494,7 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
                 .width(Parent)
                 .height(Parent)
                 .padding(Padding { top: 0.0, right: 0.0, bottom: 0.0, left: 0.0 })
-                .align_child(match alignment.as_str() { "left" => Align::from(Start), "right" => Align::from(End), _ => Center.into() }, Start)
+                .align_child(Center, Start)
                 .on_click(move |button| {
                     if button == Button::Left {
                         Ui::close();
