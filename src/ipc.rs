@@ -156,7 +156,7 @@ fn toggle_dash(arguments: &[String]) -> String {
 fn settings_verb(arguments: &[String]) -> String {
     use crate::settings::{SCHEMES, Settings};
 
-    const USAGE: &str = "usage: settings wallpaper [image] | wallpapers | dark [true|false|toggle] | scheme [name] | directory [path] | location [lat,lon|auto] | motion [m3|fluent] | position <workspaces|center|status> <alignment> | clock [digital|analog] | refresh";
+    const USAGE: &str = "usage: settings wallpaper [image] | wallpapers | dark [true|false|toggle] | scheme [name] | directory [path] | location [lat,lon|auto] | motion [m3|fluent] | clock [digital|analog] | refresh";
 
     let [action, rest @ ..] = arguments else {
         return String::from(USAGE);
@@ -244,29 +244,12 @@ fn settings_verb(arguments: &[String]) -> String {
             _ => String::from("usage: settings motion [m3|fluent]"),
         },
 
-        "position" => match rest.as_slice() {
-            ["workspaces", alignment @ ("left" | "right")] => {
-                Settings::set_workspaces_alignment(alignment);
-                format!("ok: workspaces={alignment}")
+        "position" => {
+            if rest.is_empty() {
+                String::from("workspaces=left\ncenter=notch\nstatus=right")
+            } else {
+                String::from("failed: island positions are fixed (workspaces left, notch center, status right)")
             }
-            ["center", alignment @ ("left" | "center" | "right")] => {
-                Settings::set_center_alignment(alignment);
-                format!("ok: center={alignment}")
-            }
-            ["status", alignment @ ("left" | "right")] => {
-                Settings::set_status_alignment(alignment);
-                format!("ok: status={alignment}")
-            }
-            [] => {
-                let settings = Settings::read();
-                format!(
-                    "workspaces={}\ncenter={}\nstatus={}",
-                    settings.workspaces_alignment(),
-                    settings.center_alignment(),
-                    settings.status_alignment(),
-                )
-            }
-            _ => String::from("usage: settings position <workspaces left|right | center left|center|right | status left|right>"),
         },
 
         "clock" => match rest.first().copied() {
