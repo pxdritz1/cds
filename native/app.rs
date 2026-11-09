@@ -533,7 +533,7 @@ impl App {
             .align_y(Alignment::Center),
         )
         .padding(10)
-        .style(surface_style(0.90));
+        .style(self.surface_style(0.90));
 
         container(
             row![workspace_group, center, status]
@@ -719,14 +719,14 @@ impl App {
                 .padding(24)
                 .width(Length::Fill)
                 .height(Length::Fill)
-                .style(surface_style(0.98))
+                .style(self.surface_style(0.98))
                 .into()
         } else {
             let card = container(body)
                 .padding(24)
                 .max_width(760)
                 .height(Length::Shrink)
-                .style(surface_style(0.98));
+                .style(self.surface_style(0.98));
 
             container(card)
                 .width(Length::Fill)
@@ -788,7 +788,7 @@ impl App {
         let card = container(body)
             .padding(24)
             .max_width(760)
-            .style(surface_style(0.98));
+            .style(self.surface_style(0.98));
 
         container(card)
             .width(Length::Fill)
@@ -846,7 +846,7 @@ impl App {
         let card = container(body)
             .padding(24)
             .max_width(560)
-            .style(surface_style(0.98));
+            .style(self.surface_style(0.98));
 
         container(card)
             .width(Length::Fill)
