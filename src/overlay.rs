@@ -173,7 +173,11 @@ pub fn layer(
     Ui::watch();
 
     let presence = motion::presence(name, open);
-    let burst = motion::fade(&format!("{name}:bubbles"), if open { 1 } else { 0 });
+    let burst = if frame.place == Place::Notch {
+        1.0
+    } else {
+        motion::fade(&format!("{name}:bubbles"), if open { 1 } else { 0 })
+    };
     let focused = Overlay::on_focused_monitor(monitor);
     let visible = focused && (open || presence > 0.001);
 
