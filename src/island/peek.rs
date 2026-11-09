@@ -27,7 +27,7 @@ pub const NOTICE_HEIGHT: f32 = 72.0;
 /// Fit the compact notification island to its title while keeping room for the app icon and padding.
 pub fn notice_compact_width(notification: &Notification) -> f32 {
     let title = notification.summary();
-    let measured_text = m3::text(&title, 13.0, amane::Color::TRANSPARENT, amane::Weight::SemiBold);
+    let measured_text = m3::text(title.to_string(), 13.0, amane::Color::TRANSPARENT, amane::Weight::SemiBold);
     let measured = m3::measured(&measured_text);
     let title_width = if measured > 0.0 {
         measured + 4.0
@@ -235,7 +235,7 @@ pub fn notice_compact(
     let row = Row::new(vec![boxed(avatar), boxed(title)])
         .gap(10.0)
         .align(Center)
-        .justify(amane::Space::Center)
+        .justify(Center)
         .width(Parent)
         .height(Parent);
 
