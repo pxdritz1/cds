@@ -20,25 +20,23 @@ The shell targets a Wayland compositor with layer-shell support. It integrates w
 
 ### Arch Linux / CachyOS
 
-Install the runtime dependencies:
+Install an AUR helper (`yay` or `paru`), then run the installer from the repository root:
 
 ```bash
-sudo pacman -S --needed matugen wl-clipboard libpulse pam curl python
+bash scripts/install.sh
 ```
 
-Install Niri if you want to use the included Niri configuration, and install `hyprpicker` to enable the screen eyedropper:
+The installer installs Amane's system dependencies, Rust, `niri-git`, `matugen-bin`, Qt color-control tools and the CDS runtime utilities. It creates `~/.config/amane`, copies the CDS sources, compiles the shell, and backs up the existing Niri and Matugen configuration before applying changes.
 
-```bash
-sudo pacman -S --needed niri hyprpicker
-```
+It also installs and registers Matugen templates for:
 
-The emoji selector uses Google's official Noto Emoji SVG artwork, not the system emoji font. Download the assets once after cloning the repository:
+- **Zed:** dark and light themes in `~/.config/zed/themes`. Select Chloe Dynamic Shell in the theme selector.
+- **Prism Launcher:** widget theme in the Prism Launcher themes directory. Select Chloe Dynamic Shell in Settings → Appearance → Widgets.
+- **Zen Browser:** imports the generated stylesheet into detected profiles and enables the user stylesheet preference.
+- **GTK 3 and GTK 4:** generates `colors.css` and imports it from each GTK `gtk.css`.
+- **Qt 5 and Qt 6:** generates palettes for qt5ct and qt6ct and configures their color scheme paths. Set `QT_QPA_PLATFORMTHEME=qt5ct` or `qt6ct` for applications using the corresponding Qt version.
 
-```bash
-bash scripts/install-emoji-assets.sh
-```
-
-This places the SVGs in `~/.local/share/chloe-dynamic-shell/emoji`. The original Unicode characters are still copied to the clipboard. The artwork is from the Noto Emoji project; see its included license and [upstream repository](https://github.com/googlefonts/noto-emoji).
+The installer comments out legacy Niri, SCSS and Alacritty Matugen template sections rather than deleting them. To restore one, remove the leading `#` from its section in `~/.config/matugen/config.toml`.
 
 ## Run
 
