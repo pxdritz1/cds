@@ -45,7 +45,7 @@ This is the parity contract for the Iced rewrite. The old implementation is the 
 | Control Center | Audio, microphone, Wi-Fi, Bluetooth and brightness | Pending |
 | Settings window | Persistent settings and live updates | Pending |
 | Color picker | `iced_aw` color wheel, HEX input/copy and hyprpicker eyedropper | Native picker and eyedropper implemented; visual parity pending |
-| Emoji picker | Unicode 18 catalog, Nucleo fuzzy search, pt-BR aliases, skin-tone metadata and copy | Native searchable grid and copy implemented; Noto SVG artwork and skin-tone UI pending |
+| Emoji picker | Unicode 18 catalog, Nucleo fuzzy search, pt-BR aliases, skin-tone metadata and copy | Native searchable grid, copy and Noto SVG artwork implemented; skin-tone UI pending |
 | OSD | Volume/brightness feedback | Pending |
 | Wallpaper layer and rotation | Matugen + wallpaper service | Pending |
 | Notifications and previews | D-Bus notification service and notification Island | Pending |
