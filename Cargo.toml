@@ -1,15 +1,45 @@
 [package]
 name = "chloe-dynamic-shell"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2024"
 license = "Apache-2.0"
-description = "A Wayland desktop shell built with Amane"
+description = "A native Rust Wayland desktop shell"
+default-run = "cds"
+autobins = false
 
 [[bin]]
 name = "cds"
-path = "src/main.rs"
+path = "native/main.rs"
 
 [dependencies]
-amane = { git = "https://github.com/MystiaFin/amane.git" }
-png = "0.18.1"
-zbus = "5.19.0"
+anyhow = "1.0"
+async-channel = "2.5"
+chrono = { version = "0.4", features = ["clock", "serde"] }
+clap = { version = "4.5", features = ["derive"] }
+directories = "6.0"
+freedesktop-desktop-entry = "0.8.3"
+freedesktop-icons = "0.4.0"
+futures-util = "0.3"
+iced = { version = "0.14.0", default-features = false, features = ["wgpu", "wayland", "advanced", "image", "svg", "tokio", "linux-theme-detection"] }
+iced_exwlshell = "0.21.4"
+iced_wayland_subscriber = "0.21.4"
+image = { version = "0.25", default-features = false, features = ["png", "jpeg", "webp"] }
+niri-ipc = "=26.4.0"
+notify = "8.2"
+pam = "0.8.0"
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+shell-words = "1.1"
+thiserror = "2.0"
+tokio = { version = "1.50", features = ["rt-multi-thread", "macros", "sync", "time", "net", "process", "signal", "fs", "io-util"] }
+toml = "0.8"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+zbus = { version = "5.19.0", features = ["tokio"] }
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 1
+strip = "debuginfo"
