@@ -250,20 +250,23 @@ ensure_line(
 micro_settings = config_home / "micro/settings.json"
 import json
 micro_data = {}
+micro_settings_valid = True
 if micro_settings.exists():
     try:
         micro_data = json.loads(micro_settings.read_text())
         if not isinstance(micro_data, dict):
-            micro_data = {}
+            micro_settings_valid = False
     except json.JSONDecodeError:
+        micro_settings_valid = False
+if micro_settings_valid:
+    micro_data["colorscheme"] = "chloe-dynamic-shell"
+    micro_settings.parent.mkdir(parents=True, exist_ok=True)
+    micro_serialized = json.dumps(micro_data, indent=4) + "\n"
+    if not micro_settings.exists() or micro_settings.read_text() != micro_serialized:
         backup_before_edit(micro_settings)
-        micro_data = {}
-micro_data["colorscheme"] = "chloe-dynamic-shell"
-micro_settings.parent.mkdir(parents=True, exist_ok=True)
-micro_serialized = json.dumps(micro_data, indent=4) + "\n"
-if not micro_settings.exists() or micro_settings.read_text() != micro_serialized:
-    backup_before_edit(micro_settings)
-    micro_settings.write_text(micro_serialized)
+        micro_settings.write_text(micro_serialized)
+else:
+    print(f"WARNING: Micro settings file is not valid JSON; left unchanged: {micro_settings}")
 
 # Neovim: activate the generated colorscheme in init.lua, or init.vim.
 nvim_dir = config_home / "nvim"
