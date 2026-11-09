@@ -1,3 +1,4 @@
+use std::io::Read;
 use std::path::PathBuf;
 use std::process::Command as ProcessCommand;
 
@@ -51,6 +52,11 @@ enum Commands {
         #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
         args: Vec<String>,
     },
+    /// Manage clipboard history. The ingest subcommand is used by wl-paste --watch.
+    Clipboard {
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+        args: Vec<String>,
+    },
     /// Refresh and print weather information.
     Weather,
 }
@@ -87,6 +93,25 @@ pub fn run() -> Result<()> {
             print_response(ipc::send(IpcCommand::Settings { args })?)
         }
         Some(Commands::Theme { args }) => print_response(ipc::send(IpcCommand::Theme { args })?),
+        Some(Commands::Clipboard { args }) => {
+            if args.first().is_some_and(|argument| argument == "ingest") {
+                if std::env::var("CLIPBOARD_STATE").as_deref() != Ok("data") {
+                    return Ok(());
+                }
+                let stdin = std::io::stdin();
+                let mut content = String::new();
+                stdin
+                    .take((crate::services::clipboard::MAX_BYTES + 1) as u64)
+                    .read_to_string(&mut content)?;
+                if content.len() > crate::services::clipboard::MAX_BYTES || content.trim().is_empty() {
+                    return Ok(());
+                }
+                let _ = ipc::send(IpcCommand::ClipboardPush { content })?;
+                Ok(())
+            } else {
+                print_response(ipc::send(IpcCommand::Clipboard { args })?)
+            }
+        }
         Some(Commands::Weather) => print_response(ipc::send(IpcCommand::Weather)?),
     }
 }

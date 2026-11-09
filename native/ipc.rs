@@ -25,6 +25,8 @@ pub enum IpcCommand {
     Settings { args: Vec<String> },
     Theme { args: Vec<String> },
     Weather,
+    Clipboard { args: Vec<String> },
+    ClipboardPush { content: String },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

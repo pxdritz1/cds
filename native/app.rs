@@ -974,6 +974,22 @@ fn parse_tab(name: Option<&str>) -> DashTab {
     }
 }
 
+fn start_clipboard_watcher() -> Option<std::process::Child> {
+    let executable = std::env::current_exe().ok()?;
+    match std::process::Command::new("wl-paste")
+        .args(["--type", "text", "--watch"])
+        .arg(executable)
+        .args(["clipboard", "ingest"])
+        .spawn()
+    {
+        Ok(child) => Some(child),
+        Err(error) => {
+            tracing::warn!(%error, "Could not start the wl-paste clipboard watcher");
+            None
+        }
+    }
+}
+
 pub fn run() -> anyhow::Result<()> {
     let paths = crate::paths::Paths::discover()?;
     paths.create_user_directories()?;
@@ -981,8 +997,9 @@ pub fn run() -> anyhow::Result<()> {
     let (ipc_rx, _socket_guard) = ipc::start_server()?;
     ipc::set_subscription_receiver(ipc_rx);
     let (shell_broadcast, shell_events) = iced_wayland_subscriber::shell::channel();
+    let mut clipboard_watcher = start_clipboard_watcher();
 
-    daemon(
+    let result = daemon(
         move || App::new(shell_events.clone()),
         App::namespace,
         App::update,
@@ -1004,6 +1021,11 @@ pub fn run() -> anyhow::Result<()> {
         shell_broadcast,
         ..Default::default()
     })
-    .run()
-    .map_err(Into::into)
+    .run();
+
+    if let Some(watcher) = clipboard_watcher.as_mut() {
+        let _ = watcher.kill();
+    }
+
+    result.map_err(Into::into)
 }
