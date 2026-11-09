@@ -81,6 +81,7 @@ for qt in ("qt5ct", "qt6ct"):
 
 for gtk in ("gtk-3.0", "gtk-4.0"):
     css = config_home / gtk / "gtk.css"
+    css.parent.mkdir(parents=True, exist_ok=True)
     import_line = '@import "colors.css";'
     old = css.read_text() if css.exists() else ""
     if import_line not in old:
