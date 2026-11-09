@@ -80,6 +80,7 @@ enum Message {
     CopyColor,
     Eyedropper,
     EyedropperResult(Result<String, String>),
+    ThemeGenerated(Result<crate::services::theme::ThemeTokens, String>),
 }
 
 struct App {
@@ -96,6 +97,7 @@ struct App {
     selected_color: Color,
     color_hex: String,
     last_error: Option<String>,
+    theme_tokens: Option<crate::services::theme::ThemeTokens>,
 }
 
 impl App {
@@ -117,6 +119,7 @@ impl App {
             selected_color: Color::from_rgb(0.40, 0.32, 0.65),
             color_hex: "#6750A4".into(),
             last_error: None,
+            theme_tokens: crate::services::theme::ThemeTokens::load().ok().flatten(),
         }
     }
 
@@ -309,6 +312,17 @@ impl App {
                     Task::none()
                 }
             },
+            Message::ThemeGenerated(result) => match result {
+                Ok(theme) => {
+                    self.theme_tokens = Some(theme);
+                    self.last_error = None;
+                    Task::none()
+                }
+                Err(error) => {
+                    self.last_error = Some(error);
+                    Task::none()
+                }
+            },
             _ => Task::none(),
         }
     }
@@ -339,10 +353,47 @@ impl App {
                 error("The settings service is part of the next migration step"),
                 Task::none(),
             ),
-            IpcCommand::Theme { .. } => (
-                error("The Matugen theme service is part of the next migration step"),
-                Task::none(),
-            ),
+            IpcCommand::Theme { args } => match args.as_slice() {
+                [operation, value, ..] if operation == "color" => {
+                    let color = value.clone();
+                    (
+                        ok("Generating Material 3 color scheme"),
+                        Task::perform(
+                            async move {
+                                tokio::task::spawn_blocking(move || {
+                                    let theme = crate::services::theme::generate_from_hex(&color)
+                                        .map_err(|error| error.to_string())?;
+                                    theme.save().map_err(|error| error.to_string())?;
+                                    Ok(theme)
+                                })
+                                .await
+                                .map_err(|error| error.to_string())?
+                            },
+                            Message::ThemeGenerated,
+                        ),
+                    )
+                }
+                [operation, image, ..] if operation == "set" => {
+                    let image = std::path::PathBuf::from(image);
+                    (
+                        ok("Generating Material 3 scheme from wallpaper"),
+                        Task::perform(
+                            async move {
+                                tokio::task::spawn_blocking(move || {
+                                    let theme = crate::services::theme::generate_from_wallpaper(&image)
+                                        .map_err(|error| error.to_string())?;
+                                    theme.save().map_err(|error| error.to_string())?;
+                                    Ok(theme)
+                                })
+                                .await
+                                .map_err(|error| error.to_string())?
+                            },
+                            Message::ThemeGenerated,
+                        ),
+                    )
+                }
+                _ => (error("Usage: cds theme color <hex> | cds theme set <image>"), Task::none()),
+            },
             IpcCommand::Weather => (
                 error("The weather service is part of the next migration step"),
                 Task::none(),
@@ -457,7 +508,7 @@ impl App {
             .align_y(Alignment::Center),
         )
         .padding(10)
-        .style(surface_style(0.90));
+        .style(self.surface_style(0.90));
 
         let center = container(
             row![
@@ -470,7 +521,7 @@ impl App {
             .align_y(Alignment::Center),
         )
         .padding(8)
-        .style(surface_style(0.96));
+        .style(self.surface_style(0.96));
 
         let status = container(
             row![
@@ -549,7 +600,7 @@ impl App {
         let card = container(body)
             .padding(28)
             .max_width(680)
-            .style(surface_style(0.98));
+            .style(self.surface_style(0.98));
 
         container(card)
             .width(Length::Fill)
@@ -809,6 +860,20 @@ impl App {
             .into()
     }
 
+    fn surface_style(&self, alpha: f32) -> impl Fn(&iced::Theme) -> container::Style {
+        let base = self
+            .theme_tokens
+            .as_ref()
+            .and_then(|theme| parse_hex_color(&theme.dark.surface_container))
+            .unwrap_or(Color::from_rgb(0.09, 0.09, 0.12));
+        let background = Color::from_rgba(base.r, base.g, base.b, alpha);
+
+        move |_| container::Style {
+            background: Some(Background::Color(background)),
+            ..Default::default()
+        }
+    }
+
     fn lock_view(&self, id: window::Id) -> Element<'_, Message> {
         container(
             column![
@@ -867,13 +932,6 @@ fn color_to_hex(color: Color) -> String {
         (color.g * 255.0).round() as u8,
         (color.b * 255.0).round() as u8,
     )
-}
-
-fn surface_style(alpha: f32) -> impl Fn(&iced::Theme) -> container::Style {
-    move |_| container::Style {
-        background: Some(Background::Color(Color::from_rgba(0.09, 0.09, 0.12, alpha))),
-        ..Default::default()
-    }
 }
 
 fn ok(message: impl Into<String>) -> IpcResponse {
