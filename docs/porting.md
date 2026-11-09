@@ -20,7 +20,7 @@ This is the parity contract for the Iced rewrite. The old implementation is the 
 | --- | --- | --- |
 | Iced widget extensions | `iced_aw` 0.14.1 | Color picker, context menus, tabs, menus and utility widgets |
 | Fuzzy search | `nucleo` 0.5 | Async search across desktop apps, actions, clipboard and emoji |
-| Emoji catalog | `emojis` 0.9 | Unicode 17 metadata, groups, shortcodes and skin-tone variants |
+| Emoji catalog | `emojis` 0.9 | Unicode 18 metadata, groups, shortcodes and skin-tone variants |
 | SVG artwork | `resvg` 0.49 | Render Noto emoji, app artwork and SVG assets to raster surfaces |
 | Image resizing | `fast_image_resize` 6.1 | SIMD thumbnails, cover art and wallpaper previews |
 | Image decoding | `image` 0.25 | PNG, JPEG, WebP, GIF, BMP and ICO assets |
