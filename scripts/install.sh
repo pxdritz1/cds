@@ -47,9 +47,9 @@ log "Installing the native CDS executable."
 cargo install --path "$repo_root" --bin cds --force
 
 mkdir -p \
-    "$config_home/chloe-dynamic-shell" \
-    "$cache_home/chloe-dynamic-shell" \
-    "$data_home/chloe-dynamic-shell"
+    "$config_home/cds" \
+    "$cache_home/cds" \
+    "$data_home/cds"
 
 if command -v matugen >/dev/null 2>&1; then
     log "Installing Matugen templates."
@@ -78,8 +78,8 @@ fi
 log "Installation completed."
 printf '\n'
 printf 'Executable: %s\n' "$HOME/.cargo/bin/cds"
-printf 'Config:     %s/chloe-dynamic-shell\n' "$config_home"
-printf 'Cache:      %s/chloe-dynamic-shell\n' "$cache_home"
+printf 'Config:     %s/cds\n' "$config_home"
+printf 'Cache:      %s/cds\n' "$cache_home"
 printf '\n'
 printf 'Start the shell with: cds run\n'
 printf 'Development:          cds dev\n'

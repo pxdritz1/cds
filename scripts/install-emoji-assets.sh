@@ -4,7 +4,7 @@ set -euo pipefail
 root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 source_file="$root/src/emoji.rs"
 data_home="${XDG_DATA_HOME:-$HOME/.local/share}"
-destination="$data_home/chloe-dynamic-shell/emoji"
+destination="$data_home/cds/emoji"
 upstream="https://raw.githubusercontent.com/googlefonts/noto-emoji/main/2D/svg"
 
 if ! command -v curl >/dev/null 2>&1; then

@@ -18,9 +18,9 @@ impl Paths {
             .context("XDG_RUNTIME_DIR is not set; CDS needs a user runtime directory")?;
 
         Ok(Self {
-            config: base.config_dir().join("chloe-dynamic-shell"),
-            cache: base.cache_dir().join("chloe-dynamic-shell"),
-            data: base.data_dir().join("chloe-dynamic-shell"),
+            config: base.config_dir().join("cds"),
+            cache: base.cache_dir().join("cds"),
+            data: base.data_dir().join("cds"),
             socket: runtime.join("cds.sock"),
         })
     }

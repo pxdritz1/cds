@@ -77,7 +77,7 @@ pub fn run() -> Result<()> {
             "cds",
             "--force",
         ]),
-        Some(Commands::Uninstall) => cargo_command(&["uninstall", "chloe-dynamic-shell"]),
+        Some(Commands::Uninstall) => cargo_command(&["uninstall", "cds"]),
         Some(Commands::Open { panel }) => print_response(ipc::send(IpcCommand::Open { panel })?),
         Some(Commands::Close) => print_response(ipc::send(IpcCommand::Close)?),
         Some(Commands::Dash { tab }) => print_response(ipc::send(IpcCommand::Dash { tab })?),
@@ -131,7 +131,7 @@ fn find_checkout_root() -> Result<PathBuf> {
     for directory in current.ancestors() {
         let manifest = directory.join("Cargo.toml");
         if let Ok(contents) = std::fs::read_to_string(&manifest) {
-            if contents.contains("name = \"chloe-dynamic-shell\"") {
+            if contents.contains("name = \"cds\"") {
                 return Ok(directory.to_path_buf());
             }
         }
