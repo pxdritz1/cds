@@ -186,9 +186,6 @@ pub fn window() -> Window {
     let wallpaper_rotation = settings.wallpaper_rotation();
     let wallpaper_interval_minutes = settings.wallpaper_interval_minutes();
     let motion_style = String::from(settings.motion_style());
-    let workspaces_alignment = String::from(settings.workspaces_alignment());
-    let center_alignment = String::from(settings.center_alignment());
-    let status_alignment = String::from(settings.status_alignment());
     let network_position = String::from(settings.status_position("network"));
     let bluetooth_position = String::from(settings.status_position("bluetooth"));
     let volume_position = String::from(settings.status_position("volume"));
@@ -262,25 +259,8 @@ pub fn window() -> Window {
         .width(Parent),
     );
 
-    let positions = settings_card(WIDTH - PADDING * 2.0, 500.0, scheme.surface_container_low).child(
+    let positions = settings_card(WIDTH - PADDING * 2.0, 380.0, scheme.surface_container_low).child(
         Column::new(vec![
-            Box::new(section(TUNE, crate::lang::text("Posição dos elementos", "Element placement"), scheme)),
-            Box::new(section(TUNE, crate::lang::text("Espaços de trabalho", "Workspaces"), scheme)),
-            Box::new(Row::new(vec![
-                boxed(chip("sv:workspaces-left", crate::lang::text("Esquerda", "Left"), 100.0, workspaces_alignment == "left", scheme, || Settings::set_workspaces_alignment("left"))),
-                boxed(chip("sv:workspaces-right", crate::lang::text("Direita", "Right"), 100.0, workspaces_alignment == "right", scheme, || Settings::set_workspaces_alignment("right"))),
-            ]).gap(8.0).width(Parent)),
-            Box::new(section(TUNE, crate::lang::text("Ilha central", "Center Island"), scheme)),
-            Box::new(Row::new(vec![
-                boxed(chip("sv:center-left", crate::lang::text("Esquerda", "Left"), 100.0, center_alignment == "left", scheme, || Settings::set_center_alignment("left"))),
-                boxed(chip("sv:center-center", crate::lang::text("Centro", "Center"), 100.0, center_alignment == "center", scheme, || Settings::set_center_alignment("center"))),
-                boxed(chip("sv:center-right", crate::lang::text("Direita", "Right"), 100.0, center_alignment == "right", scheme, || Settings::set_center_alignment("right"))),
-            ]).gap(8.0).width(Parent)),
-            Box::new(section(TUNE, crate::lang::text("Posição do grupo de status", "Status group position"), scheme)),
-            Box::new(Row::new(vec![
-                boxed(chip("sv:status-left", crate::lang::text("Esquerda", "Left"), 100.0, status_alignment == "left", scheme, || Settings::set_status_alignment("left"))),
-                boxed(chip("sv:status-right", crate::lang::text("Direita", "Right"), 100.0, status_alignment == "right", scheme, || Settings::set_status_alignment("right"))),
-            ]).gap(8.0).width(Parent)),
             Box::new(section(TUNE, crate::lang::text("Posição de cada indicador", "Individual indicator placement"), scheme)),
             boxed(indicator_position(crate::lang::text("Wi-Fi", "Wi-Fi"), "network", &network_position, scheme)),
             boxed(indicator_position(crate::lang::text("Bluetooth", "Bluetooth"), "bluetooth", &bluetooth_position, scheme)),
