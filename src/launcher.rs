@@ -187,7 +187,10 @@ fn launch(action: Action) {
             Overlay::close();
         }
         Action::Settings => Overlay::open(Panel::Config),
-        Action::ColorPicker => Overlay::open(Panel::Color),
+        Action::ColorPicker => {
+            crate::color::ColorPicker::reset();
+            Overlay::open(Panel::Color);
+        }
         Action::Wallpapers => {
             Overlay::close();
             Ui::open(Tab::Wallpapers);
@@ -243,7 +246,6 @@ pub fn view(monitor: &Monitor) -> LayerWindow {
 
     let rows: Vec<Box<dyn Widget>> = results
         .iter()
-        .take(40)
         .enumerate()
         .map(|(index, entry)| boxed(result_row(scheme, entry, index, index == selected)))
         .collect();
