@@ -6,7 +6,7 @@
 use std::time::Duration;
 
 use amane::{
-    Audio, Battery, Bluetooth, Button, Center, Color, Image, Media, Monitor, Network, Parent, Pointer, Rectangle,
+    Audio, Battery, Bluetooth, Button, Center, Color, Image, Monitor, Network, Parent, Pointer, Rectangle,
     Row, Service, Stack, Widget, Workspace, Workspaces,
 };
 
@@ -20,7 +20,7 @@ use crate::theme::{Scheme, fade, mix};
 use crate::tray::Tray;
 use crate::weather::Weather;
 
-use super::widgets::{EXPAND_MORE, MUSIC, boxed, icon, text};
+use super::widgets::{EXPAND_MORE, boxed, icon, text};
 
 const DOT: f32 = 8.0;
 const FOCUSED: f32 = 28.0;
