@@ -10,7 +10,7 @@ generated_home="$matugen_home/generated"
 prism_home="$data_home/PrismLauncher"
 flatpak_prism_home="$HOME/.var/app/org.prismlauncher.PrismLauncher/data/PrismLauncher"
 
-mkdir -p "$template_home" "$generated_home" "$config_home/zed/themes" "$config_home/gtk-3.0" "$config_home/gtk-4.0" "$config_home/qt5ct/colors" "$config_home/qt6ct/colors"
+mkdir -p "$template_home" "$generated_home" "$config_home/niri" "$config_home/zed/themes" "$config_home/gtk-3.0" "$config_home/gtk-4.0" "$config_home/qt5ct/colors" "$config_home/qt6ct/colors"
 
 install -m644 "$repo_root/matugen/zed.json" "$template_home/zed.json"
 install -m644 "$repo_root/matugen/prism.json" "$template_home/prism.json"
@@ -18,6 +18,7 @@ install -m644 "$repo_root/matugen/prism.qss" "$template_home/prism.qss"
 install -m644 "$repo_root/matugen/gtk.css" "$template_home/gtk.css"
 install -m644 "$repo_root/matugen/qtct.conf" "$template_home/qtct.conf"
 install -m644 "$repo_root/matugen/zen.css" "$template_home/zen.css"
+install -m644 "$repo_root/matugen/niri.kdl" "$template_home/niri.kdl"
 
 if [[ -d "$flatpak_prism_home" ]]; then
     prism_home="$flatpak_prism_home"
@@ -44,6 +45,7 @@ entries = {
     "cds_qt5ct": (templates / "qtct.conf", config_home / "qt5ct/colors/chloe-dynamic-shell.conf"),
     "cds_qt6ct": (templates / "qtct.conf", config_home / "qt6ct/colors/chloe-dynamic-shell.conf"),
     "cds_zen": (templates / "zen.css", generated / "zen-userChrome.css"),
+    "cds_niri": (templates / "niri.kdl", config_home / "niri/matugen.kdl"),
 }
 
 text = config.read_text() if config.exists() else ""
@@ -148,7 +150,7 @@ print(f"Registered {len(entries)} application templates in {config}")
 print(f"Configured Zen Browser profiles: {len(zen_profiles)}")
 PY
 
-printf '[CDS] Matugen templates installed for Zed, Prism Launcher, Zen Browser, GTK 3/4 and Qt 5/6.\n'
+printf '[CDS] Matugen templates installed for Zed, Prism Launcher, Zen Browser, GTK 3/4, Qt 5/6 and Niri.\n'
 printf '[CDS] Select "Chloe Dynamic Shell" in Zed and Prism Launcher after generating the first palette.\n'
 printf '[CDS] Zen Browser profiles were configured where existing profiles were detected.\n'
 printf '[CDS] Qt palette files are configured for qt5ct and qt6ct; QT_QPA_PLATFORMTHEME remains under your control.\n'
