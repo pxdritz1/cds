@@ -1,10 +1,8 @@
-/* Chloe Dynamic Shell — adaptive light/dark contrast */
+/* Chloe Dynamic Shell — high-contrast adaptive Zen theme */
 :root {
   color-scheme: {{mode}};
 
-  /* Keep text and icons readable in both Matugen modes:
-     on_surface resolves to a light foreground in dark mode
-     and a dark foreground in light mode. */
+  /* Semantic foregrounds: Matugen resolves these for light/dark schemes. */
   --zen-primary-color: {{colors.primary.default.hex}} !important;
   --toolbarbutton-icon-fill: {{colors.on_surface.default.hex}} !important;
   --toolbar-field-color: {{colors.on_surface.default.hex}} !important;
@@ -13,10 +11,11 @@
   --arrowpanel-color: {{colors.on_surface.default.hex}} !important;
   --arrowpanel-background: {{colors.surface_container.default.hex}} !important;
   --sidebar-text-color: {{colors.on_surface.default.hex}} !important;
+  --lwt-text-color: {{colors.on_surface.default.hex}} !important;
+  --lwt-toolbar-field-color: {{colors.on_surface.default.hex}} !important;
+  --lwt-toolbar-field-background-color: {{colors.surface_container.default.hex}} !important;
   --zen-main-browser-background: {{colors.background.default.hex}} !important;
   --zen-main-browser-background-toolbar: {{colors.background.default.hex}} !important;
-  --lwt-text-color: {{colors.on_surface.default.hex}} !important;
-  --toolbar-color: {{colors.on_surface.default.hex}} !important;
 }
 #zen-browser-background {
   --zen-main-browser-background: {{colors.background.default.hex}} !important;
@@ -26,31 +25,63 @@
   --zen-main-browser-background-toolbar: {{colors.background.default.hex}} !important;
   --zen-background-opacity: 1 !important;
 }
+#navigator-toolbox,
+#nav-bar,
+#TabsToolbar,
+#zen-appcontent-navbar-container,
+#zen-sidebar-top-buttons,
+#zen-sidebar-bottom-buttons,
+#zen-workspaces-button,
+#zen-sidebar-web-panel {
+  color: {{colors.on_surface.default.hex}} !important;
+}
+#nav-bar,
+#TabsToolbar,
+#zen-appcontent-navbar-container {
+  background-color: {{colors.surface.default.hex}} !important;
+}
+#urlbar-background,
+.urlbar-background,
 .sidebar-placesTree,
 #zen-workspaces-button,
-.urlbar-background {
+#zen-sidebar-web-panel,
+#PersonalToolbar {
   background-color: {{colors.surface_container.default.hex}} !important;
   color: {{colors.on_surface.default.hex}} !important;
 }
-#TabsToolbar,
-#zen-appcontent-navbar-container {
-  background-color: {{colors.background.default.hex}} !important;
-  color: {{colors.on_surface.default.hex}} !important;
-}
-.urlbar-input,
-.urlbar-input::placeholder,
-.urlbar-input-container,
+toolbarbutton,
 .toolbarbutton-1,
 .tab-label,
-#zen-workspaces-button,
-.sidebar-placesTree {
+.tab-text,
+.urlbar-input,
+.urlbar-input::placeholder,
+.urlbarView,
+.urlbarView-row,
+.urlbarView-row-inner,
+.panel-header,
+.panel-subview-body,
+.sidebar-placesTree,
+#zen-workspaces-button {
   color: {{colors.on_surface.default.hex}} !important;
 }
-.toolbarbutton-1 > .toolbarbutton-icon,
-.toolbarbutton-1 > .toolbarbutton-badge-stack,
-#zen-workspaces-button .toolbarbutton-icon {
+toolbarbutton .toolbarbutton-icon,
+.toolbarbutton-1 .toolbarbutton-icon,
+.toolbarbutton-1 .toolbarbutton-badge-stack,
+#zen-workspaces-button .toolbarbutton-icon,
+.tab-close-button {
   fill: {{colors.on_surface.default.hex}} !important;
   color: {{colors.on_surface.default.hex}} !important;
+}
+.tabbrowser-tab[selected] .tab-label,
+.tabbrowser-tab[selected] .tab-text {
+  color: {{colors.on_surface.default.hex}} !important;
+}
+.urlbarView-row[selected],
+.urlbarView-row:hover,
+menupopup > menuitem:hover,
+menupopup > menu:hover {
+  background-color: {{colors.primary_container.default.hex}} !important;
+  color: {{colors.on_primary_container.default.hex}} !important;
 }
 .urlbar-input::selection {
   color: {{colors.on_primary.default.hex}} !important;
