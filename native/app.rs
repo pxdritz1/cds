@@ -877,7 +877,7 @@ impl App {
                 .map(|entry| {
                     button(
                         column![
-                            text(entry.glyph()).size(27),
+                            emoji_artwork(*entry),
                             text(entry.name()).size(10),
                         ]
                         .spacing(4)
@@ -1113,6 +1113,17 @@ impl App {
         .center_x(Length::Fill)
         .center_y(Length::Fill)
         .into()
+    }
+}
+
+fn emoji_artwork(entry: crate::services::emoji::EmojiEntry) -> Element<'static, Message> {
+    if let Some(path) = crate::services::emoji::asset_path(entry.emoji) {
+        iced::widget::svg::Svg::new(iced::widget::svg::Handle::from_path(path))
+            .width(Length::Fixed(34.0))
+            .height(Length::Fixed(34.0))
+            .into()
+    } else {
+        text(entry.glyph()).size(30).into()
     }
 }
 
