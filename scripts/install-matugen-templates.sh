@@ -91,7 +91,7 @@ def set_ini_value(path, section, key, value):
 
 for qt in ("qt5ct", "qt6ct"):
     set_ini_value(config_home / qt / f"{qt}.conf", "Appearance", "custom_palette", "true")
-    set_ini_value(config_home / qt / f"{qt}.conf", "Appearance", "color_scheme_path", str(config_home / qt / "colors/chloe-dynamic-shell.conf"))
+    set_ini_value(config_home / qt / f"{qt}.conf", "Appearance", "color_scheme_path", str(config_home / qt / "colors/cds.conf"))
 
 for gtk in ("gtk-3.0", "gtk-4.0"):
     css = config_home / gtk / "gtk.css"
@@ -277,7 +277,7 @@ nvim_vim = nvim_dir / "init.vim"
 if nvim_lua.exists() or not nvim_vim.exists():
     ensure_line(nvim_lua, 'vim.cmd.colorscheme("cds")')
 else:
-    ensure_line(nvim_vim, "colorscheme chloe-dynamic-shell")
+    ensure_line(nvim_vim, "colorscheme cds")
 
 # Helix: select the generated theme in config.toml.
 set_toml_key(
