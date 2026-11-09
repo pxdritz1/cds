@@ -85,6 +85,9 @@ enum Message {
     ClipboardMove(isize),
     CopyClipboard(String),
     ClearClipboard,
+    LockPasswordChanged(String),
+    UnlockRequested,
+    UnlockResult(bool),
 }
 
 struct App {
@@ -105,6 +108,8 @@ struct App {
     clipboard_history: crate::services::clipboard::ClipboardHistory,
     clipboard_query: String,
     clipboard_selected: usize,
+    lock_password: String,
+    lock_error: Option<String>,
 }
 
 impl App {
@@ -130,6 +135,8 @@ impl App {
             clipboard_history: crate::services::clipboard::ClipboardHistory::load(),
             clipboard_query: String::new(),
             clipboard_selected: 0,
+            lock_password: String::new(),
+            lock_error: None,
         }
     }
 
@@ -217,8 +224,47 @@ impl App {
                 task::effect(iced_runtime::Action::Window(WindowAction::Close(id)))
             }
             Message::LockAppeared(id) => {
+                self.lock_password.clear();
+                self.lock_error = None;
                 self.windows.insert(id, WindowKind::Lock);
                 Task::none()
+            }
+            Message::LockPasswordChanged(password) => {
+                self.lock_password = password;
+                Task::none()
+            }
+            Message::UnlockRequested => {
+                if self.lock_password.is_empty() {
+                    return Task::none();
+                }
+                let password = std::mem::take(&mut self.lock_password);
+                let username = std::env::var("USER").unwrap_or_default();
+                Task::perform(
+                    async move {
+                        tokio::task::spawn_blocking(move || {
+                            let password = zeroize::Zeroizing::new(password);
+                            let Ok(mut client) = pam::Client::with_password("login") else {
+                                return false;
+                            };
+                            client
+                                .conversation_mut()
+                                .set_credentials(&username, password.as_str());
+                            client.authenticate().is_ok()
+                        })
+                        .await
+                        .unwrap_or(false)
+                    },
+                    Message::UnlockResult,
+                )
+            }
+            Message::UnlockResult(authenticated) => {
+                if authenticated {
+                    self.lock_error = None;
+                    Task::done(Message::UnLock)
+                } else {
+                    self.lock_error = Some("Senha incorreta ou autenticação indisponível.".into());
+                    Task::none()
+                }
             }
             Message::AppsQuery(query) => {
                 self.app_query = query.clone();
@@ -1039,13 +1085,25 @@ impl App {
         }
     }
 
-    fn lock_view(&self, id: window::Id) -> Element<'_, Message> {
+    fn lock_view(&self, _id: window::Id) -> Element<'_, Message> {
+        let error_view: Element<'_, Message> = self
+            .lock_error
+            .as_ref()
+            .map(|error| text(error.clone()).size(12).into())
+            .unwrap_or_else(|| text("").into());
+
         container(
             column![
-                text("Chloe Dynamic Shell").size(28),
-                text("Session locked").size(16),
-                button("Unlock").on_press(Message::UnLock),
-                button("Close preview").on_press(Message::CloseWindow(id)),
+                text("CDS").size(28),
+                text("Sessão bloqueada").size(16),
+                text_input("Senha", &self.lock_password)
+                    .secure(true)
+                    .on_input(Message::LockPasswordChanged)
+                    .on_submit(Message::UnlockRequested)
+                    .padding(14)
+                    .width(Length::Fixed(320.0)),
+                button("Desbloquear").on_press(Message::UnlockRequested),
+                error_view,
             ]
             .spacing(16)
             .align_x(Alignment::Center),
