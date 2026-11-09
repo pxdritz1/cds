@@ -1,0 +1,15 @@
+[package]
+name = "chloe-dynamic-shell"
+version = "0.1.0"
+edition = "2024"
+license = "Apache-2.0"
+description = "A Wayland desktop shell built with Amane"
+
+[[bin]]
+name = "cds"
+path = "src/main.rs"
+
+[dependencies]
+amane = { git = "https://github.com/MystiaFin/amane.git" }
+png = "0.18.1"
+zbus = "5.19.0"
