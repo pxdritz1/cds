@@ -157,6 +157,137 @@ for profile in zen_profiles:
     if pref not in prefs:
         user_js.write_text(prefs.rstrip() + ("\n" if prefs else "") + pref + "\n")
 
+
+def backup_before_edit(path):
+    """Create one pristine backup before the first CDS-managed edit."""
+    if path.exists():
+        backup = path.with_name(path.name + ".cds-backup")
+        if not backup.exists():
+            backup.write_text(path.read_text())
+
+def ensure_line(path, line):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    old = path.read_text() if path.exists() else ""
+    if line in old.splitlines():
+        return
+    backup_before_edit(path)
+    path.write_text(old.rstrip() + ("\n" if old.strip() else "") + line + "\n")
+
+def set_toml_key(path, section, key, value):
+    """Set a simple TOML key in a section while retaining unrelated settings."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    old = path.read_text() if path.exists() else ""
+    lines = old.splitlines()
+    header = f"[{section}]"
+    start = next((i for i, line in enumerate(lines) if line.strip() == header), None)
+    if start is None:
+        updated = old.rstrip()
+        updated += ("\n\n" if updated else "") + header + "\n" + f'{key} = {value}\n'
+    else:
+        end = next((i for i in range(start + 1, len(lines))
+                    if lines[i].strip().startswith("[") and lines[i].strip().endswith("]")),
+                   len(lines))
+        key_line = next((i for i in range(start + 1, end)
+                         if lines[i].split("=", 1)[0].strip() == key
+                         and "=" in lines[i]), None)
+        if key_line is None:
+            lines.insert(end, f'{key} = {value}')
+        else:
+            lines[key_line] = f'{key} = {value}'
+        updated = "\n".join(lines).rstrip() + "\n"
+    if updated != old:
+        backup_before_edit(path)
+        path.write_text(updated)
+
+# Alacritty: import the generated palette from its main TOML config.
+alacritty_config = config_home / "alacritty/alacritty.toml"
+alacritty_import = str(config_home / "alacritty/cds-colors.toml")
+alacritty_old = alacritty_config.read_text() if alacritty_config.exists() else ""
+alacritty_lines = alacritty_old.splitlines()
+general_start = next((i for i, line in enumerate(alacritty_lines)
+                      if line.strip() == "[general]"), None)
+if general_start is None:
+    alacritty_updated = alacritty_old.rstrip()
+    alacritty_updated += ("\n\n" if alacritty_updated else "") + "[general]\n"
+    alacritty_updated += f'import = ["{alacritty_import}"]\n'
+else:
+    general_end = next((i for i in range(general_start + 1, len(alacritty_lines))
+                        if alacritty_lines[i].strip().startswith("[")
+                        and alacritty_lines[i].strip().endswith("]")),
+                       len(alacritty_lines))
+    import_index = next((i for i in range(general_start + 1, general_end)
+                         if alacritty_lines[i].split("=", 1)[0].strip() == "import"
+                         and "=" in alacritty_lines[i]), None)
+    if import_index is None:
+        alacritty_lines.insert(general_end, f'import = ["{alacritty_import}"]')
+    else:
+        import_line = alacritty_lines[import_index]
+        if alacritty_import not in import_line:
+            # Extend a conventional single- or multi-line TOML import array.
+            if "]" in import_line:
+                alacritty_lines[import_index] = import_line.replace(
+                    "]", f', "{alacritty_import}"]', 1
+                )
+            else:
+                close = next((i for i in range(import_index + 1, general_end)
+                              if "]" in alacritty_lines[i]), None)
+                if close is not None:
+                    alacritty_lines[close] = alacritty_lines[close].replace(
+                        "]", f'  "{alacritty_import}",\n]', 1
+                    )
+    alacritty_updated = "\n".join(alacritty_lines).rstrip() + "\n"
+if alacritty_updated != alacritty_old:
+    backup_before_edit(alacritty_config)
+    alacritty_config.write_text(alacritty_updated)
+
+# Kitty: include the generated palette from the main kitty.conf.
+ensure_line(
+    config_home / "kitty/kitty.conf",
+    f"include {config_home}/kitty/chloe-dynamic-shell.conf"
+)
+
+# Micro: select the generated colorscheme in settings.json.
+micro_settings = config_home / "micro/settings.json"
+import json
+micro_data = {}
+if micro_settings.exists():
+    try:
+        micro_data = json.loads(micro_settings.read_text())
+        if not isinstance(micro_data, dict):
+            micro_data = {}
+    except json.JSONDecodeError:
+        backup_before_edit(micro_settings)
+        micro_data = {}
+micro_data["colorscheme"] = "chloe-dynamic-shell"
+micro_settings.parent.mkdir(parents=True, exist_ok=True)
+micro_serialized = json.dumps(micro_data, indent=4) + "\n"
+if not micro_settings.exists() or micro_settings.read_text() != micro_serialized:
+    backup_before_edit(micro_settings)
+    micro_settings.write_text(micro_serialized)
+
+# Neovim: activate the generated colorscheme in init.lua, or init.vim.
+nvim_dir = config_home / "nvim"
+nvim_lua = nvim_dir / "init.lua"
+nvim_vim = nvim_dir / "init.vim"
+if nvim_lua.exists() or not nvim_vim.exists():
+    ensure_line(nvim_lua, 'vim.cmd.colorscheme("chloe-dynamic-shell")')
+else:
+    ensure_line(nvim_vim, "colorscheme chloe-dynamic-shell")
+
+# Helix: select the generated theme in config.toml.
+set_toml_key(
+    config_home / "helix/config.toml",
+    "editor",
+    "theme",
+    '"chloe-dynamic-shell"'
+)
+
+# Spicetify: select Comfy and its Matugen-generated color scheme.
+spicetify_config = config_home / "spicetify/config-xpui.ini"
+set_ini_value(spicetify_config, "Setting", "current_theme", "Comfy")
+set_ini_value(spicetify_config, "Setting", "color_scheme", "Comfy")
+set_ini_value(spicetify_config, "Setting", "replace_colors", "1")
+
 print(f"Installed Matugen templates in {templates}")
 print(f"Registered {len(entries)} application templates in {config}")
 print(f"Configured Zen Browser profiles: {len(zen_profiles)}")
