@@ -1,0 +1,30 @@
+layout {
+    focus-ring {
+        active-color   "{{colors.primary.default.hex}}"
+        inactive-color "{{colors.surface_variant.default.hex}}"
+        urgent-color   "{{colors.error.default.hex}}"
+    }
+
+    border {
+        active-color   "{{colors.primary.default.hex}}"
+        inactive-color "{{colors.surface_variant.default.hex}}"
+        urgent-color   "{{colors.error.default.hex}}"
+    }
+
+    tab-indicator {
+        active-color   "{{colors.primary.default.hex}}"
+        inactive-color "{{colors.surface_container_high.default.hex}}"
+        urgent-color   "{{colors.error.default.hex}}"
+    }
+
+    insert-hint {
+        color "{{colors.primary.default.hex}}80"
+    }
+}
+
+recent-windows {
+    highlight {
+        active-color "{{colors.primary.default.hex}}"
+        urgent-color "{{colors.error.default.hex}}"
+    }
+}
