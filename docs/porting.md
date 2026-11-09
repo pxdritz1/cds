@@ -11,8 +11,8 @@ This is the parity contract for the Iced rewrite. The old implementation is the 
 | Layer-shell bar and overlays | wlr-layer-shell via iced_exwlshell | Foundation committed; visual parity pending |
 | ext-session-lock | iced_exwlshell session-lock actions | Crate selected; implementation pending |
 | IPC commands | Private Unix socket + `cds` CLI | Initial open/dash/close/lock route committed |
-| XDG paths | `~/.config/cds`, `~/.cache/cds`, `~/.local/share/cds` | Standardized in native path helper |
-| Niri workspaces and focused window | `niri-ipc` event stream | Dependency selected; implementation pending |
+| XDG paths | `~/.config/cds`, `~/.cache/cds`, `~/.local/share/cds` | Implemented with non-destructive import from the old `chloe-dynamic-shell` directories |
+| Niri workspaces and focused window | `niri-ipc` event stream | Native event stream, workspace focus and focused title implemented; live compositor parity pending |
 
 ## Native crate capabilities
 
@@ -37,15 +37,15 @@ This is the parity contract for the Iced rewrite. The old implementation is the 
 | Dynamic notification island | Notice mode with content-sized layout | Pending |
 | Media Island | MPRIS, artwork, timeline and controls | Pending |
 | Dash Home/Media/Weather/Wallpapers/Alerts | Dash tabs | Initial tab state scaffold; content pending |
-| Launcher | Desktop entries, search, keyboard navigation and pinning | Pending |
-| Spotlight | Search and quick actions | Pending |
-| Full-screen app grid | Desktop entries and icon theme | Pending |
+| Launcher | Desktop entries, Nucleo fuzzy search, app launch and keyboard navigation | Native search and launch UI implemented; keyboard selection, pinning and visual parity pending |
+| Spotlight | Shared Nucleo app search plus quick actions | Native app search implemented; quick actions and visual parity pending |
+| Full-screen app grid | Desktop entries, icon theme and six-column grid | Native scan, icon lookup, grid and launch implemented; pinning and visual parity pending |
 | Clipboard history | Wayland clipboard watcher, persistence and search | Pending |
 | Power menu | Session/system actions | Pending |
 | Control Center | Audio, microphone, Wi-Fi, Bluetooth and brightness | Pending |
 | Settings window | Persistent settings and live updates | Pending |
-| Color picker | HEX input, copy and hyprpicker integration | Pending |
-| Emoji picker | Search, selection and copy | Pending |
+| Color picker | `iced_aw` color wheel, HEX input/copy and hyprpicker eyedropper | Native picker and eyedropper implemented; visual parity pending |
+| Emoji picker | Unicode 18 catalog, Nucleo fuzzy search, pt-BR aliases, skin-tone metadata and copy | Native searchable grid and copy implemented; Noto SVG artwork and skin-tone UI pending |
 | OSD | Volume/brightness feedback | Pending |
 | Wallpaper layer and rotation | Matugen + wallpaper service | Pending |
 | Notifications and previews | D-Bus notification service and notification Island | Pending |
@@ -62,7 +62,7 @@ This is the parity contract for the Iced rewrite. The old implementation is the 
 | Wi-Fi | NetworkManager D-Bus | Pending |
 | Bluetooth | BlueZ D-Bus | Pending |
 | Weather | Open-Meteo and cached forecast | Pending |
-| Matugen schemes and colors | Matugen process + validated palette parser | Pending |
+| Matugen schemes and colors | Material Color Utilities HCT palette generation + Matugen export | Native light/dark scheme generation from HEX or image implemented; Matugen export and live UI application pending |
 | Wallpaper selection/rotation | Persistent wallpaper service | Pending |
 | Material 3 components | Native Iced widget styles | Pending |
 | M3/Fluent motion | Shared animation scheduler | Pending |

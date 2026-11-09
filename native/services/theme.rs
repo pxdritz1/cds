@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use anyhow::{Context, Result, bail};
+use anyhow::{Context, Result};
 use image::DynamicImage;
 use material_color_utils::{
     MaterializedScheme,
