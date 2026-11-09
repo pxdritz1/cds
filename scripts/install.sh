@@ -79,11 +79,47 @@ log "Creating the Amane configuration directory."
 amane new "$amane_config"
 
 log "Installing Chloe Dynamic Shell sources."
-mkdir -p "$amane_config/src"
+mkdir -p "$amane_config/src" "$amane_config/matugen"
 cp -a "$repo_root/src/." "$amane_config/src/"
+cp -a "$repo_root/matugen/." "$amane_config/matugen/"
 
-log "Compiling Chloe Dynamic Shell."
-amane compile
+log "Preparing the Amane build project."
+if ! amane compile; then
+    log "Amane's generated manifest does not include CDS dependencies; applying them before the final build."
+fi
+
+project_manifest="$cache_home/amane/project/Cargo.toml"
+config_manifest="$amane_config/Cargo.toml"
+[[ -f "$project_manifest" ]] || fail "Amane did not generate its Cargo project at $project_manifest."
+
+python - "$project_manifest" "$config_manifest" <<'PY'
+from pathlib import Path
+import re
+import sys
+
+for raw_path in sys.argv[1:]:
+    path = Path(raw_path)
+    if not path.exists():
+        continue
+
+    lines = path.read_text().splitlines()
+    try:
+        section = lines.index("[dependencies]")
+    except ValueError:
+        raise SystemExit(f"Missing [dependencies] section in {path}")
+
+    additions = []
+    for name, version in (("png", "0.18.1"), ("zbus", "5.19.0")):
+        if not any(re.match(rf"^{re.escape(name)}\\s*=", line) for line in lines):
+            additions.append(f'{name} = "{version}"')
+
+    lines[section + 1:section + 1] = additions
+    path.write_text("\\n".join(lines) + "\\n")
+PY
+
+log "Building Chloe Dynamic Shell with its required dependencies."
+cargo build --manifest-path "$project_manifest"
+install -Dm755 "$cache_home/amane/project/target/debug/amane-shell" "$cache_home/amane/amane-shell"
 
 if [[ -f "$niri_config" ]]; then
     backup="$niri_config.backup-$backup_stamp"
