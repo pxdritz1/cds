@@ -82,6 +82,18 @@ for qt in ("qt5ct", "qt6ct"):
 for gtk in ("gtk-3.0", "gtk-4.0"):
     css = config_home / gtk / "gtk.css"
     css.parent.mkdir(parents=True, exist_ok=True)
+
+    # A dangling gtk.css symlink makes Path.exists() return False, but
+    # write_text() still follows the link and fails with ENOENT.
+    if css.is_symlink() and not css.exists():
+        backup = css.with_name(css.name + ".cds-broken-symlink-backup")
+        suffix = 1
+        while backup.exists() or backup.is_symlink():
+            backup = css.with_name(css.name + f".cds-broken-symlink-backup-{suffix}")
+            suffix += 1
+        css.rename(backup)
+        print(f"Moved dangling GTK stylesheet symlink to {backup}")
+
     import_line = '@import "colors.css";'
     old = css.read_text() if css.exists() else ""
     if import_line not in old:
