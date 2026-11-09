@@ -186,7 +186,10 @@ fn launch(action: Action) {
             amane::spawn(&exec);
             Overlay::close();
         }
-        Action::Settings => Overlay::open(Panel::Config),
+        Action::Settings => {
+            Overlay::close();
+            crate::settingsview::SettingsView::toggle();
+        }
         Action::ColorPicker => {
             crate::color::ColorPicker::reset();
             Overlay::open(Panel::Color);
