@@ -10,7 +10,7 @@ generated_home="$matugen_home/generated"
 prism_home="$data_home/PrismLauncher"
 flatpak_prism_home="$HOME/.var/app/org.prismlauncher.PrismLauncher/data/PrismLauncher"
 
-mkdir -p "$template_home" "$generated_home" "$config_home/niri" "$config_home/zed/themes" "$config_home/gtk-3.0" "$config_home/gtk-4.0" "$config_home/qt5ct/colors" "$config_home/qt6ct/colors"
+mkdir -p "$template_home" "$generated_home" "$config_home/niri" "$config_home/zed/themes" "$config_home/gtk-3.0" "$config_home/gtk-4.0" "$config_home/qt5ct/colors" "$config_home/qt6ct/colors" "$config_home/alacritty" "$config_home/kitty" "$config_home/micro/colorschemes" "$config_home/nvim/colors" "$config_home/helix/themes" "$config_home/spicetify/Themes/Comfy"
 
 install -m644 "$repo_root/matugen/zed.json" "$template_home/zed.json"
 install -m644 "$repo_root/matugen/prism.json" "$template_home/prism.json"
@@ -19,6 +19,12 @@ install -m644 "$repo_root/matugen/gtk.css" "$template_home/gtk.css"
 install -m644 "$repo_root/matugen/qtct.conf" "$template_home/qtct.conf"
 install -m644 "$repo_root/matugen/zen.css" "$template_home/zen.css"
 install -m644 "$repo_root/matugen/niri.kdl" "$template_home/niri.kdl"
+install -m644 "$repo_root/matugen/alacritty.toml" "$template_home/alacritty.toml"
+install -m644 "$repo_root/matugen/kitty.conf" "$template_home/kitty.conf"
+install -m644 "$repo_root/matugen/micro.micro" "$template_home/micro.micro"
+install -m644 "$repo_root/matugen/neovim.lua" "$template_home/neovim.lua"
+install -m644 "$repo_root/matugen/helix.toml" "$template_home/helix.toml"
+install -m644 "$repo_root/matugen/spicetify.ini" "$template_home/spicetify.ini"
 
 if [[ -d "$flatpak_prism_home" ]]; then
     prism_home="$flatpak_prism_home"
@@ -46,6 +52,12 @@ entries = {
     "cds_qt6ct": (templates / "qtct.conf", config_home / "qt6ct/colors/chloe-dynamic-shell.conf"),
     "cds_zen": (templates / "zen.css", generated / "zen-userChrome.css"),
     "cds_niri": (templates / "niri.kdl", config_home / "niri/matugen.kdl"),
+    "cds_alacritty": (templates / "alacritty.toml", config_home / "alacritty/cds-colors.toml"),
+    "cds_kitty": (templates / "kitty.conf", config_home / "kitty/chloe-dynamic-shell.conf"),
+    "cds_micro": (templates / "micro.micro", config_home / "micro/colorschemes/chloe-dynamic-shell.micro"),
+    "cds_neovim": (templates / "neovim.lua", config_home / "nvim/colors/chloe-dynamic-shell.lua"),
+    "cds_helix": (templates / "helix.toml", config_home / "helix/themes/chloe-dynamic-shell.toml"),
+    "cds_spicetify": (templates / "spicetify.ini", config_home / "spicetify/Themes/Comfy/color.ini"),
 }
 
 text = config.read_text() if config.exists() else ""
@@ -150,7 +162,7 @@ print(f"Registered {len(entries)} application templates in {config}")
 print(f"Configured Zen Browser profiles: {len(zen_profiles)}")
 PY
 
-printf '[CDS] Matugen templates installed for Zed, Prism Launcher, Zen Browser, GTK 3/4, Qt 5/6 and Niri.\n'
+printf '[CDS] Matugen templates installed for Zed, Prism Launcher, Zen Browser, GTK 3/4, Qt 5/6, Niri, Alacritty, Kitty, Micro, Neovim, Helix and Spicetify (Comfy).\n'
 printf '[CDS] Select "Chloe Dynamic Shell" in Zed and Prism Launcher after generating the first palette.\n'
 printf '[CDS] Zen Browser profiles were configured where existing profiles were detected.\n'
 printf '[CDS] Qt palette files are configured for qt5ct and qt6ct; QT_QPA_PLATFORMTHEME remains under your control.\n'
