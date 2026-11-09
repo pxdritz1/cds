@@ -129,8 +129,10 @@ flush()
 path.write_text("\n".join(output) + "\n")
 PY
     log "Backed up Matugen configuration to $backup."
-    matugen_legacy_disabled=1
-    log "Legacy Niri, SCSS, and Alacritty template sections were commented out, not deleted."
+    if grep -q "niri-colors.kdl" "$matugen_config" || grep -q "colors.scss" "$matugen_config" || grep -q "alacritty.toml" "$matugen_config"; then
+        matugen_legacy_disabled=1
+    fi
+    log "Processed existing Matugen template configuration."
 else
     log "No existing Matugen configuration was found; CDS will create its runtime template configuration."
 fi
