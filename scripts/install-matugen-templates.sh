@@ -123,8 +123,10 @@ for gtk in ("gtk-3.0", "gtk-4.0"):
 
 zen_profiles = []
 for profile_root in (
+    config_home / "zen",
     Path.home() / ".zen",
     Path.home() / ".var/app/app.zen_browser.zen/.zen",
+    Path.home() / ".var/app/app.zen_browser.zen/config/zen",
 ):
     profiles_ini = profile_root / "profiles.ini"
     if not profiles_ini.exists():
