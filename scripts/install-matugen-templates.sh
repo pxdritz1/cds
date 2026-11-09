@@ -89,6 +89,10 @@ for gtk in ("gtk-3.0", "gtk-4.0"):
             backup = css.with_name(css.name + ".cds-backup")
             if not backup.exists():
                 backup.write_text(old)
+
+        # Recreate the parent immediately before writing. This also handles
+        # external config managers that may recreate/remove GTK config dirs.
+        css.parent.mkdir(parents=True, exist_ok=True)
         css.write_text(import_line + "\n" + old)
 
 zen_profiles = []
