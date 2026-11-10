@@ -1527,7 +1527,13 @@ impl App {
                 button("+").on_press(Message::BrightnessAdjust(5)),
             ].align_y(Alignment::Center),
             text("Os controles usam pactl, nmcli, rfkill e brightnessctl.").size(11),
-            self.last_error.as_ref().map(|error| text(error.clone()).size(11).into()).unwrap_or_else(|| text("").into()),
+            {
+                let error_view: Element<'_, Message> = self.last_error
+                    .as_ref()
+                    .map(|error| text(error.clone()).size(11).into())
+                    .unwrap_or_else(|| text("").into());
+                error_view
+            },
         ].spacing(14);
         container(container(body).padding(24).max_width(520).style(self.surface_style(0.98)))
             .width(Length::Fill).height(Length::Fill).center_x(Length::Fill).center_y(Length::Fill)
@@ -1586,7 +1592,7 @@ impl App {
             .style(|_| container::Style { background: Some(Background::Color(Color::from_rgba(0.02,0.02,0.03,0.48))), ..Default::default() }).into()
     }
 
-    fn launcher_panel_view(&self, id: window::Id) -> Element<'_, Message> {
+    fn launcher_panel_view(&self, _id: window::Id) -> Element<'_, Message> {
         let mut results = self.app_results.iter()
             .take(40)
             .filter_map(|app_id| self.apps.iter().find(|app| &app.id == app_id))
