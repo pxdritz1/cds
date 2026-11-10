@@ -49,6 +49,7 @@ enum WindowKind {
     Bar,
     Panel(Panel),
     Lock,
+    Osd,
 }
 
 #[to_exwlshell_message]
@@ -65,6 +66,7 @@ enum Message {
     SelectDashTab(DashTab),
     CloseActive,
     CloseWindow(window::Id),
+    ShowOsd(String),
     LockAppeared(window::Id),
     AppsQuery(String),
     LauncherQuery(String),
@@ -147,6 +149,9 @@ struct App {
     clipboard_selected: usize,
     lock_password: String,
     lock_error: Option<String>,
+    osd_window: Option<window::Id>,
+    osd_text: String,
+    osd_since: Option<std::time::Instant>,
 }
 
 impl App {
@@ -186,6 +191,9 @@ impl App {
             clipboard_selected: 0,
             lock_password: String::new(),
             lock_error: None,
+            osd_window: None,
+            osd_text: String::new(),
+            osd_since: None,
         }
     }
 
@@ -288,7 +296,29 @@ impl App {
             },
             Message::WindowClosed(id) => {
                 self.remove_window(id);
+                if self.osd_window == Some(id) { self.osd_window = None; self.osd_since = None; }
                 Task::none()
+            }
+            Message::ShowOsd(message) => {
+                let previous = self.osd_window.take();
+                let id = window::Id::unique();
+                self.windows.insert(id, WindowKind::Osd);
+                self.osd_window = Some(id);
+                self.osd_text = message;
+                self.osd_since = Some(std::time::Instant::now());
+                let settings = NewLayerShellSettings {
+                    anchor: Anchor::Bottom,
+                    layer: Layer::Overlay,
+                    size: LayerSize::px(340, 96),
+                    exclusive_zone: None,
+                    margin: Some((0, 0, 36, 0)),
+                    keyboard_interactivity: KeyboardInteractivity::None,
+                    output_option: OutputOption::LastOutput,
+                    namespace: Some("cds-osd".into()),
+                    ..Default::default()
+                };
+                let close_previous = previous.map(|previous| Task::done(Message::CloseWindow(previous))).unwrap_or_else(Task::none);
+                Task::batch(vec![close_previous, Task::done(Message::NewLayerShell { settings, id })])
             }
             Message::OpenPanel(panel) => self.open_panel(panel),
             Message::OpenDash(tab) => {
@@ -436,7 +466,20 @@ impl App {
                 Message::AudioSnapshot,
             ),
             Message::AudioSnapshot(result) => match result {
-                Ok(snapshot) => { self.audio = snapshot; Task::none() }
+                Ok(snapshot) => {
+                    let changed = (snapshot.output_volume, snapshot.output_muted) != (self.audio.output_volume, self.audio.output_muted);
+                    let mic_changed = snapshot.input_muted != self.audio.input_muted;
+                    self.audio = snapshot.clone();
+                    if changed {
+                        Task::done(Message::ShowOsd(format!(
+                            "{} · {}%",
+                            if snapshot.output_muted { "Áudio silenciado" } else { "Volume" },
+                            snapshot.output_volume
+                        )))
+                    } else if mic_changed {
+                        Task::done(Message::ShowOsd(if snapshot.input_muted { "Microfone silenciado".into() } else { "Microfone ativo".into() }))
+                    } else { Task::none() }
+                }
                 Err(error) => { self.last_error = Some(error); Task::none() }
             },
             Message::AudioAdjust(delta) => Task::perform(
@@ -476,7 +519,13 @@ impl App {
                 Message::SystemSnapshot,
             ),
             Message::SystemSnapshot(result) => match result {
-                Ok(snapshot) => { self.system = snapshot; Task::none() }
+                Ok(snapshot) => {
+                    let brightness_changed = snapshot.brightness != self.system.brightness;
+                    self.system = snapshot.clone();
+                    if brightness_changed {
+                        Task::done(Message::ShowOsd(format!("Brilho · {}%", snapshot.brightness)))
+                    } else { Task::none() }
+                }
                 Err(error) => { self.last_error = Some(error); Task::none() }
             },
             Message::WifiToggle(enabled) => Task::perform(
@@ -511,6 +560,12 @@ impl App {
                 if self.active_panel_is(Panel::Control) {
                     tasks.push(Task::done(Message::AudioRefresh));
                     tasks.push(Task::done(Message::SystemRefresh));
+                }
+                if self.osd_since.is_some_and(|since| since.elapsed() >= std::time::Duration::from_millis(2600)) {
+                    if let Some(id) = self.osd_window.take() {
+                        self.osd_since = None;
+                        tasks.push(Task::done(Message::CloseWindow(id)));
+                    }
                 }
                 Task::batch(tasks)
             },
@@ -897,6 +952,7 @@ impl App {
             Some(WindowKind::Bar) => self.bar_view(),
             Some(WindowKind::Panel(panel)) => self.panel_view(panel, id),
             Some(WindowKind::Lock) => self.lock_view(id),
+            Some(WindowKind::Osd) => self.osd_view(),
             None => container(text("")).into(),
         }
     }
@@ -1685,6 +1741,23 @@ impl App {
             background: Some(Background::Color(background)),
             ..Default::default()
         }
+    }
+
+    fn osd_view(&self) -> Element<'_, Message> {
+        container(
+            row![
+                text(if self.osd_text.to_lowercase().contains("brilho") { "☼" } else { "◖" }).size(30),
+                column![
+                    text(self.osd_text.clone()).size(16),
+                    text("CDS · OSD").size(10),
+                ].spacing(2),
+            ].spacing(16).align_y(Alignment::Center)
+        )
+        .padding(18)
+        .width(Length::Fill)
+        .height(Length::Fill)
+        .style(self.surface_style(0.98))
+        .into()
     }
 
     fn lock_view(&self, _id: window::Id) -> Element<'_, Message> {
