@@ -829,13 +829,13 @@ impl App {
             IpcCommand::Tray { args } => match args.first().map(String::as_str) {
                 Some("list") | None => {
                     let items = crate::services::tray::registered_items();
-                    (ok(if items.is_empty() { "No StatusNotifier items registered".into() } else { items.join("\\n") }), Task::none())
+                    (ok(if items.is_empty() { "No StatusNotifier items registered".into() } else { items.join("\n") }), Task::none())
                 }
                 _ => (error("Usage: cds tray list"), Task::none()),
             },
             IpcCommand::Settings { args } => match args.as_slice() {
                 [] => {
-                    (ok(format!("language={}\\ndark={}\\nmotion={}\\npinned={}\\ntrans_meter_colors={}",
+                    (ok(format!("language={}\ndark={}\nmotion={}\npinned={}\ntrans_meter_colors={}",
                         self.settings.language, self.settings.dark, self.settings.motion_style,
                         self.settings.pinned_apps.len(), self.settings.flag("trans_meter_colors"))), Task::none())
                 }
@@ -859,7 +859,7 @@ impl App {
                 [operation, name, value] if operation == "flag" => {
                     match self.settings.set_flag(name, value == "true") {
                         Ok(()) => (ok(format!("flag.{name}={value}")), Task::none()),
-                        Err(error) => (error(error.to_string()), Task::none()),
+                        Err(err) => (error(err.to_string()), Task::none()),
                     }
                 }
                 _ => (error("Usage: cds settings [get] | set <language|dark|motion> <value> | flag <name> <true|false>"), Task::none()),
