@@ -154,3 +154,35 @@ impl Settings {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::Settings;
+
+    #[test]
+    fn imports_original_cds_settings_and_pins() {
+        let mut settings = Settings::default();
+        settings.parse_legacy_format(
+            "language=en\ndark=false\nmotion_style=fluent\nworkspaces_alignment=right\ncenter_alignment=left\nstatus_alignment=left\nstatus_position.volume=right\npinned.firefox=true\nflag.trans_meter_colors=true\n",
+        );
+
+        assert_eq!(settings.language, "en");
+        assert!(!settings.dark);
+        assert_eq!(settings.motion_style, "fluent");
+        assert_eq!(settings.workspaces_alignment, "right");
+        assert_eq!(settings.center_alignment, "left");
+        assert_eq!(settings.status_alignment, "left");
+        assert_eq!(settings.status_positions.get("volume").map(String::as_str), Some("right"));
+        assert!(settings.is_pinned("firefox"));
+        assert!(settings.flag("trans_meter_colors"));
+    }
+
+    #[test]
+    fn defaults_keep_original_cds_layout_alignments() {
+        let settings = Settings::default();
+        assert_eq!(settings.workspaces_alignment, "left");
+        assert_eq!(settings.center_alignment, "center");
+        assert_eq!(settings.status_alignment, "right");
+        assert_eq!(settings.language, "pt-BR");
+    }
+}
