@@ -967,9 +967,8 @@ impl App {
             } else {
                 text("●").size(18).into()
             }
-        } else if let Some(path) = self.media.art_url.strip_prefix("file://")
-            .map(std::path::PathBuf::from).filter(|path| path.is_file()) {
-            app_icon_sized(Some(&path), 28.0)
+        } else if let Some(path) = self.media.artwork_path.as_ref() {
+            app_icon_sized(Some(path), 28.0)
         } else {
             text("♫").size(18).into()
         };
@@ -1056,9 +1055,8 @@ impl App {
         let body: Element<'_, Message> = if panel == Panel::Dash {
             let page: Element<'_, Message> = match self.dash_tab {
                 DashTab::Media => column![
-                    if let Some(path) = self.media.art_url.strip_prefix("file://")
-                        .map(std::path::PathBuf::from).filter(|path| path.is_file()) {
-                        app_icon_sized(Some(&path), 104.0)
+                    if let Some(path) = self.media.artwork_path.as_ref() {
+                        app_icon_sized(Some(path), 104.0)
                     } else {
                         text("♫").size(56).into()
                     },
