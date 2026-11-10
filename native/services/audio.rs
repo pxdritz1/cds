@@ -19,9 +19,10 @@ fn pactl(args: &[&str]) -> Result<String> {
 
 fn parse_volume(value: &str) -> u8 {
     value.split_whitespace()
-        .find_map(|part| part.strip_suffix('%')?.parse::<u8>().ok())
+        .filter_map(|part| part.strip_suffix('%')?.parse::<u16>().ok())
+        .max()
         .unwrap_or(0)
-        .min(150)
+        .min(150) as u8
 }
 
 fn parse_mute(value: &str) -> bool {
@@ -58,7 +59,7 @@ pub fn toggle_input_mute() -> Result<()> {
 }
 
 pub fn set_output_volume(volume: u8) -> Result<()> {
-    let volume = format!("{}%", volume.min(100));
+    let volume = format!("{}%", volume.min(150));
     pactl(&["set-sink-volume", "@DEFAULT_SINK@", &volume])?;
     Ok(())
 }
