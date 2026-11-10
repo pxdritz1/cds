@@ -642,7 +642,12 @@ impl App {
                 _ => (error("Usage: cds tray list"), Task::none()),
             },
             IpcCommand::Settings { args } => match args.as_slice() {
-                [] | [ref operation] if args.is_empty() || operation == "get" => {
+                [] => {
+                    (ok(format!("language={}\\ndark={}\\nmotion={}\\npinned={}\\ntrans_meter_colors={}",
+                        self.settings.language, self.settings.dark, self.settings.motion_style,
+                        self.settings.pinned_apps.len(), self.settings.flag("trans_meter_colors"))), Task::none())
+                }
+                [operation] if operation == "get" => {
                     (ok(format!("language={}\\ndark={}\\nmotion={}\\npinned={}\\ntrans_meter_colors={}",
                         self.settings.language, self.settings.dark, self.settings.motion_style,
                         self.settings.pinned_apps.len(), self.settings.flag("trans_meter_colors"))), Task::none())
@@ -656,7 +661,7 @@ impl App {
                     }
                     match self.settings.save() {
                         Ok(()) => (ok("Settings saved"), Task::none()),
-                        Err(error) => (error(error.to_string()), Task::none()),
+                        Err(err) => (error(err.to_string()), Task::none()),
                     }
                 }
                 [operation, name, value] if operation == "flag" => {
