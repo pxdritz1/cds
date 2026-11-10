@@ -1188,9 +1188,9 @@ impl App {
         container(
             row![
                 left,
-                iced::widget::Space::width(Length::Fill),
+                iced::widget::Space::new().width(Length::Fill),
                 middle,
-                iced::widget::Space::width(Length::Fill),
+                iced::widget::Space::new().width(Length::Fill),
                 right,
             ]
                 .spacing(10)
@@ -1453,7 +1453,7 @@ impl App {
     /// This intentionally stays separate from the full app grid and Spotlight.
     fn settings_panel_view(&self, id: window::Id) -> Element<'_, Message> {
         let body = column![
-            row![text("Configurações do CDS").size(23), iced::widget::Space::width(Length::Fill), button("Fechar").on_press(Message::CloseWindow(id))].align_y(Alignment::Center),
+            row![text("Configurações do CDS").size(23), iced::widget::Space::new().width(Length::Fill), button("Fechar").on_press(Message::CloseWindow(id))].align_y(Alignment::Center),
             text("Preferências persistentes · importadas do settings.conf antigo").size(11),
             row![
                 text("Tema").width(Length::Fill),
@@ -1501,7 +1501,7 @@ impl App {
 
     fn control_panel_view(&self, id: window::Id) -> Element<'_, Message> {
         let body = column![
-            row![text("Central de controle").size(23), iced::widget::Space::width(Length::Fill), button("↻").on_press(Message::AudioRefresh), button("Fechar").on_press(Message::CloseWindow(id))].align_y(Alignment::Center),
+            row![text("Central de controle").size(23), iced::widget::Space::new().width(Length::Fill), button("↻").on_press(Message::AudioRefresh), button("Fechar").on_press(Message::CloseWindow(id))].align_y(Alignment::Center),
             text("Áudio").size(17),
             row![
                 text(format!("Saída · {}{}", self.audio.output_volume, if self.audio.output_muted { "% · mutado" } else { "%" })).width(Length::Fill),
@@ -1550,7 +1550,7 @@ impl App {
                 }
             }).collect::<Vec<Element<'_, Message>>>();
             column![
-                row![text("Menu do aplicativo").size(17), iced::widget::Space::width(Length::Fill), button("Voltar").on_press(Message::TrayMenuDismiss)],
+                row![text("Menu do aplicativo").size(17), iced::widget::Space::new().width(Length::Fill), button("Voltar").on_press(Message::TrayMenuDismiss)],
                 scrollable(column(menu_rows).spacing(4)).height(Length::Fixed(320.0)),
             ].spacing(8).into()
         } else {
@@ -1578,7 +1578,7 @@ impl App {
             }
         };
         let body = column![
-            row![text("Bandeja do sistema").size(22), iced::widget::Space::width(Length::Fill), button("↻").on_press(Message::TrayRefresh), button("Fechar").on_press(Message::CloseWindow(id))].align_y(Alignment::Center),
+            row![text("Bandeja do sistema").size(22), iced::widget::Space::new().width(Length::Fill), button("↻").on_press(Message::TrayRefresh), button("Fechar").on_press(Message::CloseWindow(id))].align_y(Alignment::Center),
             content,
         ].spacing(12);
         container(container(body).padding(22).max_width(540).style(self.surface_style(0.98)))
