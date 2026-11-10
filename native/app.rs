@@ -31,6 +31,7 @@ enum Panel {
     Color,
     Emoji,
     Dash,
+    Tray,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -79,6 +80,15 @@ enum Message {
     AudioToggleOutputMute,
     AudioToggleInputMute,
     AudioActionResult(Result<(), String>),
+    AudioSetVolume(u8),
+    SystemRefresh,
+    SystemSnapshot(Result<crate::services::system::SystemSnapshot, String>),
+    WifiToggle(bool),
+    BluetoothToggle(bool),
+    BrightnessAdjust(i8),
+    SystemActionResult(Result<(), String>),
+    TrayActivate(String),
+    TrayActionResult(Result<(), String>),
     BackgroundTick,
     MediaRefresh,
     MediaSnapshot(Result<crate::services::media::MediaSnapshot, String>),
@@ -119,6 +129,7 @@ struct App {
     apps: Vec<DesktopApp>,
     settings: crate::services::settings::Settings,
     audio: crate::services::audio::AudioSnapshot,
+    system: crate::services::system::SystemSnapshot,
     media: crate::services::media::MediaSnapshot,
     notifications: Vec<crate::services::notifications::NotificationRecord>,
     app_query: String,
@@ -157,6 +168,7 @@ impl App {
             apps,
             settings,
             audio: crate::services::audio::AudioSnapshot::default(),
+            system: crate::services::system::SystemSnapshot::default(),
             media: crate::services::media::MediaSnapshot::default(),
             notifications: Vec::new(),
             app_query: String::new(),
@@ -428,10 +440,61 @@ impl App {
                 Ok(()) => Task::done(Message::AudioRefresh),
                 Err(error) => { self.last_error = Some(error); Task::none() }
             },
-            Message::BackgroundTick => Task::batch(vec![
-                Task::done(Message::MediaRefresh),
-                Task::done(Message::NotificationsRefresh),
-            ]),
+            Message::AudioSetVolume(volume) => Task::perform(
+                async move {
+                    tokio::task::spawn_blocking(move || crate::services::audio::set_output_volume(volume))
+                        .await.map_err(|error| error.to_string())?
+                        .map_err(|error| error.to_string())
+                },
+                Message::AudioActionResult,
+            ),
+            Message::SystemRefresh => Task::perform(
+                async {
+                    tokio::task::spawn_blocking(crate::services::system::snapshot)
+                        .await.map_err(|error| error.to_string())?
+                        .map_err(|error| error.to_string())
+                },
+                Message::SystemSnapshot,
+            ),
+            Message::SystemSnapshot(result) => match result {
+                Ok(snapshot) => { self.system = snapshot; Task::none() }
+                Err(error) => { self.last_error = Some(error); Task::none() }
+            },
+            Message::WifiToggle(enabled) => Task::perform(
+                async move { tokio::task::spawn_blocking(move || crate::services::system::set_wifi(enabled)).await.map_err(|error| error.to_string())?.map_err(|error| error.to_string()) },
+                Message::SystemActionResult,
+            ),
+            Message::BluetoothToggle(enabled) => Task::perform(
+                async move { tokio::task::spawn_blocking(move || crate::services::system::set_bluetooth(enabled)).await.map_err(|error| error.to_string())?.map_err(|error| error.to_string()) },
+                Message::SystemActionResult,
+            ),
+            Message::BrightnessAdjust(delta) => Task::perform(
+                async move { tokio::task::spawn_blocking(move || crate::services::system::adjust_brightness(delta)).await.map_err(|error| error.to_string())?.map_err(|error| error.to_string()) },
+                Message::SystemActionResult,
+            ),
+            Message::SystemActionResult(result) => match result {
+                Ok(()) => Task::batch(vec![Task::done(Message::SystemRefresh), Task::done(Message::AudioRefresh)]),
+                Err(error) => { self.last_error = Some(error); Task::none() }
+            },
+            Message::TrayActivate(address) => Task::perform(
+                async move { crate::services::tray::activate(&address).await.map_err(|error| error.to_string()) },
+                Message::TrayActionResult,
+            ),
+            Message::TrayActionResult(result) => match result {
+                Ok(()) => Task::none(),
+                Err(error) => { self.last_error = Some(error); Task::none() }
+            },
+            Message::BackgroundTick => {
+                let mut tasks = vec![
+                    Task::done(Message::MediaRefresh),
+                    Task::done(Message::NotificationsRefresh),
+                ];
+                if self.active_panel_is(Panel::Control) {
+                    tasks.push(Task::done(Message::AudioRefresh));
+                    tasks.push(Task::done(Message::SystemRefresh));
+                }
+                Task::batch(tasks)
+            },
             Message::MediaRefresh => Task::perform(
                 crate::services::media::snapshot(),
                 |result| Message::MediaSnapshot(result.map_err(|error| error.to_string())),
@@ -793,7 +856,9 @@ impl App {
             }
         };
 
-        let audio_refresh = if panel == Panel::Control { Task::done(Message::AudioRefresh) } else { Task::none() };
+        let audio_refresh = if panel == Panel::Control {
+            Task::batch(vec![Task::done(Message::AudioRefresh), Task::done(Message::SystemRefresh)])
+        } else { Task::none() };
         Task::batch(vec![
             close,
             Task::done(Message::NewLayerShell { settings, id }),
@@ -904,6 +969,7 @@ impl App {
                 text(format!("◖ {}%", self.audio.output_volume)).size(12),
                 text(format!("◈ {tray_count}")).size(12),
                 button("Clip").on_press(Message::OpenPanel(Panel::Clipboard)),
+                button(format!("◈ {tray_count}")).on_press(Message::OpenPanel(Panel::Tray)),
                 button("Control").on_press(Message::OpenPanel(Panel::Control)),
                 button("Settings").on_press(Message::OpenPanel(Panel::Settings)),
             ]
@@ -932,6 +998,7 @@ impl App {
             Panel::Apps | Panel::Spotlight => return self.apps_panel_view(panel, id),
             Panel::Settings => return self.settings_panel_view(id),
             Panel::Control => return self.control_panel_view(id),
+            Panel::Tray => return self.tray_panel_view(id),
             Panel::Emoji => return self.emoji_panel_view(id),
             Panel::Color => return self.color_panel_view(id),
             Panel::Clipboard => return self.clipboard_panel_view(id),
@@ -949,6 +1016,7 @@ impl App {
             Panel::Color => "HEX color picker",
             Panel::Emoji => "Emoji picker",
             Panel::Dash => "Dashboard",
+            Panel::Tray => "System tray",
         };
 
         let body: Element<'_, Message> = if panel == Panel::Dash {
@@ -1196,14 +1264,53 @@ impl App {
                 button("+").on_press(Message::AudioAdjust(5)),
                 button(if self.audio.output_muted { "Ativar" } else { "Mudo" }).on_press(Message::AudioToggleOutputMute),
             ].align_y(Alignment::Center),
+            iced::widget::slider(0..=100, self.audio.output_volume.min(100), Message::AudioSetVolume),
             row![
                 text(format!("Microfone · {}{}", self.audio.input_volume, if self.audio.input_muted { "% · mutado" } else { "%" })).width(Length::Fill),
                 button(if self.audio.input_muted { "Ativar" } else { "Silenciar" }).on_press(Message::AudioToggleInputMute),
             ].align_y(Alignment::Center),
-            text("Os controles usam pactl (PipeWire-PulseAudio ou PulseAudio).").size(11),
+            text("Conectividade e brilho").size(17),
+            row![
+                button(if self.system.wifi_enabled { "Wi-Fi ligado" } else { "Wi-Fi desligado" })
+                    .on_press(Message::WifiToggle(!self.system.wifi_enabled)),
+                button(if self.system.bluetooth_blocked { "Bluetooth desligado" } else { "Bluetooth ligado" })
+                    .on_press(Message::BluetoothToggle(self.system.bluetooth_blocked)),
+            ].spacing(8),
+            row![
+                text(format!("Brilho · {}%", self.system.brightness)).width(Length::Fill),
+                button("−").on_press(Message::BrightnessAdjust(-5)),
+                button("+").on_press(Message::BrightnessAdjust(5)),
+            ].align_y(Alignment::Center),
+            text("Os controles usam pactl, nmcli, rfkill e brightnessctl.").size(11),
             self.last_error.as_ref().map(|error| text(error.clone()).size(11).into()).unwrap_or_else(|| text("").into()),
         ].spacing(14);
         container(container(body).padding(24).max_width(520).style(self.surface_style(0.98)))
+            .width(Length::Fill).height(Length::Fill).center_x(Length::Fill).center_y(Length::Fill)
+            .style(|_| container::Style { background: Some(Background::Color(Color::from_rgba(0.02,0.02,0.03,0.48))), ..Default::default() }).into()
+    }
+
+    fn tray_panel_view(&self, id: window::Id) -> Element<'_, Message> {
+        let items = crate::services::tray::registered_items();
+        let rows = items.iter().map(|address| {
+            button(row![
+                text("◈").size(20),
+                text(address.clone()).size(12).width(Length::Fill),
+                text("Abrir").size(11),
+            ].spacing(10).align_y(Alignment::Center))
+                .width(Length::Fill)
+                .on_press(Message::TrayActivate(address.clone()))
+                .into()
+        }).collect::<Vec<Element<'_, Message>>>();
+        let content: Element<'_, Message> = if rows.is_empty() {
+            text("Nenhum StatusNotifierItem registrado.").into()
+        } else {
+            scrollable(column(rows).spacing(6)).height(Length::Fixed(320.0)).into()
+        };
+        let body = column![
+            row![text("Bandeja do sistema").size(22), iced::widget::Space::with_width(Length::Fill), button("↻").on_press(Message::NotificationsRefresh), button("Fechar").on_press(Message::CloseWindow(id))].align_y(Alignment::Center),
+            content,
+        ].spacing(12);
+        container(container(body).padding(22).max_width(540).style(self.surface_style(0.98)))
             .width(Length::Fill).height(Length::Fill).center_x(Length::Fill).center_y(Length::Fill)
             .style(|_| container::Style { background: Some(Background::Color(Color::from_rgba(0.02,0.02,0.03,0.48))), ..Default::default() }).into()
     }
