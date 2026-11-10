@@ -6,7 +6,7 @@ on:
       - feat/native-iced-port
   pull_request:
     branches:
-      - feat/native-iced-port
+      - main
 
 permissions:
   contents: read
