@@ -229,14 +229,13 @@ fn parse_menu_node(
     let fields = structure.fields();
     if fields.len() < 3 { return Ok(()); }
 
-    let id = OwnedValue::try_from(&fields[0]).ok()
-        .and_then(|value| i32::try_from(value).ok()).unwrap_or_default();
-    let properties = OwnedValue::try_from(&fields[1]).ok()
-        .and_then(|value| std::collections::HashMap::<String, OwnedValue>::try_from(value).ok())
-        .unwrap_or_default();
-    let children = OwnedValue::try_from(&fields[2]).ok()
-        .and_then(|value| Vec::<OwnedValue>::try_from(value).ok())
-        .unwrap_or_default();
+    let id = fields[0].downcast_ref::<i32>().map(|value| *value).unwrap_or_default();
+    let properties = fields[1]
+        .downcast_ref::<std::collections::HashMap<String, OwnedValue>>()
+        .cloned().unwrap_or_default();
+    let children = fields[2]
+        .downcast_ref::<Vec<OwnedValue>>()
+        .cloned().unwrap_or_default();
 
     let label = variant_string(properties.get("label")).replace('_', "");
     let kind = variant_string(properties.get("type"));
