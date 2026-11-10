@@ -67,6 +67,7 @@ enum Message {
     CloseWindow(window::Id),
     LockAppeared(window::Id),
     AppsQuery(String),
+    LauncherQuery(String),
     AppsSearchResults(Vec<String>),
     AppsMove(isize),
     TogglePinned(String),
@@ -344,6 +345,24 @@ impl App {
                     self.lock_error = Some("Senha incorreta ou autenticação indisponível.".into());
                     Task::none()
                 }
+            }
+            Message::LauncherQuery(query) => {
+                self.app_query = query.clone();
+                self.app_selected = 0;
+                let apps = self.apps.clone();
+                Task::perform(
+                    async move {
+                        tokio::task::spawn_blocking(move || {
+                            let needle = query.trim().to_lowercase();
+                            apps.iter().filter(|app| {
+                                needle.is_empty()
+                                    || app.name.to_lowercase().contains(&needle)
+                                    || app.description.to_lowercase().contains(&needle)
+                            }).map(|app| app.id.clone()).collect::<Vec<_>>()
+                        }).await.unwrap_or_default()
+                    },
+                    Message::AppsSearchResults,
+                )
             }
             Message::AppsQuery(query) => {
                 self.app_query = query.clone();
@@ -1383,7 +1402,7 @@ impl App {
 
         let body = column![
             text_input("Buscar aplicativos", &self.app_query)
-                .on_input(Message::AppsQuery)
+                .on_input(Message::LauncherQuery)
                 .padding(12)
                 .size(15),
             results_view,
