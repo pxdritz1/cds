@@ -77,6 +77,8 @@ enum Message {
     SettingsSetDark(bool),
     SettingsSetLanguage(String),
     SettingsSetMotion(String),
+    SettingsSetAlignment(String, String),
+    SettingsToggleWallpaperRotation,
     AudioRefresh,
     AudioSnapshot(Result<crate::services::audio::AudioSnapshot, String>),
     AudioAdjust(i8),
@@ -463,6 +465,31 @@ impl App {
             }
             Message::SettingsSetMotion(motion) => {
                 self.settings.motion_style = if motion == "fluent" { "fluent" } else { "m3" }.into();
+                if let Err(error) = self.settings.save() { self.last_error = Some(error.to_string()); }
+                Task::none()
+            }
+            Message::SettingsSetAlignment(target, value) => {
+                let value = match (target.as_str(), value.as_str()) {
+                    ("workspaces", "right") => "right",
+                    ("workspaces", _) => "left",
+                    ("center", "left") => "left",
+                    ("center", "right") => "right",
+                    ("center", _) => "center",
+                    ("status", "left") => "left",
+                    ("status", _) => "right",
+                    _ => return Task::none(),
+                }.to_owned();
+                match target.as_str() {
+                    "workspaces" => self.settings.workspaces_alignment = value,
+                    "center" => self.settings.center_alignment = value,
+                    "status" => self.settings.status_alignment = value,
+                    _ => {}
+                }
+                if let Err(error) = self.settings.save() { self.last_error = Some(error.to_string()); }
+                Task::none()
+            }
+            Message::SettingsToggleWallpaperRotation => {
+                self.settings.wallpaper_rotation = !self.settings.wallpaper_rotation;
                 if let Err(error) = self.settings.save() { self.last_error = Some(error.to_string()); }
                 Task::none()
             }
@@ -1399,6 +1426,28 @@ impl App {
                 text("Movimento").width(Length::Fill),
                 button("Material 3").on_press(Message::SettingsSetMotion("m3".into())),
                 button("Fluent").on_press(Message::SettingsSetMotion("fluent".into())),
+            ].align_y(Alignment::Center),
+            text("Alinhamento da barra").size(16),
+            row![
+                text("Workspaces").width(Length::Fill),
+                button("Esquerda").on_press(Message::SettingsSetAlignment("workspaces".into(), "left".into())),
+                button("Direita").on_press(Message::SettingsSetAlignment("workspaces".into(), "right".into())),
+            ].align_y(Alignment::Center),
+            row![
+                text("Dynamic Island").width(Length::Fill),
+                button("Esquerda").on_press(Message::SettingsSetAlignment("center".into(), "left".into())),
+                button("Centro").on_press(Message::SettingsSetAlignment("center".into(), "center".into())),
+                button("Direita").on_press(Message::SettingsSetAlignment("center".into(), "right".into())),
+            ].align_y(Alignment::Center),
+            row![
+                text("Status").width(Length::Fill),
+                button("Esquerda").on_press(Message::SettingsSetAlignment("status".into(), "left".into())),
+                button("Direita").on_press(Message::SettingsSetAlignment("status".into(), "right".into())),
+            ].align_y(Alignment::Center),
+            row![
+                text("Rotação automática de wallpapers").width(Length::Fill),
+                button(if self.settings.wallpaper_rotation { "Ligada" } else { "Desligada" })
+                    .on_press(Message::SettingsToggleWallpaperRotation),
             ].align_y(Alignment::Center),
             text("Elementos da interface").size(16),
             settings_flag_row("Workspaces", "show_workspaces", self.settings.flag("show_workspaces")),
