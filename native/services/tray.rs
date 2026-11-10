@@ -192,6 +192,91 @@ pub async fn snapshot() -> anyhow::Result<Vec<TrayItemSnapshot>> {
     Ok(result)
 }
 
+#[derive(Debug, Clone)]
+pub struct MenuEntry {
+    pub id: i32,
+    pub label: String,
+    pub enabled: bool,
+    pub visible: bool,
+    pub separator: bool,
+    pub depth: usize,
+}
+
+#[derive(Debug, Clone)]
+pub struct TrayMenuSnapshot {
+    pub service: String,
+    pub path: String,
+    pub entries: Vec<MenuEntry>,
+}
+
+fn variant_string(value: Option<&zbus::zvariant::OwnedValue>) -> String {
+    value.and_then(|value| String::try_from(value.clone()).ok()).unwrap_or_default()
+}
+
+fn variant_bool(value: Option<&zbus::zvariant::OwnedValue>, default: bool) -> bool {
+    value.and_then(|value| bool::try_from(value.clone()).ok()).unwrap_or(default)
+}
+
+fn parse_menu_node(
+    value: zbus::zvariant::OwnedValue,
+    depth: usize,
+    output: &mut Vec<MenuEntry>,
+) -> anyhow::Result<()> {
+    use zbus::zvariant::{OwnedStructure, OwnedValue};
+
+    let structure = OwnedStructure::try_from(value)
+        .map_err(|error| anyhow::anyhow!("invalid dbusmenu node: {error}"))?;
+    let fields = structure.fields();
+    if fields.len() < 3 { return Ok(()); }
+
+    let id = i32::try_from(fields[0].clone()).unwrap_or_default();
+    let properties = std::collections::HashMap::<String, OwnedValue>::try_from(fields[1].clone())
+        .unwrap_or_default();
+    let children = Vec::<OwnedValue>::try_from(fields[2].clone()).unwrap_or_default();
+
+    let label = variant_string(properties.get("label")).replace('_', "");
+    let kind = variant_string(properties.get("type"));
+    let enabled = variant_bool(properties.get("enabled"), true);
+    let visible = variant_bool(properties.get("visible"), true);
+    if visible && (!label.is_empty() || kind == "separator") {
+        output.push(MenuEntry { id, label, enabled, visible, separator: kind == "separator", depth });
+    }
+    for child in children {
+        parse_menu_node(child, depth + 1, output)?;
+    }
+    Ok(())
+}
+
+pub async fn menu(address: &str, menu_path: &str) -> anyhow::Result<TrayMenuSnapshot> {
+    let (service, _item_path) = address.split_once('/')
+        .ok_or_else(|| anyhow::anyhow!("invalid StatusNotifier address"))?;
+    if menu_path.is_empty() || menu_path == "/" {
+        anyhow::bail!("this tray item does not expose a dbusmenu path");
+    }
+    let connection = zbus::Connection::session().await?;
+    let proxy = zbus::Proxy::new(
+        &connection, service, menu_path, "com.canonical.dbusmenu",
+    ).await?;
+    let _ = proxy.call::<_, _, (bool,)>("AboutToShow", &(0_i32,)).await;
+    let (_revision, root): (u32, zbus::zvariant::OwnedValue) = proxy.call(
+        "GetLayout",
+        &(0_i32, -1_i32, vec!["label", "enabled", "visible", "type"]),
+    ).await?;
+    let mut entries = Vec::new();
+    parse_menu_node(root, 0, &mut entries)?;
+    Ok(TrayMenuSnapshot { service: service.to_owned(), path: menu_path.to_owned(), entries })
+}
+
+pub async fn menu_event(service: &str, path: &str, id: i32) -> anyhow::Result<()> {
+    let connection = zbus::Connection::session().await?;
+    let proxy = zbus::Proxy::new(
+        &connection, service, path, "com.canonical.dbusmenu",
+    ).await?;
+    let data = zbus::zvariant::Value::from(String::new());
+    proxy.call::<_, _, ()>("Event", &(id, "clicked", data, 0_u32)).await?;
+    Ok(())
+}
+
 pub async fn context_menu(address: &str) -> anyhow::Result<()> {
     let (service, path) = address.split_once('/')
         .ok_or_else(|| anyhow::anyhow!("invalid StatusNotifier address"))?;
