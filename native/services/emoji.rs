@@ -47,10 +47,22 @@ pub fn search(query: &str, limit: usize) -> Vec<EmojiEntry> {
     let mut matches = emojis::iter()
         .filter_map(|emoji| {
             let glyph = emoji.as_str();
-            let aliases = portuguese_aliases(glyph).join(" ");
+            let localized_aliases = portuguese_aliases(glyph);
+            let aliases = localized_aliases.join(" ");
             let shortcode = emoji.shortcode().unwrap_or_default().replace('_', " ");
             let haystack = format!("{} {} {}", emoji.name(), shortcode, aliases);
-            let score = fuzzy::score(&query, &haystack)?;
+
+            // Nucleo's fuzzy matcher is useful for general names, but localized
+            // aliases should also match directly. This keeps accented
+            // Portuguese terms such as "coração" reliable across platforms.
+            let score = if localized_aliases
+                .iter()
+                .any(|alias| alias.to_lowercase().contains(&query))
+            {
+                u16::MAX
+            } else {
+                fuzzy::score(&query, &haystack)?
+            };
 
             Some((
                 score as u32,
@@ -145,7 +157,7 @@ fn portuguese_aliases(glyph: &str) -> &'static [&'static str] {
         "😂" | "🤣" => &["rir", "rindo", "chorando de rir", "risada"],
         "😭" | "😢" => &["chorar", "choro", "triste", "lágrimas"],
         "🥹" => &["emocionado", "segurando lágrimas", "fofo"],
-        "❤️" | "💗" | "💖" | "💕" => &["coração", "amor", "paixão"],
+        "❤️" | "❤" | "💗" | "💖" | "💕" => &["coração", "amor", "paixão"],
         "🩷" => &["coração rosa", "rosa", "amor"],
         "🔥" => &["fogo", "quente", "brabo"],
         "✨" => &["brilho", "magia", "estrela", "brilhando"],
