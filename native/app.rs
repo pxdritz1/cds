@@ -106,6 +106,7 @@ enum Message {
     MediaControlResult(Result<(), String>),
     NotificationsRefresh,
     NotificationDismiss(u32),
+    NotificationDismissed(Result<(), String>),
     LaunchSelectedApp,
     LaunchApp(String),
     AppLaunchFinished(Result<(), String>),
@@ -668,8 +669,14 @@ impl App {
                 self.notifications = crate::services::notifications::snapshot();
                 Task::none()
             }
-            Message::NotificationDismiss(id) => {
-                crate::services::notifications::dismiss(id);
+            Message::NotificationDismiss(id) => Task::perform(
+                crate::services::notifications::dismiss_remote(id)
+                    .await
+                    .map_err(|error| error.to_string()),
+                Message::NotificationDismissed,
+            ),
+            Message::NotificationDismissed(result) => {
+                if let Err(error) = result { self.last_error = Some(error); }
                 self.notifications = crate::services::notifications::snapshot();
                 Task::none()
             }
