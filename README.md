@@ -67,7 +67,7 @@ cds close
 cds lock
 ```
 
-The command surface also reserves `cds tray`, `cds settings`, `cds theme` and `cds weather`; their service handlers are being migrated. See [docs/ipc.md](docs/ipc.md).
+The native IPC already exposes `cds tray list`, `cds settings get`, `cds settings set <language|dark|motion> <value>`, `cds settings flag <name> <true|false>`, and clipboard list/clear. Tray menu actions and theme commands are being refined; `cds weather` remains pending. See [docs/ipc.md](docs/ipc.md) and the parity checklist in [docs/porting.md](docs/porting.md).
 
 ## Configuration and runtime paths
 
