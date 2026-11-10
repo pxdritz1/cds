@@ -34,7 +34,8 @@ sudo pacman -S --needed --noconfirm \
     wayland libxkbcommon fontconfig freetype2 expat vulkan-icd-loader \
     libpulse pam curl python \
     wl-clipboard hyprpicker swayidle brightnessctl grim slurp \
-    pipewire wireplumber playerctl qt5ct qt6ct
+    pipewire pipewire-pulse wireplumber playerctl \
+    networkmanager bluez bluez-utils rfkill qt5ct qt6ct
 
 export PATH="$HOME/.cargo/bin:$PATH"
 if ! command -v cargo >/dev/null 2>&1; then
