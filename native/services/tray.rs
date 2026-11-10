@@ -76,3 +76,17 @@ pub fn start_server() -> Result<()> {
     })?;
     Ok(())
 }
+
+pub async fn activate(address: &str) -> anyhow::Result<()> {
+    let (service, path) = address.split_once('/').ok_or_else(|| anyhow::anyhow!("invalid StatusNotifier address"))?;
+    let path = format!("/{path}");
+    let connection = zbus::Connection::session().await?;
+    let proxy = zbus::Proxy::new(
+        &connection,
+        service,
+        path.as_str(),
+        "org.freedesktop.StatusNotifierItem",
+    ).await?;
+    proxy.call::<_, _, ()>("Activate", &(0_i32, 0_i32)).await?;
+    Ok(())
+}
