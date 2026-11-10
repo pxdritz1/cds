@@ -79,6 +79,13 @@ enum Message {
     AudioToggleOutputMute,
     AudioToggleInputMute,
     AudioActionResult(Result<(), String>),
+    BackgroundTick,
+    MediaRefresh,
+    MediaSnapshot(Result<crate::services::media::MediaSnapshot, String>),
+    MediaControl(String),
+    MediaControlResult(Result<(), String>),
+    NotificationsRefresh,
+    NotificationDismiss(u32),
     LaunchSelectedApp,
     LaunchApp(String),
     AppLaunchFinished(Result<(), String>),
@@ -112,6 +119,8 @@ struct App {
     apps: Vec<DesktopApp>,
     settings: crate::services::settings::Settings,
     audio: crate::services::audio::AudioSnapshot,
+    media: crate::services::media::MediaSnapshot,
+    notifications: Vec<crate::services::notifications::NotificationRecord>,
     app_query: String,
     app_results: Vec<String>,
     app_selected: usize,
@@ -148,6 +157,8 @@ impl App {
             apps,
             settings,
             audio: crate::services::audio::AudioSnapshot::default(),
+            media: crate::services::media::MediaSnapshot::default(),
+            notifications: Vec::new(),
             app_query: String::new(),
             app_results,
             app_selected: 0,
@@ -173,12 +184,15 @@ impl App {
         let ipc = Subscription::run(crate::ipc::subscribe).map(Message::Ipc);
         let niri = Subscription::run(crate::services::niri::subscribe).map(Message::NiriEvent);
 
+        let background = iced::time::every(std::time::Duration::from_secs(2))
+            .map(|_| Message::BackgroundTick);
         Subscription::batch(vec![
             ipc,
             event::listen().map(Message::Event),
             window::close_events().map(Message::WindowClosed),
             self.shell_events.listen().map(Message::Wayland),
             niri,
+            background,
         ])
     }
 
@@ -413,6 +427,35 @@ impl App {
             Message::AudioActionResult(result) => match result {
                 Ok(()) => Task::done(Message::AudioRefresh),
                 Err(error) => { self.last_error = Some(error); Task::none() }
+            },
+            Message::BackgroundTick => Task::batch(vec![
+                Task::done(Message::MediaRefresh),
+                Task::done(Message::NotificationsRefresh),
+            ]),
+            Message::MediaRefresh => Task::perform(
+                crate::services::media::snapshot(),
+                |result| Message::MediaSnapshot(result.map_err(|error| error.to_string())),
+            ),
+            Message::MediaSnapshot(result) => match result {
+                Ok(snapshot) => { self.media = snapshot; Task::none() }
+                Err(error) => { tracing::debug!(%error, "MPRIS refresh unavailable"); Task::none() }
+            },
+            Message::MediaControl(action) => Task::perform(
+                async move { crate::services::media::control(&action).await.map_err(|error| error.to_string()) },
+                Message::MediaControlResult,
+            ),
+            Message::MediaControlResult(result) => match result {
+                Ok(()) => Task::done(Message::MediaRefresh),
+                Err(error) => { self.last_error = Some(error); Task::none() }
+            },
+            Message::NotificationsRefresh => {
+                self.notifications = crate::services::notifications::snapshot();
+                Task::none()
+            }
+            Message::NotificationDismiss(id) => {
+                crate::services::notifications::dismiss(id);
+                self.notifications = crate::services::notifications::snapshot();
+                Task::none()
             }
             Message::AppsMove(delta) => {
                 let count = self.app_results.len();
@@ -778,18 +821,28 @@ impl App {
         .padding(10)
         .style(self.surface_style(0.90));
 
+        let island_label = if let Some(notification) = self.notifications.first() {
+            format!("{} · {}", notification.app_name, notification.summary)
+        } else if self.media.available() && self.media.is_playing() {
+            if self.media.artist.is_empty() { self.media.title.clone() }
+            else { format!("{} — {}", self.media.title, self.media.artist) }
+        } else {
+            focused_title.to_owned()
+        };
         let center = container(
             row![
-                button("Search").on_press(Message::OpenPanel(Panel::Spotlight)),
-                text(focused_title).size(13),
-                text("CDS").size(15),
+                button("⌕").on_press(Message::OpenPanel(Panel::Spotlight)),
+                text("CDS").size(14),
+                text(island_label).size(12).width(Length::Fill),
+                text(chrono::Local::now().format("%H:%M").to_string()).size(12),
                 button("Dash").on_press(Message::OpenDash(DashTab::Home)),
             ]
-            .spacing(10)
+            .spacing(9)
             .align_y(Alignment::Center),
         )
-        .padding(8)
-        .style(self.surface_style(0.96));
+        .padding(10)
+        .width(Length::Fixed(460.0))
+        .style(self.surface_style(0.98));
 
         let status = container(
             row![
@@ -842,6 +895,32 @@ impl App {
         };
 
         let body: Element<'_, Message> = if panel == Panel::Dash {
+            let page: Element<'_, Message> = match self.dash_tab {
+                DashTab::Media => column![
+                    text(if self.media.available() { self.media.title.clone() } else { "Nenhuma mídia em reprodução" }).size(20),
+                    text(self.media.artist.clone()).size(13),
+                    text(self.media.album.clone()).size(11),
+                    row![
+                        button("⏮").on_press(Message::MediaControl("Previous".into())),
+                        button(if self.media.is_playing() { "Ⅱ" } else { "▶" }).on_press(Message::MediaControl("PlayPause".into())),
+                        button("⏭").on_press(Message::MediaControl("Next".into())),
+                    ].spacing(10),
+                    button("Atualizar player").on_press(Message::MediaRefresh),
+                ].spacing(10).into(),
+                DashTab::Alerts => column![
+                    text(format!("{} notificações", self.notifications.len())).size(18),
+                    iced::widget::Column::with_children(self.notifications.iter().map(|item| {
+                        row![
+                            column![text(item.summary.clone()).size(14), text(item.body.clone()).size(11)],
+                            button("×").on_press(Message::NotificationDismiss(item.id)),
+                        ].spacing(10).into()
+                    }).collect::<Vec<Element<'_, Message>>>()).spacing(8),
+                ].spacing(10).into(),
+                _ => column![
+                    text(format!("Selected tab: {:?}", self.dash_tab)),
+                    text("Este módulo será preenchido com os serviços nativos correspondentes."),
+                ].spacing(8).into(),
+            };
             column![
                 text(title).size(24),
                 row![
@@ -850,14 +929,10 @@ impl App {
                     button("Weather").on_press(Message::SelectDashTab(DashTab::Weather)),
                     button("Wallpapers").on_press(Message::SelectDashTab(DashTab::Wallpapers)),
                     button("Alerts").on_press(Message::SelectDashTab(DashTab::Alerts)),
-                ]
-                .spacing(6),
-                text(format!("Selected tab: {:?}", self.dash_tab)),
-                text("The dashboard modules will be ported with their existing behavior."),
+                ].spacing(6),
+                page,
                 button("Close").on_press(Message::CloseWindow(id)),
-            ]
-            .spacing(16)
-            .into()
+            ].spacing(16).into()
         } else {
             column![
                 text(title).size(24),
