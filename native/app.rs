@@ -90,7 +90,10 @@ enum Message {
     BluetoothToggle(bool),
     BrightnessAdjust(i8),
     SystemActionResult(Result<(), String>),
+    TrayRefresh,
+    TraySnapshot(Result<Vec<crate::services::tray::TrayItemSnapshot>, String>),
     TrayActivate(String),
+    TrayContextMenu(String),
     TrayActionResult(Result<(), String>),
     BackgroundTick,
     MediaRefresh,
@@ -137,6 +140,7 @@ struct App {
     system_loaded: bool,
     media: crate::services::media::MediaSnapshot,
     notifications: Vec<crate::services::notifications::NotificationRecord>,
+    tray_items: Vec<crate::services::tray::TrayItemSnapshot>,
     app_query: String,
     app_results: Vec<String>,
     app_selected: usize,
@@ -181,6 +185,7 @@ impl App {
             system_loaded: false,
             media: crate::services::media::MediaSnapshot::default(),
             notifications: Vec::new(),
+            tray_items: Vec::new(),
             app_query: String::new(),
             app_results,
             app_selected: 0,
@@ -550,8 +555,20 @@ impl App {
                 Ok(()) => Task::batch(vec![Task::done(Message::SystemRefresh), Task::done(Message::AudioRefresh)]),
                 Err(error) => { self.last_error = Some(error); Task::none() }
             },
+            Message::TrayRefresh => Task::perform(
+                async { crate::services::tray::snapshot().await.map_err(|error| error.to_string()) },
+                Message::TraySnapshot,
+            ),
+            Message::TraySnapshot(result) => match result {
+                Ok(items) => { self.tray_items = items; Task::none() }
+                Err(error) => { tracing::debug!(%error, "Tray metadata refresh failed"); Task::none() }
+            },
             Message::TrayActivate(address) => Task::perform(
                 async move { crate::services::tray::activate(&address).await.map_err(|error| error.to_string()) },
+                Message::TrayActionResult,
+            ),
+            Message::TrayContextMenu(address) => Task::perform(
+                async move { crate::services::tray::context_menu(&address).await.map_err(|error| error.to_string()) },
                 Message::TrayActionResult,
             ),
             Message::TrayActionResult(result) => match result {
@@ -565,6 +582,9 @@ impl App {
                     Task::done(Message::AudioRefresh),
                     Task::done(Message::SystemRefresh),
                 ];
+                if self.active_panel_is(Panel::Tray) {
+                    tasks.push(Task::done(Message::TrayRefresh));
+                }
                 if self.osd_since.is_some_and(|since| since.elapsed() >= std::time::Duration::from_millis(2600)) {
                     if let Some(id) = self.osd_window.take() {
                         self.osd_since = None;
@@ -936,6 +956,8 @@ impl App {
 
         let audio_refresh = if panel == Panel::Control {
             Task::batch(vec![Task::done(Message::AudioRefresh), Task::done(Message::SystemRefresh)])
+        } else if panel == Panel::Tray {
+            Task::done(Message::TrayRefresh)
         } else { Task::none() };
         Task::batch(vec![
             close,
@@ -1399,15 +1421,21 @@ impl App {
     }
 
     fn tray_panel_view(&self, id: window::Id) -> Element<'_, Message> {
-        let items = crate::services::tray::registered_items();
-        let rows = items.iter().map(|address| {
-            button(row![
-                text("◈").size(20),
-                text(address.clone()).size(12).width(Length::Fill),
-                text("Abrir").size(11),
+        let rows = self.tray_items.iter().map(|item| {
+            let icon = resolve_icon_path(&item.icon_name)
+                .map(|path| app_icon_sized(Some(&path), 28.0))
+                .unwrap_or_else(|| text("◈").size(24).into());
+            let title = if item.title.is_empty() { item.address.clone() } else { item.title.clone() };
+            let content = container(row![
+                icon,
+                column![text(title).size(13), text(item.status.clone()).size(10)]
+                    .spacing(2).width(Length::Fill),
+                text("›").size(18),
             ].spacing(10).align_y(Alignment::Center))
-                .width(Length::Fill)
-                .on_press(Message::TrayActivate(address.clone()))
+                .padding(8).width(Length::Fill);
+            mouse_area(content)
+                .on_press(Message::TrayActivate(item.address.clone()))
+                .on_right_press(Message::TrayContextMenu(item.address.clone()))
                 .into()
         }).collect::<Vec<Element<'_, Message>>>();
         let content: Element<'_, Message> = if rows.is_empty() {
@@ -1416,7 +1444,7 @@ impl App {
             scrollable(column(rows).spacing(6)).height(Length::Fixed(320.0)).into()
         };
         let body = column![
-            row![text("Bandeja do sistema").size(22), iced::widget::Space::with_width(Length::Fill), button("↻").on_press(Message::OpenPanel(Panel::Tray)), button("Fechar").on_press(Message::CloseWindow(id))].align_y(Alignment::Center),
+            row![text("Bandeja do sistema").size(22), iced::widget::Space::with_width(Length::Fill), button("↻").on_press(Message::TrayRefresh), button("Fechar").on_press(Message::CloseWindow(id))].align_y(Alignment::Center),
             content,
         ].spacing(12);
         container(container(body).padding(22).max_width(540).style(self.surface_style(0.98)))
