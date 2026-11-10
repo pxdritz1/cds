@@ -671,7 +671,6 @@ impl App {
             }
             Message::NotificationDismiss(id) => Task::perform(
                 crate::services::notifications::dismiss_remote(id)
-                    .await
                     .map_err(|error| error.to_string()),
                 Message::NotificationDismissed,
             ),
