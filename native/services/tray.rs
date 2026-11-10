@@ -247,9 +247,12 @@ fn parse_menu_node(
     depth: usize,
     output: &mut Vec<MenuEntry>,
 ) -> anyhow::Result<()> {
-    use zbus::zvariant::{OwnedStructure, OwnedValue};
+    use zbus::zvariant::{OwnedValue, Structure};
 
-    let structure = OwnedStructure::try_from(value)
+    // D-BusMenu encodes each node as the dynamic structure (ia{sv}av).
+    // OwnedValue converts to Structure; OwnedStructure is not a valid
+    // TryFrom target for this zvariant version.
+    let structure = Structure::try_from(value)
         .map_err(|error| anyhow::anyhow!("invalid dbusmenu node: {error}"))?;
     let fields = structure.fields();
     if fields.len() < 3 { return Ok(()); }
