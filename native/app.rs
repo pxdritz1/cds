@@ -93,6 +93,9 @@ enum Message {
     SystemActionResult(Result<(), String>),
     TrayRefresh,
     TraySnapshot(Result<Vec<crate::services::tray::TrayItemSnapshot>, String>),
+    TrayMenuSnapshot(Result<crate::services::tray::TrayMenuSnapshot, String>),
+    TrayMenuActivate(i32),
+    TrayMenuDismiss,
     TrayActivate(String),
     TrayContextMenu(String),
     TrayActionResult(Result<(), String>),
@@ -142,6 +145,7 @@ struct App {
     media: crate::services::media::MediaSnapshot,
     notifications: Vec<crate::services::notifications::NotificationRecord>,
     tray_items: Vec<crate::services::tray::TrayItemSnapshot>,
+    tray_menu: Option<crate::services::tray::TrayMenuSnapshot>,
     app_query: String,
     app_results: Vec<String>,
     app_selected: usize,
@@ -187,6 +191,7 @@ impl App {
             media: crate::services::media::MediaSnapshot::default(),
             notifications: Vec::new(),
             tray_items: Vec::new(),
+            tray_menu: None,
             app_query: String::new(),
             app_results,
             app_selected: 0,
@@ -588,10 +593,39 @@ impl App {
                 async move { crate::services::tray::activate(&address).await.map_err(|error| error.to_string()) },
                 Message::TrayActionResult,
             ),
-            Message::TrayContextMenu(address) => Task::perform(
-                async move { crate::services::tray::context_menu(&address).await.map_err(|error| error.to_string()) },
-                Message::TrayActionResult,
-            ),
+            Message::TrayContextMenu(address) => {
+                let menu_path = self.tray_items.iter()
+                    .find(|item| item.address == address)
+                    .map(|item| item.menu_path.clone())
+                    .unwrap_or_default();
+                if menu_path.is_empty() {
+                    Task::perform(
+                        async move { crate::services::tray::context_menu(&address).await.map_err(|error| error.to_string()) },
+                        Message::TrayActionResult,
+                    )
+                } else {
+                    Task::perform(
+                        async move { crate::services::tray::menu(&address, &menu_path).await.map_err(|error| error.to_string()) },
+                        Message::TrayMenuSnapshot,
+                    )
+                }
+            }
+            Message::TrayMenuSnapshot(result) => match result {
+                Ok(menu) => { self.tray_menu = Some(menu); Task::none() }
+                Err(error) => { self.last_error = Some(error); Task::none() }
+            }
+            Message::TrayMenuActivate(id) => {
+                if let Some(menu) = self.tray_menu.take() {
+                    Task::perform(
+                        async move { crate::services::tray::menu_event(&menu.service, &menu.path, id).await.map_err(|error| error.to_string()) },
+                        Message::TrayActionResult,
+                    )
+                } else { Task::none() }
+            }
+            Message::TrayMenuDismiss => {
+                self.tray_menu = None;
+                Task::none()
+            }
             Message::TrayActionResult(result) => match result {
                 Ok(()) => Task::none(),
                 Err(error) => { self.last_error = Some(error); Task::none() }
@@ -1492,27 +1526,47 @@ impl App {
     }
 
     fn tray_panel_view(&self, id: window::Id) -> Element<'_, Message> {
-        let rows = self.tray_items.iter().map(|item| {
-            let icon = resolve_icon_path(&item.icon_name)
-                .map(|path| app_icon_sized(Some(&path), 28.0))
-                .unwrap_or_else(|| text("◈").size(24).into());
-            let title = if item.title.is_empty() { item.address.clone() } else { item.title.clone() };
-            let content = container(row![
-                icon,
-                column![text(title).size(13), text(item.status.clone()).size(10)]
-                    .spacing(2).width(Length::Fill),
-                text("›").size(18),
-            ].spacing(10).align_y(Alignment::Center))
-                .padding(8).width(Length::Fill);
-            mouse_area(content)
-                .on_press(Message::TrayActivate(item.address.clone()))
-                .on_right_press(Message::TrayContextMenu(item.address.clone()))
-                .into()
-        }).collect::<Vec<Element<'_, Message>>>();
-        let content: Element<'_, Message> = if rows.is_empty() {
-            text("Nenhum StatusNotifierItem registrado.").into()
+        let content: Element<'_, Message> = if let Some(menu) = &self.tray_menu {
+            let menu_rows = menu.entries.iter().map(|entry| {
+                if entry.separator {
+                    text("────────────────────────").size(10).into()
+                } else {
+                    let label = format!("{}{}", "  ".repeat(entry.depth.min(5)), entry.label);
+                    if entry.enabled {
+                        button(text(label).size(13)).width(Length::Fill)
+                            .on_press(Message::TrayMenuActivate(entry.id)).into()
+                    } else {
+                        text(label).size(13).into()
+                    }
+                }
+            }).collect::<Vec<Element<'_, Message>>>();
+            column![
+                row![text("Menu do aplicativo").size(17), iced::widget::Space::with_width(Length::Fill), button("Voltar").on_press(Message::TrayMenuDismiss)],
+                scrollable(column(menu_rows).spacing(4)).height(Length::Fixed(320.0)),
+            ].spacing(8).into()
         } else {
-            scrollable(column(rows).spacing(6)).height(Length::Fixed(320.0)).into()
+            let rows = self.tray_items.iter().map(|item| {
+                let icon = resolve_icon_path(&item.icon_name)
+                    .map(|path| app_icon_sized(Some(&path), 28.0))
+                    .unwrap_or_else(|| text("◈").size(24).into());
+                let title = if item.title.is_empty() { item.address.clone() } else { item.title.clone() };
+                let content = container(row![
+                    icon,
+                    column![text(title).size(13), text(item.status.clone()).size(10)]
+                        .spacing(2).width(Length::Fill),
+                    text("›").size(18),
+                ].spacing(10).align_y(Alignment::Center))
+                    .padding(8).width(Length::Fill);
+                mouse_area(content)
+                    .on_press(Message::TrayActivate(item.address.clone()))
+                    .on_right_press(Message::TrayContextMenu(item.address.clone()))
+                    .into()
+            }).collect::<Vec<Element<'_, Message>>>();
+            if rows.is_empty() {
+                text("Nenhum StatusNotifierItem registrado.").into()
+            } else {
+                scrollable(column(rows).spacing(6)).height(Length::Fixed(320.0)).into()
+            }
         };
         let body = column![
             row![text("Bandeja do sistema").size(22), iced::widget::Space::with_width(Length::Fill), button("↻").on_press(Message::TrayRefresh), button("Fechar").on_press(Message::CloseWindow(id))].align_y(Alignment::Center),
