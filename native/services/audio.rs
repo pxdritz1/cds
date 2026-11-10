@@ -56,3 +56,9 @@ pub fn toggle_input_mute() -> Result<()> {
     pactl(&["set-source-mute", "@DEFAULT_SOURCE@", "toggle"])?;
     Ok(())
 }
+
+pub fn set_output_volume(volume: u8) -> Result<()> {
+    let volume = format!("{}%", volume.min(100));
+    pactl(&["set-sink-volume", "@DEFAULT_SINK@", &volume])?;
+    Ok(())
+}
