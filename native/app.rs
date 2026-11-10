@@ -1506,7 +1506,7 @@ impl App {
                 button("+").on_press(Message::AudioAdjust(5)),
                 button(if self.audio.output_muted { "Ativar" } else { "Mudo" }).on_press(Message::AudioToggleOutputMute),
             ].align_y(Alignment::Center),
-            iced::widget::slider(0..=100, self.audio.output_volume.min(100), Message::AudioSetVolume),
+            iced::widget::slider(0..=150, self.audio.output_volume.min(150), Message::AudioSetVolume),
             row![
                 text(format!("Microfone · {}{}", self.audio.input_volume, if self.audio.input_muted { "% · mutado" } else { "%" })).width(Length::Fill),
                 button(if self.audio.input_muted { "Ativar" } else { "Silenciar" }).on_press(Message::AudioToggleInputMute),
