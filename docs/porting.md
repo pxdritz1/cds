@@ -31,36 +31,36 @@ This is the parity contract for the Iced rewrite. The old implementation is the 
 
 | Existing behavior | Native target | Status |
 | --- | --- | --- |
-| Three-part bar: workspaces, center Island, status | `ui/island` | Pending |
-| Compact notch and clock | Island Compact mode | Pending |
-| Focused workspace/window title and icon | Niri IPC + desktop icon lookup | Pending |
-| Dynamic notification island | Notice mode with content-sized layout | Pending |
-| Media Island | MPRIS, artwork, timeline and controls | Pending |
-| Dash Home/Media/Weather/Wallpapers/Alerts | Dash tabs | Initial tab state scaffold; content pending |
-| Launcher | Desktop entries, Nucleo fuzzy search, app launch and keyboard navigation | Native search, launch and directional/Enter keyboard selection implemented; pinning and visual parity pending |
+| Three-part bar: workspaces, center Island, status | Native Iced bar | Three-group bar and live center content implemented; per-monitor visual parity and M3 geometry pending |
+| Compact notch and clock | Native center layer | Compact center pill, focused title and clock implemented; exact notch silhouette and side islands pending |
+| Focused workspace/window title and icon | Niri IPC + desktop icon lookup | Workspace focus and focused title implemented; focused-app icon and live Niri validation pending |
+| Dynamic notification island | Freedesktop Notifications + content-sized center layer | Notification title/app icon and width adaptation implemented; hover expansion, per-notification timing and full preview pending |
+| Media Island | MPRIS, artwork cache, timeline and controls | Player discovery, artwork caching, playback controls and timeline readout implemented; seeking, multi-player selection and exact animation parity pending |
+| Dash Home/Media/Weather/Wallpapers/Alerts | Dash tabs | Media and Alerts have native content; Home, Weather and Wallpapers remain pending |
+| Launcher | Original CDS vertical launcher, not Suzuha | Original 640×460 list layout, 36px icons, name/description search, 40 visible rows, pinned-first sorting, left-click launch, right-click pin, ↑↓/Tab/Enter and Esc implemented; live visual/runtime parity pending |
 | Spotlight | Shared Nucleo app search plus quick actions | Native app search implemented; quick actions and visual parity pending |
 | Full-screen app grid | Desktop entries, icon theme and six-column grid | Native scan, icon lookup, grid and launch implemented; pinning and visual parity pending |
 | Clipboard history | `wl-paste --watch`, persistent 80-item text history, deduplication, search and copy | Native watcher, sensitive-selection filtering, legacy-format migration and keyboard navigation implemented; live Wayland validation pending |
 | Power menu | Session/system actions | Pending |
-| Control Center | Audio, microphone, Wi-Fi, Bluetooth and brightness | Pending |
-| Settings window | Persistent settings and live updates | Pending |
+| Control Center | pactl, nmcli, rfkill and brightnessctl | Output/input mute, volume buttons and slider, Wi-Fi/Bluetooth toggles and brightness controls implemented; device lists, detail pages and live hardware validation pending |
+| Settings window | Native persistent settings + legacy `settings.conf` importer | Legacy language/theme/motion/alignment/flags/pinned-app preferences load and save; basic theme/language/motion and shell toggles exposed; remaining settings UI pending |
 | Color picker | `iced_aw` color wheel, HEX input/copy and hyprpicker eyedropper | Native picker and eyedropper implemented; visual parity pending |
 | Emoji picker | Unicode 18 catalog, Nucleo fuzzy search, pt-BR aliases, skin-tone metadata and copy | Native searchable grid, copy and Noto SVG artwork implemented; skin-tone UI pending |
-| OSD | Volume/brightness feedback | Pending |
+| OSD | Bottom layer-shell overlay | Volume, microphone and brightness changes produce a timed bottom OSD; live key/hardware validation pending |
 | Wallpaper layer and rotation | Matugen + wallpaper service | Pending |
-| Notifications and previews | D-Bus notification service and notification Island | Pending |
-| Tray and dbusmenu | StatusNotifierWatcher, item activation and context menus | Pending |
+| Notifications and previews | `org.freedesktop.Notifications` server | Notify, replacement IDs, timeout handling, close method/signal, Alerts list and content-sized island implemented; actions, hover timing and real-app validation pending |
+| Tray and dbusmenu | Freedesktop + KDE StatusNotifierWatcher and SNI proxies | Watcher names, registration signals, host registration, item metadata/icons, activation and ContextMenu requests implemented; full dbusmenu layout rendering and live app validation pending |
 | Lock screen | ext-session-lock + PAM authentication | Pending |
 
 ## Services and visual system
 
 | Existing behavior | Native target | Status |
 | --- | --- | --- |
-| MPRIS playback | zbus MPRIS proxies | Pending |
-| StatusNotifier tray | zbus watcher and item proxies | Pending |
-| Audio and microphone | PipeWire/PulseAudio controls | Pending |
-| Wi-Fi | NetworkManager D-Bus | Pending |
-| Bluetooth | BlueZ D-Bus | Pending |
+| MPRIS playback | zbus MPRIS proxies | Active player discovery, metadata, artwork cache, playback status, timeline readout and previous/play-pause/next controls implemented; seeking and player selection pending |
+| StatusNotifier tray | zbus watcher and item proxies | Registration, item properties, activation and context-menu requests implemented; dbusmenu rendering pending |
+| Audio and microphone | pactl / PipeWire-PulseAudio | Volume, mute, microphone mute, slider and OSD implemented; device selection and live validation pending |
+| Wi-Fi | NetworkManager CLI via `nmcli` | Radio toggle implemented; scan, connection selection and NetworkManager D-Bus integration pending |
+| Bluetooth | `rfkill` | Radio block/unblock implemented; device discovery/pairing and BlueZ D-Bus integration pending |
 | Weather | Open-Meteo and cached forecast | Pending |
 | Matugen schemes and colors | Material Color Utilities HCT palette generation + Matugen export | Native light/dark scheme generation from HEX or image implemented; Matugen export and live UI application pending |
 | Wallpaper selection/rotation | Persistent wallpaper service | Pending |
