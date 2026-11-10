@@ -179,9 +179,9 @@ pub async fn snapshot() -> anyhow::Result<Vec<TrayItemSnapshot>> {
     for address in addresses {
         let Some((service, path)) = address.split_once('/') else { continue };
         let path = format!("/{path}");
-        let proxy = zbus::Proxy::new(
+        let Ok(proxy) = zbus::Proxy::new(
             &connection, service, path.as_str(), "org.freedesktop.StatusNotifierItem",
-        ).await?;
+        ).await else { continue };
         let title = proxy.get_property::<String>("Title").await.unwrap_or_default();
         let icon_name = proxy.get_property::<String>("IconName").await.unwrap_or_default();
         let status = proxy.get_property::<String>("Status").await.unwrap_or_default();
