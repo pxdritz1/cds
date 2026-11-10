@@ -47,7 +47,7 @@ struct NotificationServer;
 #[zbus::interface(name = "org.freedesktop.Notifications")]
 impl NotificationServer {
     fn get_capabilities(&self) -> Vec<String> {
-        vec!["body".into(), "body-markup".into(), "icon-static".into(), "persistence".into()]
+        vec!["body".into(), "persistence".into()]
     }
 
     fn get_server_information(&self) -> (String, String, String, String) {
@@ -86,8 +86,20 @@ impl NotificationServer {
         id
     }
 
-    fn close_notification(&self, id: u32) {
+    async fn close_notification(
+        &self,
+        #[zbus(connection)] connection: &zbus::Connection,
+        id: u32,
+    ) -> zbus::fdo::Result<()> {
         dismiss(id);
+        connection.emit_signal(
+            None::<&str>,
+            "/org/freedesktop/Notifications",
+            "org.freedesktop.Notifications",
+            "NotificationClosed",
+            &(id, 2_u32),
+        ).await.map_err(|error| zbus::fdo::Error::Failed(error.to_string()))?;
+        Ok(())
     }
 }
 
