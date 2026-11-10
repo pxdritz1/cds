@@ -1,6 +1,7 @@
 use anyhow::{Context, Result, bail};
 use std::hash::{Hash, Hasher};
 use std::path::PathBuf;
+use std::time::Duration;
 use zbus::{Connection, Proxy};
 use zbus::fdo::DBusProxy;
 use zbus::zvariant::OwnedValue;
@@ -51,7 +52,10 @@ async fn cache_artwork(url: &str) -> Option<PathBuf> {
         if cached.is_file() { return Some(cached); }
     }
 
-    let response = reqwest::get(url).await.ok()?.error_for_status().ok()?;
+    let client = reqwest::Client::builder()
+        .timeout(Duration::from_secs(5))
+        .build().ok()?;
+    let response = client.get(url).send().await.ok()?.error_for_status().ok()?;
     if response.content_length().is_some_and(|length| length > 12 * 1024 * 1024) {
         return None;
     }
