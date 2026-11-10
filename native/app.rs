@@ -78,7 +78,6 @@ enum Message {
     SettingsSetLanguage(String),
     SettingsSetMotion(String),
     SettingsSetAlignment(String, String),
-    SettingsToggleWallpaperRotation,
     AudioRefresh,
     AudioSnapshot(Result<crate::services::audio::AudioSnapshot, String>),
     AudioAdjust(i8),
@@ -485,11 +484,6 @@ impl App {
                     "status" => self.settings.status_alignment = value,
                     _ => {}
                 }
-                if let Err(error) = self.settings.save() { self.last_error = Some(error.to_string()); }
-                Task::none()
-            }
-            Message::SettingsToggleWallpaperRotation => {
-                self.settings.wallpaper_rotation = !self.settings.wallpaper_rotation;
                 if let Err(error) = self.settings.save() { self.last_error = Some(error.to_string()); }
                 Task::none()
             }
@@ -1124,18 +1118,24 @@ impl App {
         let mut center_groups = Vec::<Element<'_, Message>>::new();
         let mut right_groups = Vec::<Element<'_, Message>>::new();
 
-        match self.settings.workspaces_alignment.as_str() {
-            "right" => right_groups.push(workspace_group.into()),
-            _ => left_groups.push(workspace_group.into()),
+        if self.settings.flag("show_workspaces") {
+            match self.settings.workspaces_alignment.as_str() {
+                "right" => right_groups.push(workspace_group.into()),
+                _ => left_groups.push(workspace_group.into()),
+            }
         }
-        match self.settings.center_alignment.as_str() {
-            "left" => left_groups.push(center.into()),
-            "right" => right_groups.push(center.into()),
-            _ => center_groups.push(center.into()),
+        if self.settings.flag("show_center_island") {
+            match self.settings.center_alignment.as_str() {
+                "left" => left_groups.push(center.into()),
+                "right" => right_groups.push(center.into()),
+                _ => center_groups.push(center.into()),
+            }
         }
-        match self.settings.status_alignment.as_str() {
-            "left" => left_groups.push(status.into()),
-            _ => right_groups.push(status.into()),
+        if self.settings.flag("show_status") {
+            match self.settings.status_alignment.as_str() {
+                "left" => left_groups.push(status.into()),
+                _ => right_groups.push(status.into()),
+            }
         }
 
         let left = iced::widget::row(left_groups).spacing(10).align_y(Alignment::Center);
@@ -1443,11 +1443,6 @@ impl App {
                 text("Status").width(Length::Fill),
                 button("Esquerda").on_press(Message::SettingsSetAlignment("status".into(), "left".into())),
                 button("Direita").on_press(Message::SettingsSetAlignment("status".into(), "right".into())),
-            ].align_y(Alignment::Center),
-            row![
-                text("Rotação automática de wallpapers").width(Length::Fill),
-                button(if self.settings.wallpaper_rotation { "Ligada" } else { "Desligada" })
-                    .on_press(Message::SettingsToggleWallpaperRotation),
             ].align_y(Alignment::Center),
             text("Elementos da interface").size(16),
             settings_flag_row("Workspaces", "show_workspaces", self.settings.flag("show_workspaces")),
