@@ -1044,6 +1044,17 @@ impl App {
                     text(if self.media.available() { self.media.title.clone() } else { "Nenhuma mídia em reprodução" }).size(20),
                     text(self.media.artist.clone()).size(13),
                     text(self.media.album.clone()).size(11),
+                    iced::widget::progress_bar(
+                        0.0..=1.0,
+                        if self.media.length_ms == 0 { 0.0 } else {
+                            (self.media.position_ms as f32 / self.media.length_ms as f32).clamp(0.0, 1.0)
+                        },
+                    ),
+                    text(format!(
+                        "{} / {}",
+                        format_media_time(self.media.position_ms),
+                        format_media_time(self.media.length_ms),
+                    )).size(10),
                     row![
                         button("⏮").on_press(Message::MediaControl("Previous".into())),
                         button(if self.media.is_playing() { "Ⅱ" } else { "▶" }).on_press(Message::MediaControl("PlayPause".into())),
@@ -1697,6 +1708,11 @@ fn emoji_artwork(entry: crate::services::emoji::EmojiEntry) -> Element<'static, 
     } else {
         text(entry.glyph()).size(30).into()
     }
+}
+
+fn format_media_time(milliseconds: u64) -> String {
+    let seconds = milliseconds / 1000;
+    format!("{}:{:02}", seconds / 60, seconds % 60)
 }
 
 fn clipboard_preview(value: &str) -> String {
