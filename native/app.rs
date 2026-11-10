@@ -634,14 +634,39 @@ impl App {
                 (ok("Opening dashboard"), Task::done(Message::OpenDash(tab)))
             }
             IpcCommand::Lock => (ok("Locking session"), Task::done(Message::Lock)),
-            IpcCommand::Tray { .. } => (
-                error("The StatusNotifier tray is part of the next service migration step"),
-                Task::none(),
-            ),
-            IpcCommand::Settings { .. } => (
-                error("The settings service is part of the next migration step"),
-                Task::none(),
-            ),
+            IpcCommand::Tray { args } => match args.first().map(String::as_str) {
+                Some("list") | None => {
+                    let items = crate::services::tray::registered_items();
+                    (ok(if items.is_empty() { "No StatusNotifier items registered".into() } else { items.join("\\n") }), Task::none())
+                }
+                _ => (error("Usage: cds tray list"), Task::none()),
+            },
+            IpcCommand::Settings { args } => match args.as_slice() {
+                [] | [ref operation] if args.is_empty() || operation == "get" => {
+                    (ok(format!("language={}\\ndark={}\\nmotion={}\\npinned={}\\ntrans_meter_colors={}",
+                        self.settings.language, self.settings.dark, self.settings.motion_style,
+                        self.settings.pinned_apps.len(), self.settings.flag("trans_meter_colors"))), Task::none())
+                }
+                [operation, key, value] if operation == "set" => {
+                    match key.as_str() {
+                        "language" => self.settings.language = if value == "en" { "en" } else { "pt-BR" }.into(),
+                        "dark" => self.settings.dark = value == "true",
+                        "motion" => self.settings.motion_style = if value == "fluent" { "fluent" } else { "m3" }.into(),
+                        _ => return (error("Supported settings: language, dark, motion"), Task::none()),
+                    }
+                    match self.settings.save() {
+                        Ok(()) => (ok("Settings saved"), Task::none()),
+                        Err(error) => (error(error.to_string()), Task::none()),
+                    }
+                }
+                [operation, name, value] if operation == "flag" => {
+                    match self.settings.set_flag(name, value == "true") {
+                        Ok(()) => (ok(format!("flag.{name}={value}")), Task::none()),
+                        Err(error) => (error(error.to_string()), Task::none()),
+                    }
+                }
+                _ => (error("Usage: cds settings [get] | set <language|dark|motion> <value> | flag <name> <true|false>"), Task::none()),
+            },
             IpcCommand::Theme { args } => match args.as_slice() {
                 [operation, value, ..] if operation == "color" => {
                     let color = value.clone();
