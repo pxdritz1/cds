@@ -460,8 +460,12 @@ impl App {
             Message::AppsMove(delta) => {
                 let count = self.app_results.len();
                 if count > 0 {
-                    self.app_selected = (self.app_selected as isize + delta)
-                        .rem_euclid(count as isize) as usize;
+                    let next = self.app_selected as isize + delta;
+                    self.app_selected = if self.active_panel_is(Panel::Launcher) {
+                        next.clamp(0, count.saturating_sub(1) as isize) as usize
+                    } else {
+                        next.rem_euclid(count as isize) as usize
+                    };
                 }
                 Task::none()
             }
@@ -885,11 +889,20 @@ impl App {
             .align_y(Alignment::Center),
         )
         .padding(10)
-        .width(Length::Fixed(460.0))
+        .width(Length::Fixed(if self.notifications.first().is_some() {
+            (180.0 + island_label.chars().count() as f32 * 7.2).clamp(280.0, 620.0)
+        } else if self.media.available() && self.media.is_playing() {
+            (220.0 + island_label.chars().count() as f32 * 6.2).clamp(300.0, 620.0)
+        } else {
+            260.0
+        }))
         .style(self.surface_style(0.98));
 
+        let tray_count = crate::services::tray::registered_items().len();
         let status = container(
             row![
+                text(format!("◖ {}%", self.audio.output_volume)).size(12),
+                text(format!("◈ {tray_count}")).size(12),
                 button("Clip").on_press(Message::OpenPanel(Panel::Clipboard)),
                 button("Control").on_press(Message::OpenPanel(Panel::Control)),
                 button("Settings").on_press(Message::OpenPanel(Panel::Settings)),
@@ -1498,8 +1511,18 @@ impl App {
         let base = self
             .theme_tokens
             .as_ref()
-            .and_then(|theme| parse_hex_color(&theme.dark.surface_container))
-            .unwrap_or(Color::from_rgb(0.09, 0.09, 0.12));
+            .and_then(|theme| {
+                parse_hex_color(if self.settings.dark {
+                    &theme.dark.surface_container
+                } else {
+                    &theme.light.surface_container
+                })
+            })
+            .unwrap_or(if self.settings.dark {
+                Color::from_rgb(0.09, 0.09, 0.12)
+            } else {
+                Color::from_rgb(0.94, 0.93, 0.96)
+            });
         let background = Color::from_rgba(base.r, base.g, base.b, alpha);
 
         move |_| container::Style {
