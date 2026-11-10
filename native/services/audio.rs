@@ -31,8 +31,8 @@ fn parse_mute(value: &str) -> bool {
 pub fn snapshot() -> Result<AudioSnapshot> {
     let output_volume = pactl(&["get-sink-volume", "@DEFAULT_SINK@"])?;
     let output_mute = pactl(&["get-sink-mute", "@DEFAULT_SINK@"])?;
-    let input_volume = pactl(&["get-source-volume", "@DEFAULT_SOURCE@"])?;
-    let input_mute = pactl(&["get-source-mute", "@DEFAULT_SOURCE@"])?;
+    let input_volume = pactl(&["get-source-volume", "@DEFAULT_SOURCE@"]).unwrap_or_default();
+    let input_mute = pactl(&["get-source-mute", "@DEFAULT_SOURCE@"]).unwrap_or_default();
     Ok(AudioSnapshot {
         output_volume: parse_volume(&output_volume),
         output_muted: parse_mute(&output_mute),
