@@ -1022,8 +1022,8 @@ impl App {
             focused_title.to_owned()
         };
         let island_artwork: Element<'_, Message> = if let Some(notification) = self.notifications.first() {
-            if !notification.app_icon.is_empty() && std::path::Path::new(&notification.app_icon).is_file() {
-                app_icon_sized(Some(&std::path::PathBuf::from(&notification.app_icon)), 28.0)
+            if let Some(path) = resolve_icon_path(&notification.app_icon) {
+                app_icon_sized(Some(&path), 28.0)
             } else {
                 text("●").size(18).into()
             }
@@ -1836,6 +1836,13 @@ fn settings_flag_row<'a>(label: &'a str, name: &'static str, enabled: bool) -> E
         button(if enabled { "Ligado" } else { "Desligado" })
             .on_press(Message::SettingsToggleFlag(name.to_owned())),
     ].align_y(Alignment::Center).into()
+}
+
+fn resolve_icon_path(value: &str) -> Option<std::path::PathBuf> {
+    let path = std::path::PathBuf::from(value);
+    if path.is_file() { return Some(path); }
+    if value.is_empty() { return None; }
+    freedesktop_icons::lookup(value).with_size(64).with_cache().find()
 }
 
 fn app_icon_sized(path: Option<&std::path::PathBuf>, size: f32) -> Element<'static, Message> {
