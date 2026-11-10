@@ -80,7 +80,7 @@ impl NotificationServer {
             summary,
             body,
             received_unix_ms: now_ms(),
-            expire_timeout_ms: expire_timeout,
+            expire_timeout_ms: if expire_timeout == 0 { 5_000 } else { expire_timeout },
         });
         notifications.truncate(50);
         id
