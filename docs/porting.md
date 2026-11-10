@@ -49,7 +49,7 @@ This is the parity contract for the Iced rewrite. The old implementation is the 
 | OSD | Bottom layer-shell overlay | Volume, microphone and brightness changes produce a timed bottom OSD; live key/hardware validation pending |
 | Wallpaper layer and rotation | Matugen + wallpaper service | Pending |
 | Notifications and previews | `org.freedesktop.Notifications` server | Notify, replacement IDs, timeout handling, close method/signal, Alerts list and content-sized island implemented; actions, hover timing and real-app validation pending |
-| Tray and dbusmenu | Freedesktop + KDE StatusNotifierWatcher and SNI proxies | Watcher names, registration signals, host registration, item metadata/icons, activation and ContextMenu requests implemented; full dbusmenu layout rendering and live app validation pending |
+| Tray and dbusmenu | Freedesktop + KDE StatusNotifierWatcher, SNI proxies and `com.canonical.dbusmenu` | Watcher names, registration signals, host registration, item metadata/icons, activation, GetLayout parsing, nested menu rendering and Event activation implemented; submenu expansion and live app validation pending |
 | Lock screen | ext-session-lock + PAM authentication | Pending |
 
 ## Services and visual system
@@ -57,7 +57,7 @@ This is the parity contract for the Iced rewrite. The old implementation is the 
 | Existing behavior | Native target | Status |
 | --- | --- | --- |
 | MPRIS playback | zbus MPRIS proxies | Active player discovery, metadata, artwork cache, playback status, timeline readout and previous/play-pause/next controls implemented; seeking and player selection pending |
-| StatusNotifier tray | zbus watcher and item proxies | Registration, item properties, activation and context-menu requests implemented; dbusmenu rendering pending |
+| StatusNotifier tray | zbus watcher, item proxies and dbusmenu | Registration, item properties, activation, context-menu layout and menu-item activation implemented; submenu behavior and live validation pending |
 | Audio and microphone | pactl / PipeWire-PulseAudio | Volume, mute, microphone mute, slider and OSD implemented; device selection and live validation pending |
 | Wi-Fi | NetworkManager CLI via `nmcli` | Radio toggle implemented; scan, connection selection and NetworkManager D-Bus integration pending |
 | Bluetooth | `rfkill` | Radio block/unblock implemented; device discovery/pairing and BlueZ D-Bus integration pending |
