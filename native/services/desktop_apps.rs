@@ -24,6 +24,11 @@ pub struct DesktopApp {
 }
 
 impl DesktopApp {
+    /// Stable key used by the original CDS pinned-app preferences.
+    pub fn pin_key(&self) -> String {
+        self.exec.join(" ")
+    }
+
     pub fn launch(&self) -> Result<()> {
         let (program, args) = self.exec.split_first().context("desktop entry has no Exec command")?;
 
