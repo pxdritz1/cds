@@ -765,14 +765,28 @@ impl App {
         self.windows.insert(id, WindowKind::Panel(panel));
         self.active_panel = Some(id);
 
-        let settings = NewLayerShellSettings {
-            anchor: Anchor::Left | Anchor::Right | Anchor::Top | Anchor::Bottom,
-            layer: Layer::Overlay,
-            size: LayerSize::FILL,
-            keyboard_interactivity: KeyboardInteractivity::Exclusive,
-            output_option: OutputOption::LastOutput,
-            namespace: Some("cds-panel".into()),
-            ..Default::default()
+        let settings = if panel == Panel::Launcher {
+            NewLayerShellSettings {
+                anchor: Anchor::Left | Anchor::Right | Anchor::Top,
+                layer: Layer::Overlay,
+                size: LayerSize::px(640, 460),
+                exclusive_zone: None,
+                margin: Some((58, 0, 0, 0)),
+                keyboard_interactivity: KeyboardInteractivity::Exclusive,
+                output_option: OutputOption::LastOutput,
+                namespace: Some("cds-launcher".into()),
+                ..Default::default()
+            }
+        } else {
+            NewLayerShellSettings {
+                anchor: Anchor::Left | Anchor::Right | Anchor::Top | Anchor::Bottom,
+                layer: Layer::Overlay,
+                size: LayerSize::FILL,
+                keyboard_interactivity: KeyboardInteractivity::Exclusive,
+                output_option: OutputOption::LastOutput,
+                namespace: Some("cds-panel".into()),
+                ..Default::default()
+            }
         };
 
         let audio_refresh = if panel == Panel::Control { Task::done(Message::AudioRefresh) } else { Task::none() };
@@ -1259,18 +1273,11 @@ impl App {
         .width(Length::Fill)
         .height(Length::Fill);
 
-        let card = container(body)
+        container(body)
             .padding(16)
-            .width(Length::Fixed(640.0))
-            .height(Length::Fixed(460.0))
-            .style(self.surface_style(0.98));
-
-        container(card)
             .width(Length::Fill)
             .height(Length::Fill)
-            .center_x(Length::Fill)
-            .align_y(Alignment::Start)
-            .padding(iced::Padding { top: 58.0, ..Default::default() })
+            .style(self.surface_style(0.98))
             .into()
     }
 
