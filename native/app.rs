@@ -73,6 +73,12 @@ enum Message {
     SettingsSetDark(bool),
     SettingsSetLanguage(String),
     SettingsSetMotion(String),
+    AudioRefresh,
+    AudioSnapshot(Result<crate::services::audio::AudioSnapshot, String>),
+    AudioAdjust(i8),
+    AudioToggleOutputMute,
+    AudioToggleInputMute,
+    AudioActionResult(Result<(), String>),
     LaunchSelectedApp,
     LaunchApp(String),
     AppLaunchFinished(Result<(), String>),
@@ -105,6 +111,7 @@ struct App {
     niri_state: EventStreamState,
     apps: Vec<DesktopApp>,
     settings: crate::services::settings::Settings,
+    audio: crate::services::audio::AudioSnapshot,
     app_query: String,
     app_results: Vec<String>,
     app_selected: usize,
@@ -140,6 +147,7 @@ impl App {
             niri_state: EventStreamState::default(),
             apps,
             settings,
+            audio: crate::services::audio::AudioSnapshot::default(),
             app_query: String::new(),
             app_results,
             app_selected: 0,
@@ -373,6 +381,38 @@ impl App {
                 self.settings.motion_style = if motion == "fluent" { "fluent" } else { "m3" }.into();
                 if let Err(error) = self.settings.save() { self.last_error = Some(error.to_string()); }
                 Task::none()
+            }
+            Message::AudioRefresh => Task::perform(
+                async {
+                    tokio::task::spawn_blocking(crate::services::audio::snapshot)
+                        .await.map_err(|error| error.to_string())?
+                        .map_err(|error| error.to_string())
+                },
+                Message::AudioSnapshot,
+            ),
+            Message::AudioSnapshot(result) => match result {
+                Ok(snapshot) => { self.audio = snapshot; Task::none() }
+                Err(error) => { self.last_error = Some(error); Task::none() }
+            },
+            Message::AudioAdjust(delta) => Task::perform(
+                async move {
+                    tokio::task::spawn_blocking(move || crate::services::audio::adjust_output(delta))
+                        .await.map_err(|error| error.to_string())?
+                        .map_err(|error| error.to_string())
+                },
+                Message::AudioActionResult,
+            ),
+            Message::AudioToggleOutputMute => Task::perform(
+                async { tokio::task::spawn_blocking(crate::services::audio::toggle_output_mute).await.map_err(|error| error.to_string())?.map_err(|error| error.to_string()) },
+                Message::AudioActionResult,
+            ),
+            Message::AudioToggleInputMute => Task::perform(
+                async { tokio::task::spawn_blocking(crate::services::audio::toggle_input_mute).await.map_err(|error| error.to_string())?.map_err(|error| error.to_string()) },
+                Message::AudioActionResult,
+            ),
+            Message::AudioActionResult(result) => match result {
+                Ok(()) => Task::done(Message::AudioRefresh),
+                Err(error) => { self.last_error = Some(error); Task::none() }
             }
             Message::AppsMove(delta) => {
                 let count = self.app_results.len();
@@ -662,9 +702,11 @@ impl App {
             ..Default::default()
         };
 
+        let audio_refresh = if panel == Panel::Control { Task::done(Message::AudioRefresh) } else { Task::none() };
         Task::batch(vec![
             close,
             Task::done(Message::NewLayerShell { settings, id }),
+            audio_refresh,
         ])
     }
 
@@ -778,6 +820,8 @@ impl App {
         match panel {
             Panel::Launcher => return self.launcher_panel_view(id),
             Panel::Apps | Panel::Spotlight => return self.apps_panel_view(panel, id),
+            Panel::Settings => return self.settings_panel_view(id),
+            Panel::Control => return self.control_panel_view(id),
             Panel::Emoji => return self.emoji_panel_view(id),
             Panel::Color => return self.color_panel_view(id),
             Panel::Clipboard => return self.clipboard_panel_view(id),
@@ -979,6 +1023,59 @@ impl App {
 
     /// Original CDS launcher: a compact 640×460 vertical result list below the notch.
     /// This intentionally stays separate from the full app grid and Spotlight.
+    fn settings_panel_view(&self, id: window::Id) -> Element<'_, Message> {
+        let body = column![
+            row![text("Configurações do CDS").size(23), iced::widget::Space::with_width(Length::Fill), button("Fechar").on_press(Message::CloseWindow(id))].align_y(Alignment::Center),
+            text("Preferências persistentes · importadas do settings.conf antigo").size(11),
+            row![
+                text("Tema").width(Length::Fill),
+                button(if self.settings.dark { "Escuro" } else { "Claro" })
+                    .on_press(Message::SettingsSetDark(!self.settings.dark)),
+            ].align_y(Alignment::Center),
+            row![
+                text("Idioma").width(Length::Fill),
+                button("Português").on_press(Message::SettingsSetLanguage("pt-BR".into())),
+                button("English").on_press(Message::SettingsSetLanguage("en".into())),
+            ].align_y(Alignment::Center),
+            row![
+                text("Movimento").width(Length::Fill),
+                button("Material 3").on_press(Message::SettingsSetMotion("m3".into())),
+                button("Fluent").on_press(Message::SettingsSetMotion("fluent".into())),
+            ].align_y(Alignment::Center),
+            text("Elementos da interface").size(16),
+            settings_flag_row("Workspaces", "show_workspaces", self.settings.flag("show_workspaces")),
+            settings_flag_row("Centro / Dynamic Island", "show_center_island", self.settings.flag("show_center_island")),
+            settings_flag_row("Indicadores de status", "show_status", self.settings.flag("show_status")),
+            settings_flag_row("Cores do medidor trans", "trans_meter_colors", self.settings.flag("trans_meter_colors")),
+            settings_flag_row("Relógio analógico", "clock_analog", self.settings.flag("clock_analog")),
+        ].spacing(12);
+        container(container(body).padding(24).max_width(620).style(self.surface_style(0.98)))
+            .width(Length::Fill).height(Length::Fill).center_x(Length::Fill).center_y(Length::Fill)
+            .style(|_| container::Style { background: Some(Background::Color(Color::from_rgba(0.02,0.02,0.03,0.48))), ..Default::default() }).into()
+    }
+
+    fn control_panel_view(&self, id: window::Id) -> Element<'_, Message> {
+        let body = column![
+            row![text("Central de controle").size(23), iced::widget::Space::with_width(Length::Fill), button("↻").on_press(Message::AudioRefresh), button("Fechar").on_press(Message::CloseWindow(id))].align_y(Alignment::Center),
+            text("Áudio").size(17),
+            row![
+                text(format!("Saída · {}{}", self.audio.output_volume, if self.audio.output_muted { "% · mutado" } else { "%" })).width(Length::Fill),
+                button("−").on_press(Message::AudioAdjust(-5)),
+                button("+").on_press(Message::AudioAdjust(5)),
+                button(if self.audio.output_muted { "Ativar" } else { "Mudo" }).on_press(Message::AudioToggleOutputMute),
+            ].align_y(Alignment::Center),
+            row![
+                text(format!("Microfone · {}{}", self.audio.input_volume, if self.audio.input_muted { "% · mutado" } else { "%" })).width(Length::Fill),
+                button(if self.audio.input_muted { "Ativar" } else { "Silenciar" }).on_press(Message::AudioToggleInputMute),
+            ].align_y(Alignment::Center),
+            text("Os controles usam pactl (PipeWire-PulseAudio ou PulseAudio).").size(11),
+            self.last_error.as_ref().map(|error| text(error.clone()).size(11).into()).unwrap_or_else(|| text("").into()),
+        ].spacing(14);
+        container(container(body).padding(24).max_width(520).style(self.surface_style(0.98)))
+            .width(Length::Fill).height(Length::Fill).center_x(Length::Fill).center_y(Length::Fill)
+            .style(|_| container::Style { background: Some(Background::Color(Color::from_rgba(0.02,0.02,0.03,0.48))), ..Default::default() }).into()
+    }
+
     fn launcher_panel_view(&self, id: window::Id) -> Element<'_, Message> {
         let mut results = self.app_results.iter()
             .take(40)
@@ -1358,6 +1455,14 @@ fn clipboard_meta(value: &str) -> String {
         value.chars().count(),
         value.lines().count().max(1)
     )
+}
+
+fn settings_flag_row<'a>(label: &'a str, name: &'static str, enabled: bool) -> Element<'a, Message> {
+    row![
+        text(label).width(Length::Fill),
+        button(if enabled { "Ligado" } else { "Desligado" })
+            .on_press(Message::SettingsToggleFlag(name.to_owned())),
+    ].align_y(Alignment::Center).into()
 }
 
 fn app_icon_sized(path: Option<&std::path::PathBuf>, size: f32) -> Element<'static, Message> {
