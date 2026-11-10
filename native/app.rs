@@ -1082,7 +1082,6 @@ impl App {
         let status = container(
             row![
                 text(format!("◖ {}%", self.audio.output_volume)).size(12),
-                text(format!("◈ {tray_count}")).size(12),
                 button("Clip").on_press(Message::OpenPanel(Panel::Clipboard)),
                 button(format!("◈ {tray_count}")).on_press(Message::OpenPanel(Panel::Tray)),
                 button("Control").on_press(Message::OpenPanel(Panel::Control)),
@@ -1094,8 +1093,36 @@ impl App {
         .padding(10)
         .style(self.surface_style(0.90));
 
+        let mut left_groups = Vec::<Element<'_, Message>>::new();
+        let mut center_groups = Vec::<Element<'_, Message>>::new();
+        let mut right_groups = Vec::<Element<'_, Message>>::new();
+
+        match self.settings.workspaces_alignment.as_str() {
+            "right" => right_groups.push(workspace_group.into()),
+            _ => left_groups.push(workspace_group.into()),
+        }
+        match self.settings.center_alignment.as_str() {
+            "left" => left_groups.push(center.into()),
+            "right" => right_groups.push(center.into()),
+            _ => center_groups.push(center.into()),
+        }
+        match self.settings.status_alignment.as_str() {
+            "left" => left_groups.push(status.into()),
+            _ => right_groups.push(status.into()),
+        }
+
+        let left = iced::widget::row(left_groups).spacing(10).align_y(Alignment::Center);
+        let middle = iced::widget::row(center_groups).spacing(10).align_y(Alignment::Center);
+        let right = iced::widget::row(right_groups).spacing(10).align_y(Alignment::Center);
+
         container(
-            row![workspace_group, center, status]
+            row![
+                left,
+                iced::widget::Space::with_width(Length::Fill),
+                middle,
+                iced::widget::Space::with_width(Length::Fill),
+                right,
+            ]
                 .spacing(10)
                 .align_y(Alignment::Center)
                 .width(Length::Fill)
