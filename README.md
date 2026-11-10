@@ -61,8 +61,17 @@ cds open control
 cds open config
 cds open color
 cds open emoji
+cds open tray
 
 cds dash [home|media|weather|wallpapers|alerts]
+cds tray list
+cds settings get
+cds settings set <language|dark|motion> <value>
+cds settings flag <name> <true|false>
+cds theme color <hex>
+cds theme set <image>
+cds clipboard list
+cds clipboard clear
 cds close
 cds lock
 ```
