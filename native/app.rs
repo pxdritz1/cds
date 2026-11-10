@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use iced::widget::{button, column, container, row, scrollable, text, text_input};
+use iced::widget::{button, column, container, mouse_area, row, scrollable, text, text_input};
 use iced::{
     Alignment, Background, Color, Element, Event, Length, Subscription, Task, event, keyboard,
     window,
@@ -68,6 +68,11 @@ enum Message {
     AppsQuery(String),
     AppsSearchResults(Vec<String>),
     AppsMove(isize),
+    TogglePinned(String),
+    SettingsToggleFlag(String),
+    SettingsSetDark(bool),
+    SettingsSetLanguage(String),
+    SettingsSetMotion(String),
     LaunchSelectedApp,
     LaunchApp(String),
     AppLaunchFinished(Result<(), String>),
@@ -99,6 +104,7 @@ struct App {
     shell_events: ShellReceiver,
     niri_state: EventStreamState,
     apps: Vec<DesktopApp>,
+    settings: crate::services::settings::Settings,
     app_query: String,
     app_results: Vec<String>,
     app_selected: usize,
@@ -118,7 +124,13 @@ struct App {
 impl App {
     fn new(shell_events: ShellReceiver) -> Self {
         let apps = crate::services::desktop_apps::scan();
-        let app_results = apps.iter().map(|app| app.id.clone()).collect();
+        let settings = crate::services::settings::Settings::load();
+        let mut app_results = apps.iter().map(|app| app.id.clone()).collect::<Vec<_>>();
+        app_results.sort_by_key(|id| {
+            apps.iter().find(|app| &app.id == id)
+                .map(|app| !settings.is_pinned(&app.pin_key()))
+                .unwrap_or(true)
+        });
 
         Self {
             windows: HashMap::new(),
@@ -127,6 +139,7 @@ impl App {
             shell_events,
             niri_state: EventStreamState::default(),
             apps,
+            settings,
             app_query: String::new(),
             app_results,
             app_selected: 0,
@@ -194,6 +207,10 @@ impl App {
                     key: keyboard::Key::Named(keyboard::key::Named::ArrowDown),
                     ..
                 }) if self.active_panel_is(Panel::Clipboard) => Task::done(Message::ClipboardMove(1)),
+                Event::Keyboard(keyboard::Event::KeyPressed {
+                    key: keyboard::Key::Named(keyboard::key::Named::Tab),
+                    ..
+                }) if self.active_panel_is(Panel::Launcher) => Task::done(Message::AppsMove(1)),
                 Event::Keyboard(keyboard::Event::KeyPressed {
                     key: keyboard::Key::Named(keyboard::key::Named::ArrowDown),
                     ..
@@ -312,9 +329,49 @@ impl App {
                     Message::AppsSearchResults,
                 )
             }
-            Message::AppsSearchResults(results) => {
+            Message::AppsSearchResults(mut results) => {
+                results.sort_by_key(|id| {
+                    self.apps.iter().find(|app| &app.id == id)
+                        .map(|app| !self.settings.is_pinned(&app.pin_key()))
+                        .unwrap_or(true)
+                });
                 self.app_results = results;
                 self.app_selected = 0;
+                Task::none()
+            }
+            Message::TogglePinned(key) => {
+                if let Err(error) = self.settings.toggle_pinned(&key) {
+                    self.last_error = Some(error.to_string());
+                } else {
+                    self.app_results.sort_by_key(|id| {
+                        self.apps.iter().find(|app| &app.id == id)
+                            .map(|app| !self.settings.is_pinned(&app.pin_key()))
+                            .unwrap_or(true)
+                    });
+                    self.app_selected = 0;
+                }
+                Task::none()
+            }
+            Message::SettingsToggleFlag(name) => {
+                let value = !self.settings.flag(&name);
+                if let Err(error) = self.settings.set_flag(&name, value) {
+                    self.last_error = Some(error.to_string());
+                }
+                Task::none()
+            }
+            Message::SettingsSetDark(dark) => {
+                self.settings.dark = dark;
+                if let Err(error) = self.settings.save() { self.last_error = Some(error.to_string()); }
+                Task::none()
+            }
+            Message::SettingsSetLanguage(language) => {
+                self.settings.language = if language == "en" { "en" } else { "pt-BR" }.into();
+                if let Err(error) = self.settings.save() { self.last_error = Some(error.to_string()); }
+                Task::none()
+            }
+            Message::SettingsSetMotion(motion) => {
+                self.settings.motion_style = if motion == "fluent" { "fluent" } else { "m3" }.into();
+                if let Err(error) = self.settings.save() { self.last_error = Some(error.to_string()); }
                 Task::none()
             }
             Message::AppsMove(delta) => {
@@ -719,7 +776,8 @@ impl App {
 
     fn panel_view(&self, panel: Panel, id: window::Id) -> Element<'_, Message> {
         match panel {
-            Panel::Apps | Panel::Launcher | Panel::Spotlight => return self.apps_panel_view(panel, id),
+            Panel::Launcher => return self.launcher_panel_view(id),
+            Panel::Apps | Panel::Spotlight => return self.apps_panel_view(panel, id),
             Panel::Emoji => return self.emoji_panel_view(id),
             Panel::Color => return self.color_panel_view(id),
             Panel::Clipboard => return self.clipboard_panel_view(id),
@@ -917,6 +975,101 @@ impl App {
                 })
                 .into()
         }
+    }
+
+    /// Original CDS launcher: a compact 640×460 vertical result list below the notch.
+    /// This intentionally stays separate from the full app grid and Spotlight.
+    fn launcher_panel_view(&self, id: window::Id) -> Element<'_, Message> {
+        let mut results = self.app_results.iter()
+            .take(40)
+            .filter_map(|app_id| self.apps.iter().find(|app| &app.id == app_id))
+            .collect::<Vec<_>>();
+        results.sort_by_key(|app| !self.settings.is_pinned(&app.pin_key()));
+        let selected = self.app_selected.min(results.len().saturating_sub(1));
+        let rows = results.iter().enumerate().map(|(index, app)| {
+            let pinned = self.settings.is_pinned(&app.pin_key());
+            let marker = if index == selected { "›" } else { " " };
+            let pin = if pinned { "◆" } else { "" };
+            let content = container(
+                row![
+                    container(app_icon_sized(app.icon.as_ref(), 36.0))
+                        .width(Length::Fixed(36.0))
+                        .height(Length::Fixed(36.0)),
+                    column![
+                        text(app.name.clone()).size(14),
+                        text(if app.description.is_empty() { "Aplicativo" } else { &app.description }).size(11),
+                    ].spacing(2).width(Length::Fill),
+                    text(pin).size(12),
+                    text(marker).size(18),
+                ]
+                .spacing(12)
+                .align_y(Alignment::Center)
+            )
+            .padding(8)
+            .width(Length::Fill)
+            .style(if index == selected { self.surface_style(0.88) } else { self.surface_style(0.58) });
+            mouse_area(content)
+                .on_press(Message::LaunchApp(app.id.clone()))
+                .on_right_press(Message::TogglePinned(app.pin_key()))
+                .into()
+        }).collect::<Vec<Element<'_, Message>>>();
+
+        let results_view: Element<'_, Message> = if rows.is_empty() {
+            container(column![
+                text("Nada encontrado").size(16),
+                text("Tente outro nome").size(12),
+            ].spacing(6).align_x(Alignment::Center))
+                .width(Length::Fill)
+                .height(Length::Fixed(316.0))
+                .center_x(Length::Fill)
+                .center_y(Length::Fill)
+                .into()
+        } else {
+            scrollable(column(rows).spacing(4))
+                .height(Length::Fixed(316.0))
+                .into()
+        };
+
+        let count = self.app_results.len();
+        let hint = if count == 0 {
+            "Nenhum aplicativo encontrado".to_owned()
+        } else if self.settings.language == "en" {
+            format!("{count} applications  ·  ↑↓ choose  ·  Enter opens  ·  right-click pins")
+        } else {
+            format!("{count} aplicativos  ·  ↑↓ selecionar  ·  Enter abrir  ·  clique direito fixa")
+        };
+        let footer = row![
+            text(hint).size(11),
+            text("Esc fecha").size(11),
+        ]
+        .spacing(12)
+        .align_y(Alignment::Center);
+
+        let body = column![
+            text_input("Buscar aplicativos", &self.app_query)
+                .on_input(Message::AppsQuery)
+                .padding(12)
+                .size(15),
+            results_view,
+            footer,
+        ]
+        .spacing(12)
+        .width(Length::Fill)
+        .height(Length::Fill);
+
+        let card = container(body)
+            .padding(16)
+            .width(Length::Fixed(640.0))
+            .height(Length::Fixed(460.0))
+            .style(self.surface_style(0.98));
+
+        container(card)
+            .width(Length::Fill)
+            .height(Length::Fill)
+            .center_x(Length::Fill)
+            .align_y(Alignment::Start)
+            .padding(iced::Padding { top: 58.0, ..Default::default() })
+            .into()
     }
 
     fn emoji_panel_view(&self, id: window::Id) -> Element<'_, Message> {
@@ -1205,6 +1358,18 @@ fn clipboard_meta(value: &str) -> String {
         value.chars().count(),
         value.lines().count().max(1)
     )
+}
+
+fn app_icon_sized(path: Option<&std::path::PathBuf>, size: f32) -> Element<'static, Message> {
+    let Some(path) = path else { return text("◉").size(size * 0.75).into(); };
+    if path.extension().is_some_and(|extension| extension == "svg") {
+        iced::widget::svg::Svg::new(iced::widget::svg::Handle::from_path(path.clone()))
+            .width(Length::Fixed(size)).height(Length::Fixed(size)).into()
+    } else {
+        iced::widget::image::Image::new(iced::widget::image::Handle::from_path(path.clone()))
+            .width(Length::Fixed(size)).height(Length::Fixed(size))
+            .content_fit(iced::ContentFit::Contain).into()
+    }
 }
 
 fn app_icon(path: Option<&std::path::PathBuf>) -> Element<'static, Message> {
