@@ -174,21 +174,46 @@ pub struct TrayItemSnapshot {
 
 pub async fn snapshot() -> anyhow::Result<Vec<TrayItemSnapshot>> {
     let connection = zbus::Connection::session().await?;
-    let addresses = registered_items();
+    let mut addresses = registered_items();
+    if addresses.is_empty() {
+        for watcher in [FREEDESKTOP_WATCHER, KDE_WATCHER] {
+            let Ok(proxy) = zbus::Proxy::new(
+                &connection, watcher, WATCHER_PATH, watcher,
+            ).await else { continue };
+            if let Ok(items) = proxy.get_property::<Vec<String>>("RegisteredStatusNotifierItems").await {
+                addresses = items;
+                break;
+            }
+        }
+    }
     let mut result = Vec::with_capacity(addresses.len());
     for address in addresses {
         let Some((service, path)) = address.split_once('/') else { continue };
         let path = format!("/{path}");
-        let Ok(proxy) = zbus::Proxy::new(
+        let proxy = match zbus::Proxy::new(
             &connection, service, path.as_str(), "org.freedesktop.StatusNotifierItem",
-        ).await else { continue };
+        ).await {
+            Ok(proxy) => proxy,
+            Err(_) => match zbus::Proxy::new(
+                &connection, service, path.as_str(), "org.kde.StatusNotifierItem",
+            ).await {
+                Ok(proxy) => proxy,
+                Err(_) => continue,
+            },
+        };
         let title = proxy.get_property::<String>("Title").await.unwrap_or_default();
-        let icon_name = proxy.get_property::<String>("IconName").await.unwrap_or_default();
         let status = proxy.get_property::<String>("Status").await.unwrap_or_default();
+        if status == "Passive" { continue; }
+        let mut icon_name = proxy.get_property::<String>("IconName").await.unwrap_or_default();
+        if status == "NeedsAttention" {
+            let attention = proxy.get_property::<String>("AttentionIconName").await.unwrap_or_default();
+            if !attention.is_empty() { icon_name = attention; }
+        }
         let menu_path = proxy.get_property::<zbus::zvariant::OwnedObjectPath>("Menu")
             .await.map(|value| value.to_string()).unwrap_or_default();
         result.push(TrayItemSnapshot { address, title, icon_name, status, menu_path });
     }
+    result.sort_by(|left, right| left.title.to_lowercase().cmp(&right.title.to_lowercase()));
     Ok(result)
 }
 
@@ -285,9 +310,14 @@ pub async fn context_menu(address: &str) -> anyhow::Result<()> {
         .ok_or_else(|| anyhow::anyhow!("invalid StatusNotifier address"))?;
     let path = format!("/{path}");
     let connection = zbus::Connection::session().await?;
-    let proxy = zbus::Proxy::new(
+    let proxy = match zbus::Proxy::new(
         &connection, service, path.as_str(), "org.freedesktop.StatusNotifierItem",
-    ).await?;
+    ).await {
+        Ok(proxy) => proxy,
+        Err(_) => zbus::Proxy::new(
+            &connection, service, path.as_str(), "org.kde.StatusNotifierItem",
+        ).await?,
+    };
     proxy.call::<_, _, ()>("ContextMenu", &(0_i32, 0_i32)).await?;
     Ok(())
 }
@@ -297,9 +327,14 @@ pub async fn activate(address: &str) -> anyhow::Result<()> {
         .ok_or_else(|| anyhow::anyhow!("invalid StatusNotifier address"))?;
     let path = format!("/{path}");
     let connection = zbus::Connection::session().await?;
-    let proxy = zbus::Proxy::new(
+    let proxy = match zbus::Proxy::new(
         &connection, service, path.as_str(), "org.freedesktop.StatusNotifierItem",
-    ).await?;
+    ).await {
+        Ok(proxy) => proxy,
+        Err(_) => zbus::Proxy::new(
+            &connection, service, path.as_str(), "org.kde.StatusNotifierItem",
+        ).await?,
+    };
     proxy.call::<_, _, ()>("Activate", &(0_i32, 0_i32)).await?;
     Ok(())
 }
