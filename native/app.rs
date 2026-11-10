@@ -641,7 +641,7 @@ impl App {
                 if self.active_panel_is(Panel::Tray) {
                     tasks.push(Task::done(Message::TrayRefresh));
                 }
-                if self.osd_since.is_some_and(|since| since.elapsed() >= std::time::Duration::from_millis(2600)) {
+                if self.osd_since.is_some_and(|since| since.elapsed() >= std::time::Duration::from_secs(5)) {
                     if let Some(id) = self.osd_window.take() {
                         self.osd_since = None;
                         tasks.push(Task::done(Message::CloseWindow(id)));
@@ -1907,19 +1907,32 @@ impl App {
     }
 
     fn osd_view(&self) -> Element<'_, Message> {
+        let icon = if self.osd_text.to_lowercase().contains("brilho") {
+            "☼"
+        } else if self.osd_text.to_lowercase().contains("silenciado") {
+            "🔇"
+        } else {
+            "◖"
+        };
         container(
-            row![
-                text(if self.osd_text.to_lowercase().contains("brilho") { "☼" } else { "◖" }).size(30),
-                column![
-                    text(self.osd_text.clone()).size(16),
-                    text("CDS · OSD").size(10),
-                ].spacing(2),
-            ].spacing(16).align_y(Alignment::Center)
+            container(
+                row![
+                    text(icon).size(30),
+                    column![
+                        text(self.osd_text.clone()).size(16),
+                        text("CDS · OSD").size(10),
+                    ].spacing(2),
+                ].spacing(16).align_y(Alignment::Center)
+            )
+            .padding(16)
+            .width(Length::Fixed(288.0))
+            .height(Length::Fixed(56.0))
+            .style(self.surface_style(0.98))
         )
-        .padding(18)
         .width(Length::Fill)
         .height(Length::Fill)
-        .style(self.surface_style(0.98))
+        .center_x(Length::Fill)
+        .center_y(Length::Fill)
         .into()
     }
 
