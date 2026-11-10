@@ -6,3 +6,6 @@ pub mod theme;
 pub mod clipboard;
 pub mod settings;
 pub mod audio;
+pub mod notifications;
+pub mod media;
+pub mod tray;
