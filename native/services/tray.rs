@@ -368,15 +368,22 @@ pub fn start_server() -> Result<()> {
             let host = format!("org.freedesktop.StatusNotifierHost-{}", std::process::id());
             connection.request_name(host.as_str()).await?;
             loop {
-                let watcher = zbus::Proxy::new(
-                    &connection, FREEDESKTOP_WATCHER, WATCHER_PATH, FREEDESKTOP_WATCHER,
-                ).await;
-                if let Ok(watcher) = watcher {
-                    let registered = watcher.call::<_, _, ()>(
+                let mut registered = false;
+                for (destination, interface) in [
+                    (FREEDESKTOP_WATCHER, FREEDESKTOP_WATCHER),
+                    (KDE_WATCHER, KDE_WATCHER),
+                ] {
+                    let Ok(watcher) = zbus::Proxy::new(
+                        &connection, destination, WATCHER_PATH, interface,
+                    ).await else { continue };
+                    if watcher.call::<_, _, ()>(
                         "RegisterStatusNotifierHost", &(host.as_str(),),
-                    ).await;
-                    if registered.is_ok() { break; }
+                    ).await.is_ok() {
+                        registered = true;
+                        break;
+                    }
                 }
+                if registered { break; }
                 tokio::time::sleep(Duration::from_secs(2)).await;
             }
             futures_util::future::pending::<()>().await;
