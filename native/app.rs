@@ -1688,6 +1688,9 @@ pub fn run() -> anyhow::Result<()> {
     let (shell_broadcast, shell_events) = iced_wayland_subscriber::shell::channel();
     let mut clipboard_watcher = start_clipboard_watcher();
 
+    crate::services::notifications::start_server()?;
+    crate::services::tray::start_server()?;
+
     let result = daemon(
         move || App::new(shell_events.clone()),
         App::namespace,
