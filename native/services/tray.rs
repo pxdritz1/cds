@@ -257,13 +257,12 @@ fn parse_menu_node(
     let fields = structure.fields();
     if fields.len() < 3 { return Ok(()); }
 
-    let id = fields[0].downcast_ref::<i32>().map(|value| *value).unwrap_or_default();
-    let properties = fields[1]
-        .downcast_ref::<std::collections::HashMap<String, OwnedValue>>()
-        .cloned().unwrap_or_default();
-    let children = fields[2]
-        .downcast_ref::<Vec<OwnedValue>>()
-        .cloned().unwrap_or_default();
+    let id = fields[0].downcast_ref::<i32>().unwrap_or_default();
+    let properties: std::collections::HashMap<String, OwnedValue> =
+        fields[1].try_to_owned()?.try_into()
+            .map_err(|error| anyhow::anyhow!("invalid dbusmenu properties: {error}"))?;
+    let children: Vec<OwnedValue> = fields[2].try_to_owned()?.try_into()
+        .map_err(|error| anyhow::anyhow!("invalid dbusmenu children: {error}"))?;
 
     let label = variant_string(properties.get("label")).replace('_', "");
     let kind = variant_string(properties.get("type"));
