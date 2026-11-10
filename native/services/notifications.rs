@@ -33,6 +33,18 @@ pub fn snapshot() -> Vec<NotificationRecord> {
     notifications.clone()
 }
 
+pub async fn dismiss_remote(id: u32) -> anyhow::Result<()> {
+    let connection = zbus::Connection::session().await?;
+    let proxy = zbus::Proxy::new(
+        &connection,
+        "org.freedesktop.Notifications",
+        "/org/freedesktop/Notifications",
+        "org.freedesktop.Notifications",
+    ).await?;
+    proxy.call::<_, _, ()>("CloseNotification", &(id,)).await?;
+    Ok(())
+}
+
 pub fn dismiss(id: u32) {
     state().lock().unwrap_or_else(|error| error.into_inner()).retain(|item| item.id != id);
 }
@@ -97,7 +109,7 @@ impl NotificationServer {
             "/org/freedesktop/Notifications",
             "org.freedesktop.Notifications",
             "NotificationClosed",
-            &(id, 2_u32),
+            &(id, 3_u32),
         ).await.map_err(|error| zbus::fdo::Error::Failed(error.to_string()))?;
         Ok(())
     }
