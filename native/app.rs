@@ -6,7 +6,7 @@ use iced::{
 };
 use iced_exwlshell::daemon;
 use iced_exwlshell::reexport::{
-    Anchor, KeyboardInteractivity, Layer, LayerSize, NewLayerShellSettings, OutputOption,
+    Anchor, KeyboardInteractivity, Layer, LayerSize, Margin, NewLayerShellSettings, OutputOption,
 };
 use iced_exwlshell::settings::{ExWlSettings, LayerShellSettings, StartMode};
 use iced_exwlshell::to_exwlshell_message;
@@ -327,7 +327,7 @@ impl App {
                     layer: Layer::Overlay,
                     size: LayerSize::px(340, 96),
                     exclusive_zone: None,
-                    margin: Some((0, 0, 36, 0)),
+                    margin: Some(Margin { top: 0, right: 0, bottom: 36, left: 0 }),
                     keyboard_interactivity: KeyboardInteractivity::None,
                     output_option: OutputOption::LastOutput,
                     namespace: Some("cds-osd".into()),
@@ -670,8 +670,11 @@ impl App {
                 Task::none()
             }
             Message::NotificationDismiss(id) => Task::perform(
-                crate::services::notifications::dismiss_remote(id)
-                    .map_err(|error| error.to_string()),
+                async move {
+                    crate::services::notifications::dismiss_remote(id)
+                        .await
+                        .map_err(|error| error.to_string())
+                },
                 Message::NotificationDismissed,
             ),
             Message::NotificationDismissed(result) => {
@@ -997,7 +1000,7 @@ impl App {
                 layer: Layer::Overlay,
                 size: LayerSize::px(640, 460),
                 exclusive_zone: None,
-                margin: Some((58, 0, 0, 0)),
+                margin: Some(Margin { top: 58, right: 0, bottom: 0, left: 0 }),
                 keyboard_interactivity: KeyboardInteractivity::Exclusive,
                 output_option: OutputOption::LastOutput,
                 namespace: Some("cds-launcher".into()),
@@ -1144,7 +1147,7 @@ impl App {
             row![
                 text(format!("◖ {}%", self.audio.output_volume)).size(12),
                 button("Clip").on_press(Message::OpenPanel(Panel::Clipboard)),
-                button(format!("◈ {tray_count}")).on_press(Message::OpenPanel(Panel::Tray)),
+                button(text(format!("◈ {tray_count}"))).on_press(Message::OpenPanel(Panel::Tray)),
                 button("Control").on_press(Message::OpenPanel(Panel::Control)),
                 button("Settings").on_press(Message::OpenPanel(Panel::Settings)),
             ]
@@ -1185,9 +1188,9 @@ impl App {
         container(
             row![
                 left,
-                iced::widget::Space::with_width(Length::Fill),
+                iced::widget::Space::width(Length::Fill),
                 middle,
-                iced::widget::Space::with_width(Length::Fill),
+                iced::widget::Space::width(Length::Fill),
                 right,
             ]
                 .spacing(10)
@@ -1236,7 +1239,7 @@ impl App {
                     } else {
                         text("♫").size(56).into()
                     },
-                    text(if self.media.available() { self.media.title.clone() } else { "Nenhuma mídia em reprodução" }).size(20),
+                    text(if self.media.available() { self.media.title.clone() } else { "Nenhuma mídia em reprodução".to_owned() }).size(20),
                     text(self.media.artist.clone()).size(13),
                     text(self.media.album.clone()).size(11),
                     iced::widget::progress_bar(
@@ -1450,7 +1453,7 @@ impl App {
     /// This intentionally stays separate from the full app grid and Spotlight.
     fn settings_panel_view(&self, id: window::Id) -> Element<'_, Message> {
         let body = column![
-            row![text("Configurações do CDS").size(23), iced::widget::Space::with_width(Length::Fill), button("Fechar").on_press(Message::CloseWindow(id))].align_y(Alignment::Center),
+            row![text("Configurações do CDS").size(23), iced::widget::Space::width(Length::Fill), button("Fechar").on_press(Message::CloseWindow(id))].align_y(Alignment::Center),
             text("Preferências persistentes · importadas do settings.conf antigo").size(11),
             row![
                 text("Tema").width(Length::Fill),
@@ -1498,7 +1501,7 @@ impl App {
 
     fn control_panel_view(&self, id: window::Id) -> Element<'_, Message> {
         let body = column![
-            row![text("Central de controle").size(23), iced::widget::Space::with_width(Length::Fill), button("↻").on_press(Message::AudioRefresh), button("Fechar").on_press(Message::CloseWindow(id))].align_y(Alignment::Center),
+            row![text("Central de controle").size(23), iced::widget::Space::width(Length::Fill), button("↻").on_press(Message::AudioRefresh), button("Fechar").on_press(Message::CloseWindow(id))].align_y(Alignment::Center),
             text("Áudio").size(17),
             row![
                 text(format!("Saída · {}{}", self.audio.output_volume, if self.audio.output_muted { "% · mutado" } else { "%" })).width(Length::Fill),
@@ -1547,7 +1550,7 @@ impl App {
                 }
             }).collect::<Vec<Element<'_, Message>>>();
             column![
-                row![text("Menu do aplicativo").size(17), iced::widget::Space::with_width(Length::Fill), button("Voltar").on_press(Message::TrayMenuDismiss)],
+                row![text("Menu do aplicativo").size(17), iced::widget::Space::width(Length::Fill), button("Voltar").on_press(Message::TrayMenuDismiss)],
                 scrollable(column(menu_rows).spacing(4)).height(Length::Fixed(320.0)),
             ].spacing(8).into()
         } else {
@@ -1575,7 +1578,7 @@ impl App {
             }
         };
         let body = column![
-            row![text("Bandeja do sistema").size(22), iced::widget::Space::with_width(Length::Fill), button("↻").on_press(Message::TrayRefresh), button("Fechar").on_press(Message::CloseWindow(id))].align_y(Alignment::Center),
+            row![text("Bandeja do sistema").size(22), iced::widget::Space::width(Length::Fill), button("↻").on_press(Message::TrayRefresh), button("Fechar").on_press(Message::CloseWindow(id))].align_y(Alignment::Center),
             content,
         ].spacing(12);
         container(container(body).padding(22).max_width(540).style(self.surface_style(0.98)))
