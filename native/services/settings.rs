@@ -20,6 +20,10 @@ pub struct Settings {
     pub media_title_max_width: u32,
     pub wallpaper_rotation: bool,
     pub wallpaper_interval_minutes: u32,
+    pub workspaces_alignment: String,
+    pub center_alignment: String,
+    pub status_alignment: String,
+    pub status_positions: BTreeMap<String, String>,
     pub flags: BTreeMap<String, bool>,
     pub pinned_apps: BTreeSet<String>,
 }
@@ -38,6 +42,11 @@ impl Default for Settings {
             media_title_max_width: 320,
             wallpaper_rotation: false,
             wallpaper_interval_minutes: 30,
+            workspaces_alignment: "left".into(),
+            center_alignment: "center".into(),
+            status_alignment: "right".into(),
+            status_positions: ["network", "bluetooth", "volume", "microphone", "battery"]
+                .into_iter().map(|name| (name.to_owned(), "left".to_owned())).collect(),
             flags: BTreeMap::new(),
             pinned_apps: BTreeSet::new(),
         }
@@ -77,13 +86,24 @@ impl Settings {
                 "media_title_max_width" => self.media_title_max_width = value.parse().unwrap_or(320).clamp(104, 520),
                 "wallpaper_rotation" => self.wallpaper_rotation = value == "true",
                 "wallpaper_interval_minutes" => self.wallpaper_interval_minutes = value.parse().unwrap_or(30).clamp(1, 1440),
+                "workspaces_alignment" => self.workspaces_alignment = if value == "right" { "right" } else { "left" }.into(),
+                "center_alignment" => self.center_alignment = match value { "left" => "left", "right" => "right", _ => "center" }.into(),
+                "status_alignment" => self.status_alignment = if value == "left" { "left" } else { "right" }.into(),
+                other if other.starts_with("status_position.") => {
+                    let key = other.trim_start_matches("status_position.");
+                    let position = match value { "center" => "center", "right" => "right", _ => "left" };
+                    self.status_positions.insert(key.to_owned(), position.to_owned());
+                }
                 other if other.starts_with("pinned.") => {
                     let exec = other.trim_start_matches("pinned.");
                     if value == "true" { self.pinned_apps.insert(exec.to_owned()); }
                     else { self.pinned_apps.remove(exec); }
                 }
                 other if other.starts_with("flag.") => {
-                    self.flags.insert(other.trim_start_matches("flag.").to_owned(), value == "true");
+                    let name = other.trim_start_matches("flag.");
+                    if !matches!(name, "show_dock" | "dock_magnification" | "dock_reserve_space" | "dock_auto_hide") {
+                        self.flags.insert(name.to_owned(), value == "true");
+                    }
                 }
                 _ => {}
             }
@@ -116,11 +136,15 @@ impl Settings {
         let paths = Paths::discover()?;
         std::fs::create_dir_all(&paths.config)?;
         let mut output = format!(
-            "scheme={}\ndark={}\nwallpaper={}\ndirectory={}\nlocation={}\nhover_delay_ms={}\nlanguage={}\nmedia_title_max_width={}\nwallpaper_rotation={}\nwallpaper_interval_minutes={}\nmotion_style={}\n",
+            "scheme={}\ndark={}\nwallpaper={}\ndirectory={}\nlocation={}\nhover_delay_ms={}\nlanguage={}\nmedia_title_max_width={}\nwallpaper_rotation={}\nwallpaper_interval_minutes={}\nmotion_style={}\nworkspaces_alignment={}\ncenter_alignment={}\nstatus_alignment={}\n",
             self.scheme, self.dark, self.wallpaper, self.wallpaper_directory, self.location,
             self.hover_delay_ms, self.language, self.media_title_max_width,
-            self.wallpaper_rotation, self.wallpaper_interval_minutes, self.motion_style
+            self.wallpaper_rotation, self.wallpaper_interval_minutes, self.motion_style,
+            self.workspaces_alignment, self.center_alignment, self.status_alignment
         );
+        for (name, position) in &self.status_positions {
+            output.push_str(&format!("status_position.{name}={position}\n"));
+        }
         for key in &self.pinned_apps { output.push_str(&format!("pinned.{key}=true\n")); }
         for (key, value) in &self.flags { output.push_str(&format!("flag.{key}={value}\n")); }
         let target = paths.config.join("settings.conf");
