@@ -961,11 +961,26 @@ impl App {
         } else {
             focused_title.to_owned()
         };
+        let island_artwork: Element<'_, Message> = if let Some(notification) = self.notifications.first() {
+            if !notification.app_icon.is_empty() && std::path::Path::new(&notification.app_icon).is_file() {
+                app_icon_sized(Some(&std::path::PathBuf::from(&notification.app_icon)), 28.0)
+            } else {
+                text("●").size(18).into()
+            }
+        } else if let Some(path) = self.media.art_url.strip_prefix("file://")
+            .map(std::path::PathBuf::from).filter(|path| path.is_file()) {
+            app_icon_sized(Some(&path), 28.0)
+        } else {
+            text("♫").size(18).into()
+        };
         let center = container(
             row![
                 button("⌕").on_press(Message::OpenPanel(Panel::Spotlight)),
                 text("CDS").size(14),
-                text(island_label.clone()).size(12).width(Length::Fill),
+                island_artwork,
+                container(text(island_label.clone()).size(12))
+                    .width(Length::Fill)
+                    .center_x(Length::Fill),
                 text(chrono::Local::now().format("%H:%M").to_string()).size(12),
                 button("Dash").on_press(Message::OpenDash(DashTab::Home)),
             ]
@@ -1041,6 +1056,12 @@ impl App {
         let body: Element<'_, Message> = if panel == Panel::Dash {
             let page: Element<'_, Message> = match self.dash_tab {
                 DashTab::Media => column![
+                    if let Some(path) = self.media.art_url.strip_prefix("file://")
+                        .map(std::path::PathBuf::from).filter(|path| path.is_file()) {
+                        app_icon_sized(Some(&path), 104.0)
+                    } else {
+                        text("♫").size(56).into()
+                    },
                     text(if self.media.available() { self.media.title.clone() } else { "Nenhuma mídia em reprodução" }).size(20),
                     text(self.media.artist.clone()).size(13),
                     text(self.media.album.clone()).size(11),
