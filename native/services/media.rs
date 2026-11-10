@@ -11,6 +11,8 @@ pub struct MediaSnapshot {
     pub album: String,
     pub status: String,
     pub art_url: String,
+    pub position_ms: u64,
+    pub length_ms: u64,
 }
 
 impl MediaSnapshot {
@@ -60,8 +62,12 @@ pub async fn snapshot() -> Result<MediaSnapshot> {
     let artist = value_strings(metadata.get("xesam:artist"));
     let album = value_string(metadata.get("xesam:album"));
     let art_url = value_string(metadata.get("mpris:artUrl"));
+    let position_ms = player_proxy.get_property::<i64>("Position").await.unwrap_or(0).max(0) as u64 / 1000;
+    let length_ms = metadata.get("mpris:length")
+        .and_then(|value| i64::try_from(value.clone()).ok())
+        .unwrap_or(0).max(0) as u64 / 1000;
 
-    Ok(MediaSnapshot { player, title, artist, album, status, art_url })
+    Ok(MediaSnapshot { player, title, artist, album, status, art_url, position_ms, length_ms })
 }
 
 pub async fn control(action: &str) -> Result<()> {
