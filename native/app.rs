@@ -132,7 +132,9 @@ struct App {
     apps: Vec<DesktopApp>,
     settings: crate::services::settings::Settings,
     audio: crate::services::audio::AudioSnapshot,
+    audio_loaded: bool,
     system: crate::services::system::SystemSnapshot,
+    system_loaded: bool,
     media: crate::services::media::MediaSnapshot,
     notifications: Vec<crate::services::notifications::NotificationRecord>,
     app_query: String,
@@ -174,7 +176,9 @@ impl App {
             apps,
             settings,
             audio: crate::services::audio::AudioSnapshot::default(),
+            audio_loaded: false,
             system: crate::services::system::SystemSnapshot::default(),
+            system_loaded: false,
             media: crate::services::media::MediaSnapshot::default(),
             notifications: Vec::new(),
             app_query: String::new(),
@@ -467,9 +471,10 @@ impl App {
             ),
             Message::AudioSnapshot(result) => match result {
                 Ok(snapshot) => {
-                    let changed = (snapshot.output_volume, snapshot.output_muted) != (self.audio.output_volume, self.audio.output_muted);
-                    let mic_changed = snapshot.input_muted != self.audio.input_muted;
+                    let changed = self.audio_loaded && (snapshot.output_volume, snapshot.output_muted) != (self.audio.output_volume, self.audio.output_muted);
+                    let mic_changed = self.audio_loaded && snapshot.input_muted != self.audio.input_muted;
                     self.audio = snapshot.clone();
+                    self.audio_loaded = true;
                     if changed {
                         Task::done(Message::ShowOsd(format!(
                             "{} · {}%",
@@ -520,8 +525,9 @@ impl App {
             ),
             Message::SystemSnapshot(result) => match result {
                 Ok(snapshot) => {
-                    let brightness_changed = snapshot.brightness != self.system.brightness;
+                    let brightness_changed = self.system_loaded && snapshot.brightness != self.system.brightness;
                     self.system = snapshot.clone();
+                    self.system_loaded = true;
                     if brightness_changed {
                         Task::done(Message::ShowOsd(format!("Brilho · {}%", snapshot.brightness)))
                     } else { Task::none() }
@@ -556,11 +562,9 @@ impl App {
                 let mut tasks = vec![
                     Task::done(Message::MediaRefresh),
                     Task::done(Message::NotificationsRefresh),
+                    Task::done(Message::AudioRefresh),
+                    Task::done(Message::SystemRefresh),
                 ];
-                if self.active_panel_is(Panel::Control) {
-                    tasks.push(Task::done(Message::AudioRefresh));
-                    tasks.push(Task::done(Message::SystemRefresh));
-                }
                 if self.osd_since.is_some_and(|since| since.elapsed() >= std::time::Duration::from_millis(2600)) {
                     if let Some(id) = self.osd_window.take() {
                         self.osd_since = None;
