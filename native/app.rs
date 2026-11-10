@@ -965,7 +965,7 @@ impl App {
             row![
                 button("⌕").on_press(Message::OpenPanel(Panel::Spotlight)),
                 text("CDS").size(14),
-                text(island_label).size(12).width(Length::Fill),
+                text(island_label.clone()).size(12).width(Length::Fill),
                 text(chrono::Local::now().format("%H:%M").to_string()).size(12),
                 button("Dash").on_press(Message::OpenDash(DashTab::Home)),
             ]
@@ -1326,7 +1326,7 @@ impl App {
             scrollable(column(rows).spacing(6)).height(Length::Fixed(320.0)).into()
         };
         let body = column![
-            row![text("Bandeja do sistema").size(22), iced::widget::Space::with_width(Length::Fill), button("↻").on_press(Message::NotificationsRefresh), button("Fechar").on_press(Message::CloseWindow(id))].align_y(Alignment::Center),
+            row![text("Bandeja do sistema").size(22), iced::widget::Space::with_width(Length::Fill), button("↻").on_press(Message::OpenPanel(Panel::Tray)), button("Fechar").on_press(Message::CloseWindow(id))].align_y(Alignment::Center),
             content,
         ].spacing(12);
         container(container(body).padding(22).max_width(540).style(self.surface_style(0.98)))
@@ -1805,6 +1805,7 @@ fn parse_panel(name: &str) -> Option<Panel> {
         "color" | "color-picker" => Some(Panel::Color),
         "emoji" | "emoji-picker" => Some(Panel::Emoji),
         "dash" => Some(Panel::Dash),
+        "tray" => Some(Panel::Tray),
         _ => None,
     }
 }
