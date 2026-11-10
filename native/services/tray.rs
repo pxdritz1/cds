@@ -163,6 +163,47 @@ pub fn registered_items() -> Vec<String> {
     state().items.lock().unwrap_or_else(|error| error.into_inner()).clone()
 }
 
+#[derive(Debug, Clone, Default)]
+pub struct TrayItemSnapshot {
+    pub address: String,
+    pub title: String,
+    pub icon_name: String,
+    pub status: String,
+    pub menu_path: String,
+}
+
+pub async fn snapshot() -> anyhow::Result<Vec<TrayItemSnapshot>> {
+    let connection = zbus::Connection::session().await?;
+    let addresses = registered_items();
+    let mut result = Vec::with_capacity(addresses.len());
+    for address in addresses {
+        let Some((service, path)) = address.split_once('/') else { continue };
+        let path = format!("/{path}");
+        let proxy = zbus::Proxy::new(
+            &connection, service, path.as_str(), "org.freedesktop.StatusNotifierItem",
+        ).await?;
+        let title = proxy.get_property::<String>("Title").await.unwrap_or_default();
+        let icon_name = proxy.get_property::<String>("IconName").await.unwrap_or_default();
+        let status = proxy.get_property::<String>("Status").await.unwrap_or_default();
+        let menu_path = proxy.get_property::<zbus::zvariant::OwnedObjectPath>("Menu")
+            .await.map(|value| value.to_string()).unwrap_or_default();
+        result.push(TrayItemSnapshot { address, title, icon_name, status, menu_path });
+    }
+    Ok(result)
+}
+
+pub async fn context_menu(address: &str) -> anyhow::Result<()> {
+    let (service, path) = address.split_once('/')
+        .ok_or_else(|| anyhow::anyhow!("invalid StatusNotifier address"))?;
+    let path = format!("/{path}");
+    let connection = zbus::Connection::session().await?;
+    let proxy = zbus::Proxy::new(
+        &connection, service, path.as_str(), "org.freedesktop.StatusNotifierItem",
+    ).await?;
+    proxy.call::<_, _, ()>("ContextMenu", &(0_i32, 0_i32)).await?;
+    Ok(())
+}
+
 pub async fn activate(address: &str) -> anyhow::Result<()> {
     let (service, path) = address.split_once('/')
         .ok_or_else(|| anyhow::anyhow!("invalid StatusNotifier address"))?;
