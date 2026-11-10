@@ -25,7 +25,8 @@ fn state() -> Arc<Mutex<Vec<NotificationRecord>>> {
 
 pub fn snapshot() -> Vec<NotificationRecord> {
     let now = now_ms();
-    let mut notifications = state().lock().unwrap_or_else(|error| error.into_inner());
+    let notifications_state = state();
+    let mut notifications = notifications_state.lock().unwrap_or_else(|error| error.into_inner());
     notifications.retain(|notification| {
         notification.expire_timeout_ms <= 0
             || now.saturating_sub(notification.received_unix_ms) < notification.expire_timeout_ms as u128
@@ -78,7 +79,8 @@ impl NotificationServer {
         _hints: std::collections::HashMap<String, OwnedValue>,
         expire_timeout: i32,
     ) -> u32 {
-        let mut notifications = state().lock().unwrap_or_else(|error| error.into_inner());
+        let notifications_state = state();
+        let mut notifications = notifications_state.lock().unwrap_or_else(|error| error.into_inner());
         let id = if replaces_id != 0 && notifications.iter().any(|item| item.id == replaces_id) {
             replaces_id
         } else {
