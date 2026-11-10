@@ -5,3 +5,4 @@ pub mod desktop_apps;
 pub mod theme;
 pub mod clipboard;
 pub mod settings;
+pub mod audio;
